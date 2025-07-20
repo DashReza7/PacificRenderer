@@ -13,12 +13,32 @@ add_executable(${PROJECT_NAME}
     "src/main/main.cpp"
     # Add other source files here
     # src/other_file.cpp
- "src/core/MathUtils.cpp" "src/core/Camera.cpp" "src/core/Intersection.cpp" "src/core/Transforms.cpp")
+ "src/core/MathUtils.cpp" "src/core/Sensor.cpp" "src/core/Intersection.cpp" "src/core/Transforms.cpp")
 
 # Include directories (if you have header files in include/)
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
+
+#----------------------------------------------------------------
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/ext/pugixml/src
+)
+
+add_library(pugixml STATIC ext/pugixml/src/pugixml.cpp)
+
+target_link_libraries(PacificRenderer PRIVATE pugixml)
+
+set(DOUBLE_FLOAT OFF)
+set(DOUBLE_INT OFF)
+
+if(DOUBLE_FLOAT)
+    add_definitions(-DDOUBLE_FLOAT)
+endif()
+if(DOUBLE_INT)
+    add_definitions(-DDOUBLE_INT)
+endif()
+#----------------------------------------------------------------
 
 # Set output directory for binaries
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -36,4 +56,3 @@ if(MSVC)
 endif()
 
 
-# add_definitions(-DDOUBLE_PRECISION)
