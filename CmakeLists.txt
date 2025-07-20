@@ -1,0 +1,39 @@
+# Set minimum required version of CMake
+cmake_minimum_required(VERSION 3.16)
+
+# Set the project name and version
+project(PacificRenderer VERSION 1.0.0)
+
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Add executable
+add_executable(${PROJECT_NAME} 
+    "src/main/main.cpp"
+    # Add other source files here
+    # src/other_file.cpp
+ "src/core/MathUtils.cpp" "src/core/Camera.cpp" "src/core/Intersection.cpp" "src/core/Transforms.cpp")
+
+# Include directories (if you have header files in include/)
+target_include_directories(${PROJECT_NAME} PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+# Set output directory for binaries
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+)
+
+# Optional: Set startup project for Visual Studio
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
+
+# Optional: Set Visual Studio specific properties
+if(MSVC)
+    set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+    # Enable multi-processor compilation
+    target_compile_options(${PROJECT_NAME} PRIVATE "/MP")
+endif()
+
+
+# add_definitions(-DDOUBLE_PRECISION)
