@@ -12,3 +12,8 @@
  - Implement a logger with several log-levels
  - Test all MathUtils functions
  - change Scene parsing file names to SceneDesc (and others too) to avoid confusion with the main Scene (& Integrator, etc.) classes
+ - seperate implementations from header files to source files
+ - setup clang-llvm as the compiler
+ - progress bar
+ - learn how to resolve conflicts (like assimp and zlib)
+

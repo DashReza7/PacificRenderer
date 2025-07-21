@@ -1,3 +1,9 @@
 [submodule "ext/pugixml"]
 	path = ext/pugixml
 	url = https://github.com/zeux/pugixml.git
+[submodule "ext/zlib"]
+	path = ext/zlib
+	url = https://github.com/madler/zlib.git
+[submodule "ext/nanogui"]
+	path = ext/nanogui
+	url = https://github.com/mitsuba-renderer/nanogui.git
