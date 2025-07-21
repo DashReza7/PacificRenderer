@@ -10,10 +10,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add executable
 add_executable(${PROJECT_NAME} 
-    "src/main/main.cpp"
+    "src/main.cpp"
     # Add other source files here
-    # src/other_file.cpp
- "src/core/MathUtils.cpp" "src/core/Sensor.cpp" "src/core/Intersection.cpp" "src/core/Transforms.cpp")
+)
 
 # Include directories (if you have header files in include/)
 target_include_directories(${PROJECT_NAME} PRIVATE 
@@ -34,7 +33,6 @@ if(MSVC)
     # Enable multi-processor compilation
     target_compile_options(${PROJECT_NAME} PRIVATE "/MP")
 endif()
-
 
 ###########################################################################
 # zlib
@@ -90,10 +88,8 @@ set(ZLIB_FOUND TRUE)
 set(ZLIB_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ext/zlib" "${CMAKE_CURRENT_BINARY_DIR}/ext/zlib")
 set(ZLIB_LIBRARIES zlibstatic)
 set(ZLIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/ext/zlib")
+# static linking (dynamic linking has a problem running assimp dll)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(SKIP_INSTALL_ALL ON CACHE BOOL "" FORCE)
-set(ZLIB_BUILD_STATIC_LIBS ON CACHE BOOL "" FORCE)
 
 add_subdirectory(ext/assimp)
 
@@ -105,15 +101,27 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 target_link_libraries(PacificRenderer PRIVATE assimp)
 ###########################################################################
 
+###########################################################################
+# GLM
+
+add_subdirectory(ext/glm)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE glm::glm)
+###########################################################################
+
 
 # Set the desired precision
-option(DOUBLE_FLOAT "use double-precision floats" OFF)
-option(DOUBLE_INT   "use double-precision ints  " OFF)
+set(DOUBLE_FLOAT ON)
+set(DOUBLE_INT   OFF)
 if(DOUBLE_FLOAT)
     add_definitions(-DDOUBLE_FLOAT)
+#else
+#    remove_definitions(-DDOUBLE_FLOAT)
 endif()
 if(DOUBLE_INT)
     add_definitions(-DDOUBLE_INT)
+#else
+#    remove_definitions(-DDOUBLE_INT)
 endif()
 
 

@@ -7,11 +7,13 @@
 #include "core/MathUtils.h"
 #include "utils/SceneParser.h"
 
-int main()
-{
-	Vec3f a{ 1, 2, 3 };
-	Vec3f b{ 2, 3, 4 };
-	Float dotp = dot(a, b);
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-	std::cout << dotp << std::endl;
+
+int main() {
+
+
+	std::cout << "The end." << std::endl;
 }

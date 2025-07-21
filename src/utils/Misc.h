@@ -6,9 +6,9 @@
 std::string check_type(const auto& x)
 {
 	if (typeid(x) == typeid(float))
-		return "Float\n";
+		return "float\n";
 	else if (typeid(x) == typeid(double))
-		return "Double\n";
+		return "double\n";
 	else
-		return "Unknown type\n";
+		return "unknown type\n";
 }

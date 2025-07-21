@@ -5,8 +5,8 @@
 #include <memory>
 #include <iostream>
 #include <sstream>
+#include <pugixml.hpp>
 #include "core/MathUtils.h"
-#include "pugixml.hpp"
 
 // Base class for all scene objects
 struct SceneObject {

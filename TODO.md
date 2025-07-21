@@ -4,6 +4,7 @@
 
 **TODO:**
  - Convert all () functions with \{\} 
+ - organize the	codebase into namespaces, like the math utils.
  - look for all float and change them to Float (SceneParser.h is suspiciosu)
  - Error handling in SceneParser
  - make sceneParser scene printer prettier (convert to json, like in mitsuba3)
@@ -16,4 +17,6 @@
  - setup clang-llvm as the compiler
  - progress bar
  - learn how to resolve conflicts (like assimp and zlib)
+ - by default use manual. additionally provide the opportunity to use Embree or Optix
+ - use GLM instead of your customly defined vec/matrix types
 
