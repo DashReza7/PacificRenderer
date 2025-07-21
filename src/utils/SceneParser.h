@@ -31,6 +31,7 @@ struct SceneObject {
 
 // Specific scene object types
 struct Integrator : public SceneObject {
+
 	std::string to_string() override {
 		std::ostringstream oss;
 		oss << "(Integrator)\n";
@@ -85,6 +86,7 @@ struct BSDF : public SceneObject {
 	}
 };
 struct Emitter : public SceneObject {
+
 	std::string to_string() override {
 		std::ostringstream oss;
 		oss << "(Emitter)\n";
@@ -97,9 +99,9 @@ struct Emitter : public SceneObject {
 		}
 		return oss.str();
 	}
-
 };
 struct Sampler : public SceneObject {
+
 	std::string to_string() override {
 		std::ostringstream oss;
 		oss << "(Sampler)\n";
@@ -114,6 +116,7 @@ struct Sampler : public SceneObject {
 	}
 };
 struct Film : public SceneObject {
+
 	std::string to_string() override {
 		std::ostringstream oss;
 		oss << "(Film)\n";
@@ -130,7 +133,7 @@ struct Film : public SceneObject {
 struct Shape : public SceneObject {
 	std::shared_ptr<BSDF> bsdf;
 	std::unique_ptr<Emitter> emitter;
-	Mat4f to_world = Mat4f::identity();
+	Mat4f to_world = glm::mat<4, 4, Float>(1);
 
 	std::string to_string() override {
 		std::ostringstream oss;
@@ -366,7 +369,7 @@ private:
 	}
 
 	Mat4f parseTransform(const pugi::xml_node& node) {
-		Mat4f transform = Mat4f::identity();
+		Mat4f transform = glm::mat<4, 4, Float>(1);
 
 		for (pugi::xml_node child : node.children()) {
 			std::string child_name = child.name();
