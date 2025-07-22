@@ -12,6 +12,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_executable(${PROJECT_NAME} 
     "src/main.cpp"
     # Add other source files here
+    "src/core/Scene.cpp"
 )
 
 # Include directories (if you have header files in include/)
@@ -32,6 +33,18 @@ if(MSVC)
     set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
     # Enable multi-processor compilation
     target_compile_options(${PROJECT_NAME} PRIVATE "/MP")
+endif()
+
+# Enable clang-tidy
+option(ENABLE_CLANG_TIDY "Enable clang-tidy" OFF)
+
+if(ENABLE_CLANG_TIDY)
+    find_program(CLANG_TIDY_EXE NAMES clang-tidy)
+    if(CLANG_TIDY_EXE)
+        set_target_properties(your_target_name PROPERTIES
+            CXX_CLANG_TIDY "${CLANG_TIDY_EXE};--config-file=${CMAKE_SOURCE_DIR}/.clang-tidy"
+        )
+    endif()
 endif()
 
 ###########################################################################
@@ -111,7 +124,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE glm::glm)
 
 
 # Set the desired precision
-set(DOUBLE_FLOAT ON)
+set(DOUBLE_FLOAT OFF)
 set(DOUBLE_INT   OFF)
 if(DOUBLE_FLOAT)
     add_definitions(-DDOUBLE_FLOAT)

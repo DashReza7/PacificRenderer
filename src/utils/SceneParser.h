@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <array>
 #include <vector>
 #include <unordered_map>
 #include <memory>
@@ -9,15 +10,15 @@
 #include "core/MathUtils.h"
 
 // Base class for all scene objects
-struct SceneObject {
+struct SceneObjectDesc {
 	std::string type;
 	std::unordered_map<std::string, std::string> properties;
 
-	virtual ~SceneObject() = default;
+	virtual ~SceneObjectDesc() = default;
 
 	virtual std::string to_string() {
 		std::ostringstream oss;
-		oss << "(SceneObject)\n";
+		oss << "(SceneObjectDesc)\n";
 		oss << "type: " << type << "\n";
 		if (properties.size() > 0) {
 			oss << "properties: {\n";
@@ -30,11 +31,11 @@ struct SceneObject {
 };
 
 // Specific scene object types
-struct Integrator : public SceneObject {
+struct IntegratorDesc : public SceneObjectDesc {
 
 	std::string to_string() override {
 		std::ostringstream oss;
-		oss << "(Integrator)\n";
+		oss << "(IntegratorDesc)\n";
 		oss << "type: " << type << "\n";
 		if (properties.size() > 0) {
 			oss << "properties: {\n";
@@ -45,14 +46,14 @@ struct Integrator : public SceneObject {
 		return oss.str();
 	}
 };
-struct Sensor : public SceneObject {
-	std::unique_ptr<SceneObject> film;
-	std::unique_ptr<SceneObject> sampler;
+struct SensorDesc : public SceneObjectDesc {
+	std::unique_ptr<SceneObjectDesc> film;
+	std::unique_ptr<SceneObjectDesc> sampler;
 	Mat4f to_world;
 
 	std::string to_string() override {
 		std::ostringstream oss;
-		oss << "(Sensor)\n";
+		oss << "(SensorDesc)\n";
 		oss << "type: " << type << "\n";
 		if (properties.size() > 0) {
 			oss << "properties: {\n";
@@ -67,12 +68,12 @@ struct Sensor : public SceneObject {
 		return oss.str();
 	}
 };
-struct BSDF : public SceneObject {
+struct BSDFDesc : public SceneObjectDesc {
 	std::string id;
 		
 	std::string to_string() override {
 		std::ostringstream oss;
-		oss << "(BSDF)\n";
+		oss << "(BSDFDesc)\n";
 		oss << "type: " << type << "\n";
 		if (properties.size() > 0) {
 			oss << "properties: {\n";
@@ -85,11 +86,11 @@ struct BSDF : public SceneObject {
 		return oss.str();
 	}
 };
-struct Emitter : public SceneObject {
+struct EmitterDesc : public SceneObjectDesc {
 
 	std::string to_string() override {
 		std::ostringstream oss;
-		oss << "(Emitter)\n";
+		oss << "(EmitterDesc)\n";
 		oss << "type: " << type << "\n";
 		if (properties.size() > 0) {
 			oss << "properties: {\n";
@@ -100,11 +101,11 @@ struct Emitter : public SceneObject {
 		return oss.str();
 	}
 };
-struct Sampler : public SceneObject {
+struct SamplerDesc : public SceneObjectDesc {
 
 	std::string to_string() override {
 		std::ostringstream oss;
-		oss << "(Sampler)\n";
+		oss << "(SamplerDesc)\n";
 		oss << "type: " << type << "\n";
 		if (properties.size() > 0) {
 			oss << "properties: {\n";
@@ -115,11 +116,11 @@ struct Sampler : public SceneObject {
 		return oss.str();
 	}
 };
-struct Film : public SceneObject {
+struct FilmDesc : public SceneObjectDesc {
 
 	std::string to_string() override {
 		std::ostringstream oss;
-		oss << "(Film)\n";
+		oss << "(FilmDesc)\n";
 		oss << "type: " << type << "\n";
 		if (properties.size() > 0) {
 			oss << "properties: {\n";
@@ -130,14 +131,14 @@ struct Film : public SceneObject {
 		return oss.str();
 	}
 };
-struct Shape : public SceneObject {
-	std::shared_ptr<BSDF> bsdf;
-	std::unique_ptr<Emitter> emitter;
+struct ShapeDesc : public SceneObjectDesc {
+	std::shared_ptr<BSDFDesc> bsdf;
+	std::unique_ptr<EmitterDesc> emitter;
 	Mat4f to_world = glm::mat<4, 4, Float>(1);
 
 	std::string to_string() override {
 		std::ostringstream oss;
-		oss << "(Shape)\n";
+		oss << "(ShapeDesc)\n";
 		oss << "type: " << type << "\n";
 		if (properties.size() > 0) {
 			oss << "properties: {\n";
@@ -152,12 +153,12 @@ struct Shape : public SceneObject {
 		return oss.str();
 	}
 };
-struct Scene {
-	std::unique_ptr<Integrator> integrator;
-	std::unique_ptr<Sensor> sensor;
-	std::vector<std::unique_ptr<Shape>> shapes;
-	std::vector<std::shared_ptr<BSDF>> bsdfs;
-	std::vector<std::unique_ptr<Emitter>> emitters;
+struct SceneDesc {
+	std::unique_ptr<IntegratorDesc> integrator;
+	std::unique_ptr<SensorDesc> sensor;
+	std::vector<std::unique_ptr<ShapeDesc>> shapes;
+	std::vector<std::shared_ptr<BSDFDesc>> bsdfs;
+	std::vector<std::unique_ptr<EmitterDesc>> emitters;
 
 	std::string to_string() {
 		std::ostringstream oss;
@@ -180,7 +181,7 @@ struct Scene {
 
 class PacificParser {
 public:
-	Scene parseFile(const std::string& filename) {
+	SceneDesc parseFile(const std::string& filename) {
 		pugi::xml_document doc;
 		pugi::xml_parse_result result = doc.load_file(filename.c_str());
 
@@ -191,7 +192,7 @@ public:
 		return parseScene(doc);
 	}
 
-	Scene parseString(const std::string& xml_content) {
+	SceneDesc parseString(const std::string& xml_content) {
 		pugi::xml_document doc;
 		pugi::xml_parse_result result = doc.load_string(xml_content.c_str());
 
@@ -204,11 +205,11 @@ public:
 
 private:
 	std::unordered_map<std::string, std::string> defaults;
-	std::unordered_map<std::string, std::shared_ptr<BSDF>> shared_bsdfs;
+	std::unordered_map<std::string, std::shared_ptr<BSDFDesc>> shared_bsdfs;
 
 
-	Scene parseScene(const pugi::xml_document& doc) {
-		Scene scene;
+	SceneDesc parseScene(const pugi::xml_document& doc) {
+		SceneDesc scene;
 
 		pugi::xml_node scene_node = doc.child("scene");
 		if (!scene_node) {
@@ -238,16 +239,16 @@ private:
 		return scene;
 	}
 
-	std::unique_ptr<Integrator> parseIntegrator(const pugi::xml_node& node) {
-		auto integrator = std::make_unique<Integrator>();
+	std::unique_ptr<IntegratorDesc> parseIntegrator(const pugi::xml_node& node) {
+		auto integrator = std::make_unique<IntegratorDesc>();
 		integrator->type = get_default(node.attribute("type").value());
 		
 		parseProperties(node, integrator->properties);
 		return integrator;
 	}
 
-	std::unique_ptr<Sensor> parseSensor(const pugi::xml_node& node) {
-		auto sensor = std::make_unique<Sensor>();
+	std::unique_ptr<SensorDesc> parseSensor(const pugi::xml_node& node) {
+		auto sensor = std::make_unique<SensorDesc>();
 		sensor->type = get_default(node.attribute("type").value());
 
 		parseProperties(node, sensor->properties);
@@ -270,8 +271,8 @@ private:
 		return sensor;
 	}
 
-	std::unique_ptr<Shape> parseShape(const pugi::xml_node& node) {
-		auto shape = std::make_unique<Shape>();
+	std::unique_ptr<ShapeDesc> parseShape(const pugi::xml_node& node) {
+		auto shape = std::make_unique<ShapeDesc>();
 		shape->type = get_default(node.attribute("type").value());
 
 		parseProperties(node, shape->properties);
@@ -300,8 +301,8 @@ private:
 		return shape;
 	}
 
-	std::shared_ptr<BSDF> parseBSDF(const pugi::xml_node& node) {
-		auto bsdf = std::make_shared<BSDF>();
+	std::shared_ptr<BSDFDesc> parseBSDF(const pugi::xml_node& node) {
+		auto bsdf = std::make_shared<BSDFDesc>();
 		bsdf->type = get_default(node.attribute("type").value());
 		if (node.attribute("id"))
 		{
@@ -313,32 +314,32 @@ private:
 		return bsdf;
 	}
 
-	std::unique_ptr<Emitter> parseEmitter(const pugi::xml_node& node) {
-		auto emitter = std::make_unique<Emitter>();
+	std::unique_ptr<EmitterDesc> parseEmitter(const pugi::xml_node& node) {
+		auto emitter = std::make_unique<EmitterDesc>();
 		emitter->type = get_default(node.attribute("type").value());
 
 		parseProperties(node, emitter->properties);
 		return emitter;
 	}
 
-	std::unique_ptr<Film> parseFilm(const pugi::xml_node& node) {
-		auto film = std::make_unique<Film>();
+	std::unique_ptr<FilmDesc> parseFilm(const pugi::xml_node& node) {
+		auto film = std::make_unique<FilmDesc>();
 		film->type = get_default(node.attribute("type").value());
 
 		parseProperties(node, film->properties);
 		return film;
 	}
 
-	std::unique_ptr<Sampler> parseSampler(const pugi::xml_node& node) {
-		auto sampler = std::make_unique<Sampler>();
+	std::unique_ptr<SamplerDesc> parseSampler(const pugi::xml_node& node) {
+		auto sampler = std::make_unique<SamplerDesc>();
 		sampler->type = get_default(node.attribute("type").value());
 
 		parseProperties(node, sampler->properties);
 		return sampler;
 	}
 
-	std::shared_ptr<SceneObject> parseGenericObject(const pugi::xml_node& node) {
-		auto obj = std::make_shared<SceneObject>();
+	std::shared_ptr<SceneObjectDesc> parseGenericObject(const pugi::xml_node& node) {
+		auto obj = std::make_shared<SceneObjectDesc>();
 		obj->type = get_default(node.attribute("type").value());
 
 		parseProperties(node, obj->properties);
@@ -363,21 +364,22 @@ private:
 				properties[name] = get_default(child.attribute("value").value());
 			}
 			else if (child_name == "point" || child_name == "vector" || child_name == "rgb") {
+				// TODO: check the mitsuba3 format file for this section
 				properties[name] = get_default(child.attribute("value").value());
 			}
 		}
 	}
 
 	Mat4f parseTransform(const pugi::xml_node& node) {
-		Mat4f transform = glm::mat<4, 4, Float>(1);
+		Mat4f trafo = glm::mat<4, 4, Float>(1);
 
 		for (pugi::xml_node child : node.children()) {
 			std::string child_name = child.name();
 
 			if (child_name == "translate") {
-				float x = child.attribute("x") ? child.attribute("x").as_float() : 0.0f;
-				float y = child.attribute("y") ? child.attribute("y").as_float() : 0.0f;
-				float z = child.attribute("z") ? child.attribute("z").as_float() : 0.0f;
+				Float x = child.attribute("x") ? child.attribute("x").as_float() : 0.0f;
+				Float y = child.attribute("y") ? child.attribute("y").as_float() : 0.0f;
+				Float z = child.attribute("z") ? child.attribute("z").as_float() : 0.0f;
 
 				if (child.attribute("value")) {
 					std::string value_str = child.attribute("value").value();
@@ -386,14 +388,14 @@ private:
 					iss >> x >> comma >> y >> comma >> z;
 				}
 
-				transform = translate(transform, Vec3f{ x, y, z });
+				trafo = glm::translate(trafo, Vec3f{ x, y, z });
 			}
 			else if (child_name == "rotate") {
 				// Handle rotation - simplified version
-				float angle = child.attribute("angle") ? child.attribute("angle").as_float() : 0.0f;
-				float x = child.attribute("x") ? child.attribute("x").as_float() : 0.0f;
-				float y = child.attribute("y") ? child.attribute("y").as_float() : 0.0f;
-				float z = child.attribute("z") ? child.attribute("z").as_float() : 0.0f;
+				Float angle = child.attribute("angle") ? child.attribute("angle").as_float() : 0.0f;
+				Float x = child.attribute("x") ? child.attribute("x").as_float() : 0.0f;
+				Float y = child.attribute("y") ? child.attribute("y").as_float() : 0.0f;
+				Float z = child.attribute("z") ? child.attribute("z").as_float() : 0.0f;
 
 				if (child.attribute("value")) {
 					std::string value_str = child.attribute("value").value();
@@ -402,12 +404,12 @@ private:
 					iss >> x >> comma >> y >> comma >> z;
 				}
 
-				transform = rotate(transform, Vec3f{ x, y, z }, angle);
+				trafo = glm::rotate(trafo, glm::radians(angle), Vec3f{ x, y, z });
 			}
 			else if (child_name == "scale") {
-				float x = child.attribute("x") ? child.attribute("x").as_float() : 1.0f;
-				float y = child.attribute("y") ? child.attribute("y").as_float() : 1.0f;
-				float z = child.attribute("z") ? child.attribute("z").as_float() : 1.0f;
+				Float x = child.attribute("x") ? child.attribute("x").as_float() : 1.0f;
+				Float y = child.attribute("y") ? child.attribute("y").as_float() : 1.0f;
+				Float z = child.attribute("z") ? child.attribute("z").as_float() : 1.0f;
 
 				if (child.attribute("value")) {
 					std::string value_str = child.attribute("value").value();
@@ -416,27 +418,38 @@ private:
 					iss >> x >> comma >> y >> comma >> z;
 				}
 
-				transform = scale(transform, Vec3f{ x, y, z });
+				trafo = glm::scale(trafo, Vec3f{ x, y, z });
 			}
 			else if (child_name == "matrix") {
 				Mat4f matrix;
 				std::string value = child.attribute("value").value();
 				std::istringstream iss(value);
-				for (int i = 0; i < 16; ++i)
-					iss >> matrix[i];
 
-				transform = matrix * transform;
+				for (int i = 0; i < 16; ++i)
+					iss >> matrix[i % 4][i / 4];
+
+				trafo = matrix * trafo;
 			}
 			else if (child_name == "lookat") {
-				std::string origin = child.attribute("origin").value();
-				std::istringstream iss(origin);
-				// TODO: 
-				// throw std::runtime_error("lookat not implemented.");
-				std::cout << "Warning: lookat not implemented. Returning identity." << std::endl;
+				std::string origin_str = child.attribute("origin").value();
+				std::string target_str = child.attribute("target").value();
+				std::string up_str = child.attribute("up").value();
+				Vec3f origin, target, up;
+				
+				char comma;
+				std::istringstream iss(origin_str);
+				iss >> origin.x >> comma >> origin.y >> comma >> origin.z;
+				iss = std::istringstream(target_str);
+				iss >> target.x >> comma >> target.y >> comma >> target.z;
+				iss = std::istringstream(up_str);
+				iss >> up.x >> comma >> up.y >> comma >> up.z;
+				
+				Mat4f lookat_mat = glm::lookAt(origin, target, up);
+				trafo = lookat_mat * trafo;
 			}
 		}
 
-		return transform;
+		return trafo;
 	}
 
 	void add_default(const pugi::xml_node& node) {
