@@ -116,15 +116,7 @@ if (DOUBLE_FLOAT)
 set(TINYOBJLOADER_USE_DOUBLE ON FORCE)
 endif()
 
-# Disable install for this subdirectory by overriding install to do nothing
-function(install)
-    # Do nothing during tinyobjloader configuration
-endfunction()
-
 add_subdirectory(ext/tinyobjloader)
-
-# Restore normal install behavior after tinyobjloader
-unset(install)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE tinyobjloader)
 ###########################################################################

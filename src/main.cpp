@@ -1,11 +1,10 @@
 #pragma once
 
+#include <tiny_obj_loader.h>
+
 #include <CLI/CLI.hpp>
 #include <iostream>
 #include <memory>
-
-// Add tinyobjloader include
-#include <tiny_obj_loader.h>
 
 #include "core/BSDF.h"
 #include "core/Geometry.h"
@@ -18,73 +17,40 @@
 #include "utils/Misc.h"
 #include "utils/SceneParser.h"
 
-void test_tinyobjloader() {
-    std::cout << "Testing tinyobjloader..." << std::endl;
-
-    // Create a simple OBJ content in memory (a triangle)
-    std::string obj_content =
-        "v 0.0 0.0 0.0\n"
-        "v 1.0 0.0 0.0\n"
-        "v 0.5 1.0 0.0\n"
-        "f 1 2 3\n";
-
-    std::istringstream obj_stream(obj_content);
-
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn, err;
-
-    bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
-                                &obj_stream);
-
-    if (!warn.empty()) {
-        std::cout << "WARN: " << warn << std::endl;
-    }
-
-    if (!err.empty()) {
-        std::cerr << "ERR: " << err << std::endl;
-    }
-
-    if (!ret) {
-        std::cerr << "Failed to load OBJ" << std::endl;
-        return;
-    }
-
-    std::cout << "Successfully loaded OBJ!" << std::endl;
-    std::cout << "Number of vertices: " << attrib.vertices.size() / 3
-              << std::endl;
-    std::cout << "Number of shapes: " << shapes.size() << std::endl;
-
-    if (!shapes.empty()) {
-        std::cout << "First shape name: " << shapes[0].name << std::endl;
-        std::cout << "Number of faces in first shape: "
-                  << shapes[0].mesh.num_face_vertices.size() << std::endl;
-    }
-
-    // Print vertices
-    std::cout << "Vertices:" << std::endl;
-    for (size_t i = 0; i < attrib.vertices.size(); i += 3) {
-        std::cout << "  v[" << i / 3 << "] = (" << attrib.vertices[i] << ", "
-                  << attrib.vertices[i + 1] << ", " << attrib.vertices[i + 2]
-                  << ")" << std::endl;
-    }
-}
-
-void run(int argc, char** argv) {
-    // parse arguments
-    std::cout << "Hello friend!" << std::endl;
-
-    // Test tinyobjloader
-    test_tinyobjloader();
-}
-
 int main(int argc, char** argv) {
-    try {
-        run(argc, argv);
-    } catch (const std::exception& e) {
-        std::cerr << e.what() << '\n';
-    }
+    std::string input_file;
+    std::string output_file = "output.png";
+    bool zip = false;
+    bool show_progress = false;
+    int threads = 1;
+
+    // parse arguments
+    CLI::App cli_app;
+    // add options
+    cli_app.add_option("input", input_file, "Input file path (*.xml)")->required()->check(CLI::ExistingFile);
+    cli_app.add_option("-o, --output", output_file, "Output file (*.jpg, *.jpeg, *.png)")
+        ->check(CLI::Validator(
+            [](const std::string& str) -> std::string {
+                std::string lower = str;
+                std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+                if (lower.ends_with(".jpg") || lower.ends_with(".jpeg") || lower.ends_with(".png")) {
+                    return "";
+                }
+                return "File must have .jpg, .jpeg, or .png extension";
+            },
+            "IMAGE_EXT"));
+    cli_app.add_flag("-z, --zip", zip, "Zip the output file");
+    cli_app.add_flag("-p, --progress", show_progress, "Show render progress");
+    cli_app.add_option("-t, --threads", threads, "Number of running threads (0 for auto)")->check(CLI::Range(0, 64));
+
+    // parse the arguments
+    CLI11_PARSE(cli_app, argc, argv);
+
+    SceneParser scene_parser;
+    SceneDesc scene_desc = scene_parser.parseFile(input_file);
+    
+    Scene scene;
+    scene.load_scene(scene_desc);
 
     std::cout << "The end" << std::endl;
 }

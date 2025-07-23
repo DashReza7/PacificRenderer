@@ -158,19 +158,21 @@ struct SceneDesc {
         oss << integrator->to_string() << "\n\n";
         oss << sensor->to_string() << "\n\n";
         oss << "Shapes(" << shapes.size() << "):\n";
-        for (const auto& shape : shapes) oss << shape->to_string() << "\n";
+        for (const auto& shape : shapes)
+            oss << shape->to_string() << "\n\n";
         oss << "\nGlobal BSDFs(" << bsdfs.size() << "):\n";
-        for (const auto& bsdf : bsdfs) oss << bsdf->to_string() << "\n";
+        for (const auto& bsdf : bsdfs)
+            oss << bsdf->to_string() << "\n\n";
         // TODO: Do we even have Global Emitters?
         oss << "\nGlobal Emitters(" << emitters.size() << "):\n";
         for (const auto& emitter : emitters)
-            oss << emitter->to_string() << "\n";
+            oss << emitter->to_string() << "\n\n";
 
         return oss.str();
     }
 };
 
-class PacificParser {
+class SceneParser {
    public:
     SceneDesc parseFile(const std::string& filename) {
         pugi::xml_document doc;

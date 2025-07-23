@@ -19,4 +19,5 @@
  - learn how to resolve conflicts (like assimp and zlib)
  - by default use manual. additionally provide the opportunity to use Embree or Optix
  - use GLM instead of your customly defined vec/matrix types
-
+ - replace all smart pointers with regular pointers
+ - add a mesh (vector of Triangle/Quad) geometry type
