@@ -96,33 +96,6 @@ target_link_libraries(PacificRenderer PRIVATE nanogui ${NANOGUI_EXTRA_LIBS})
 ###########################################################################
 
 ###########################################################################
-# assimp
-
-# Configure assimp to use your existing zlib
-set(ASSIMP_BUILD_ZLIB OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "" FORCE)
-set(ASSIMP_BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
-set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
-
-set(ZLIB_FOUND TRUE)
-set(ZLIB_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/ext/zlib" "${CMAKE_CURRENT_BINARY_DIR}/ext/zlib")
-set(ZLIB_LIBRARIES zlibstatic)
-set(ZLIB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/ext/zlib")
-# static linking (dynamic linking has a problem running assimp dll)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-
-add_subdirectory(ext/assimp)
-
-# Include assimp headers
-target_include_directories(${PROJECT_NAME} PRIVATE 
-    ext/assimp/include)
-
-# Link Assimp
-target_link_libraries(PacificRenderer PRIVATE assimp)
-###########################################################################
-
-###########################################################################
 # GLM
 
 add_subdirectory(ext/glm)
