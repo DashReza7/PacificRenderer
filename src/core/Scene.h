@@ -6,6 +6,7 @@
 #include "core/Integrator.h"
 #include "core/Sensor.h"
 #include "core/Shape.h"
+#include "utils/SceneParser.h"
 
 class Scene {
    private:

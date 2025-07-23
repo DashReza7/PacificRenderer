@@ -1,6 +1,12 @@
 #pragma once
 
+#include <memory>
+
+#include "core/MathUtils.h"
+#include "core/Pacific.h"
 #include "core/Shape.h"
+
+class Shape;
 
 class Ray {
    public:
@@ -41,7 +47,8 @@ class Intersection {
     std::shared_ptr<Shape> shape;
 
     Intersection() = default;
-    Intersection(const Vec3f& position, const Vec3f& normal, const std::shared_ptr<Shape> shape)
+    Intersection(const Vec3f& position, const Vec3f& normal,
+                 const std::shared_ptr<Shape> shape)
         : position(position), normal(normal), shape(shape) {}
     ~Intersection() = default;
 };

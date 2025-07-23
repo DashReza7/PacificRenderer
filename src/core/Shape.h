@@ -1,7 +1,7 @@
 #pragma once
 
-#include <core/BSDF.h>
-#include <core/Geometry.h>
+#include "core/BSDF.h"
+#include "core/Geometry.h"
 
 #include <memory>
 #include <vector>

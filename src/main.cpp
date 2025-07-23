@@ -1,10 +1,6 @@
 #pragma once
 
-#include <zlib.h>
-
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include <CLI/CLI.hpp>
 #include <iostream>
 #include <memory>
 
@@ -19,8 +15,17 @@
 #include "utils/Misc.h"
 #include "utils/SceneParser.h"
 
-void run() {}
+void run(int argc, char** argv) {
+    // parse arguments
+    std::cout << "Hello friend!" << std::endl;
+}
 
-int main() {
-    std::cout << "The end." << std::endl;
+int main(int argc, char** argv) {
+    try {
+        run(argc, argv);
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << '\n';
+    }
+
+    std::cout << "The end" << std::endl;
 }
