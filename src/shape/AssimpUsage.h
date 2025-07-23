@@ -42,12 +42,11 @@ void usage_example()
 {
 	Assimp::Importer importer;
 
-	const aiScene* scene = importer.ReadFile("C:/Users/masou/Desktop/Codes/Graphics/MitsubaStuff/scenes/meshes/sphere.obj",
-		aiProcess_Triangulate);
+	const aiScene* scene = importer.ReadFile("C:/Users/masou/Desktop/Codes/Graphics/MitsubaStuff/scenes/meshes/sphere.obj", aiProcess_Triangulate);
 
 	if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
 		std::cerr << "Assimp error: " << importer.GetErrorString() << std::endl;
-		return -1;
+		return;
 	}
 
 	processNode(scene->mRootNode, scene);

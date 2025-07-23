@@ -35,20 +35,13 @@ if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE "/MP")
 endif()
 
-# Enable clang-tidy
-option(ENABLE_CLANG_TIDY "Enable clang-tidy" OFF)
-
-if(ENABLE_CLANG_TIDY)
-    find_program(CLANG_TIDY_EXE NAMES clang-tidy)
-    if(CLANG_TIDY_EXE)
-        set_target_properties(your_target_name PROPERTIES
-            CXX_CLANG_TIDY "${CLANG_TIDY_EXE};--config-file=${CMAKE_SOURCE_DIR}/.clang-tidy"
-        )
-    endif()
-endif()
-
 ###########################################################################
 # zlib
+
+# Disable zlib testing and examples
+set(ZLIB_BUILD_TESTING OFF CACHE BOOL " " FORCE)
+set(ZLIB_BUILD_SHARED OFF CACHE BOOL " " FORCE)
+set(ZLIB_INSTALL OFF CACHE BOOL " " FORCE)
 
 add_subdirectory(ext/zlib)
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -70,9 +63,9 @@ target_link_libraries(PacificRenderer PRIVATE pugixml)
 # nanogui
 
 # Disable building extras we won't need (pure C++ project)
-set(NANOGUI_BUILD_EXAMPLE OFF CACHE BOOL " " FORCE)
-set(NANOGUI_BUILD_PYTHON  OFF CACHE BOOL " " FORCE)
-set(NANOGUI_INSTALL       OFF CACHE BOOL " " FORCE)
+set(NANOGUI_BUILD_EXAMPLES OFF CACHE BOOL " " FORCE)
+set(NANOGUI_BUILD_PYTHON   OFF CACHE BOOL " " FORCE)
+set(NANOGUI_INSTALL        OFF CACHE BOOL " " FORCE)
 # Add the configurations from nanogui
 add_subdirectory(ext/nanogui)
 # For reliability of parallel build, make the NanoGUI targets dependencies

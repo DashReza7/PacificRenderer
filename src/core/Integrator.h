@@ -1,11 +1,9 @@
 #pragma once
 
-class Integrator
-{
-private:
-
-public:
+class Integrator {
+   public:
     Integrator() = default;
     ~Integrator() = default;
-};
 
+   private:
+};

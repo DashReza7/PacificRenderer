@@ -1,8 +1,9 @@
 #pragma once
 
-#include <iostream>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <iostream>
+
 #include "core/Pacific.h"
 
 const Float Epsilon = 1e-4f;
@@ -22,4 +23,3 @@ using Vec3i = glm::vec<3, Int>;
 using Vec4i = glm::vec<4, Int>;
 using Mat4f = glm::mat<4, 4, Float>;
 using Mat4i = glm::mat<4, 4, Int>;
-
