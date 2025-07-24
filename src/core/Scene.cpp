@@ -3,7 +3,6 @@
 
 void Scene::load_shapes(const std::vector<std::unique_ptr<ShapeDesc>>& shapes_desc) {
     for (const auto& shape_desc : shapes_desc) {
-        
     }
 }
 

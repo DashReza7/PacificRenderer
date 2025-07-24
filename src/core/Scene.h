@@ -9,14 +9,14 @@
 #include "utils/SceneParser.h"
 
 class Scene {
-   private:
+private:
     std::vector<std::unique_ptr<Shape>> shapes;
     std::unique_ptr<Sensor> sensor;
     std::unique_ptr<Integrator> integrator;
 
     void load_shapes(const std::vector<std::unique_ptr<ShapeDesc>>& shapes_desc);
 
-   public:
+public:
     Scene() = default;
     ~Scene() = default;
 

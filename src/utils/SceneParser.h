@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <iostream>
 #include <memory>
 #include <pugixml.hpp>
@@ -173,7 +172,7 @@ struct SceneDesc {
 };
 
 class SceneParser {
-   public:
+public:
     SceneDesc parseFile(const std::string& filename) {
         pugi::xml_document doc;
         pugi::xml_parse_result result = doc.load_file(filename.c_str());
@@ -198,7 +197,7 @@ class SceneParser {
         return parseScene(doc);
     }
 
-   private:
+private:
     std::unordered_map<std::string, std::string> defaults;
     std::unordered_map<std::string, std::shared_ptr<BSDFDesc>> shared_bsdfs;
 

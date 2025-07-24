@@ -3,18 +3,18 @@
 #include <tiny_obj_loader.h>
 
 #include <array>
+#include <format>
 #include <memory>
 #include <optional>
-#include <vector>
 #include <sstream>
-#include <format>
+#include <vector>
 
 #include "core/MathUtils.h"
 #include "core/Pacific.h"
 #include "core/Primitives.h"
 
 class Geometry {
-   public:
+public:
     std::shared_ptr<AABB> bbox;
 
     Geometry() = default;
@@ -32,7 +32,7 @@ class Geometry {
 };
 
 class Triangle : public Geometry {
-   public:
+public:
     std::array<std::shared_ptr<Vec3f>, 3> positions;
     std::optional<std::array<std::shared_ptr<Vec3f>, 3>> normals;
     std::optional<std::array<std::shared_ptr<Vec2f>, 3>> tex_coords;
@@ -87,7 +87,7 @@ class Triangle : public Geometry {
 };
 
 class Quad : public Geometry {
-   public:
+public:
     std::array<std::shared_ptr<Vec3f>, 4> positions;
     std::optional<std::array<std::shared_ptr<Vec3f>, 4>> normals;
     std::optional<std::array<std::shared_ptr<Vec2f>, 4>> tex_coords;
@@ -134,7 +134,7 @@ class Quad : public Geometry {
 };
 
 class Sphere : public Geometry {
-   public:
+public:
     Vec3f center;
     Float radius;
 
@@ -165,7 +165,7 @@ class Sphere : public Geometry {
 };
 
 class MeshLoader {
-   public:
+public:
     // load a triangle/quad mesh
     static bool load_mesh_from_file(const std::string &file_path, std::vector<std::unique_ptr<Geometry>> &output_mesh) {
         tinyobj::ObjReader obj_reader;

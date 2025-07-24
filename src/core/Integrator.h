@@ -1,9 +1,9 @@
 #pragma once
 
 class Integrator {
-   public:
+public:
     Integrator() = default;
     ~Integrator() = default;
 
-   private:
+private:
 };

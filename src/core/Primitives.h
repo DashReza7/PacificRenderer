@@ -9,7 +9,7 @@
 class Shape;
 
 class Ray {
-   public:
+public:
     /// Ray origin
     Vec3f o;
     /// Ray direction
@@ -32,7 +32,7 @@ class Ray {
 };
 
 class AABB {
-   public:
+public:
     Vec3f min_corner, max_corner;
 
     AABB() = default;
@@ -42,7 +42,7 @@ class AABB {
 };
 
 class Intersection {
-   public:
+public:
     Vec3f position, normal;
     std::shared_ptr<Shape> shape;
 

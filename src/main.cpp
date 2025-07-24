@@ -1,5 +1,3 @@
-#pragma once
-
 #include <tiny_obj_loader.h>
 
 #include <CLI/CLI.hpp>
@@ -48,7 +46,7 @@ int main(int argc, char** argv) {
 
     SceneParser scene_parser;
     SceneDesc scene_desc = scene_parser.parseFile(input_file);
-    
+
     Scene scene;
     scene.load_scene(scene_desc);
 

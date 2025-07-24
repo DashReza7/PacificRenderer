@@ -1,9 +1,9 @@
 #pragma once
 
 class Sensor {
-   public:
+public:
     Sensor() = default;
     ~Sensor() = default;
 
-   private:
+private:
 };

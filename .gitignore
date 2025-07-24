@@ -366,4 +366,4 @@ FodyWeavers.xsd
 assets/
 build/
 .vscode
-
+compile_commands.json
