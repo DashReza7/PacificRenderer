@@ -4,7 +4,6 @@
 
 #include "core/MathUtils.h"
 #include "core/Pacific.h"
-#include "core/Shape.h"
 
 class Shape;
 

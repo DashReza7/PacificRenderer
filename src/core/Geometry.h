@@ -2,6 +2,7 @@
 
 #include <tiny_obj_loader.h>
 
+#include <iostream>
 #include <array>
 #include <format>
 #include <memory>

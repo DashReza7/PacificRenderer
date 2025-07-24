@@ -1,12 +1,12 @@
 #pragma once
-
 #include <string>
 #include <typeinfo>
 
 std::string check_type(const auto& x) {
-    if (typeid(x) == typeid(float))
+    const std::type_info& type = typeid(x);
+    if (type == typeid(float))
         return "float\n";
-    else if (typeid(x) == typeid(double))
+    else if (type == typeid(double))
         return "double\n";
     else
         return "unknown type\n";
