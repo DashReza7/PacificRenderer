@@ -371,12 +371,10 @@ private:
             std::string child_name = child.name();
 
             if (child_name == "translate") {
-                Float x = child.attribute("x") ? child.attribute("x").as_float()
-                                               : 0.0f;
-                Float y = child.attribute("y") ? child.attribute("y").as_float()
-                                               : 0.0f;
-                Float z = child.attribute("z") ? child.attribute("z").as_float()
-                                               : 0.0f;
+                // TODO: change as_float to as_double adaptively
+                Float x = child.attribute("x") ? child.attribute("x").as_float() : 0.0f;
+                Float y = child.attribute("y") ? child.attribute("y").as_float() : 0.0f;
+                Float z = child.attribute("z") ? child.attribute("z").as_float() : 0.0f;
 
                 if (child.attribute("value")) {
                     std::string value_str = child.attribute("value").value();
