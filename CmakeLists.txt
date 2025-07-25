@@ -1,4 +1,3 @@
-# Set minimum required version of CMake
 cmake_minimum_required(VERSION 3.16)
 
 # Set the project name and version
@@ -8,14 +7,12 @@ project(PacificRenderer VERSION 1.0.0)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Add executable
 add_executable(${PROJECT_NAME} 
     "src/main.cpp"
     # Add other source files here
     "src/core/Scene.cpp"
 )
 
-# Include directories (if you have header files in include/)
 target_include_directories(${PROJECT_NAME} PRIVATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
@@ -25,25 +22,10 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
-# Optional: Set Visual Studio specific properties
-if(MSVC)
-    set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-    # Enable multi-processor compilation
-    target_compile_options(${PROJECT_NAME} PRIVATE "/MP")
-endif()
-
 # Set the desired precision
 set(DOUBLE_FLOAT OFF)
-set(DOUBLE_INT   OFF)
 if(DOUBLE_FLOAT)
     add_definitions(-DDOUBLE_FLOAT)
-#else
-#    remove_definitions(-DDOUBLE_FLOAT)
-endif()
-if(DOUBLE_INT)
-    add_definitions(-DDOUBLE_INT)
-#else
-#    remove_definitions(-DDOUBLE_INT)
 endif()
 
 set(BUILD_SHARED_LIBS OFF)
@@ -53,7 +35,7 @@ set(BUILD_SHARED_LIBS OFF)
 
 # Disable zlib testing and examples
 set(ZLIB_BUILD_TESTING OFF CACHE BOOL " " FORCE)
-set(ZLIB_BUILD_SHARED ON CACHE BOOL " " FORCE)
+set(ZLIB_BUILD_SHARED OFF CACHE BOOL " " FORCE)
 set(ZLIB_INSTALL OFF CACHE BOOL " " FORCE)
 
 add_subdirectory(ext/zlib)
@@ -66,14 +48,14 @@ target_link_libraries(${PROJECT_NAME} PRIVATE zlibstatic)
 ###########################################################################
 # pugixml
 
-target_include_directories(${PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/ext/pugixml/src)
 add_library(pugixml STATIC ext/pugixml/src/pugixml.cpp)
+# Add include directory to the library itself
+target_include_directories(pugixml PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}/ext/pugixml/src)
 target_link_libraries(${PROJECT_NAME} PRIVATE pugixml)
 ###########################################################################
-
-###########################################################################
 # nanogui
+# TODO: needs fixing and cleaning
 
 # Disable building extras we won't need (pure C++ project)
 set(NANOGUI_BUILD_EXAMPLES OFF CACHE BOOL " " FORCE)
