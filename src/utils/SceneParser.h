@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <filesystem>
 
 #include "core/MathUtils.h"
 
@@ -43,26 +44,6 @@ struct IntegratorDesc : public SceneObjectDesc {
                 oss << "    name: " << name << ", value: " << value << "\n";
             oss << "}";
         }
-        return oss.str();
-    }
-};
-struct SensorDesc : public SceneObjectDesc {
-    std::unique_ptr<SceneObjectDesc> film;
-    std::unique_ptr<SceneObjectDesc> sampler;
-    Mat4f to_world;
-
-    std::string to_string() override {
-        std::ostringstream oss;
-        oss << "(SensorDesc)\n";
-        oss << "type: " << type << "\n";
-        if (properties.size() > 0) {
-            oss << "properties: {\n";
-            for (const auto [name, value] : properties)
-                oss << "    name: " << name << ", value: " << value << "\n";
-            oss << "}\n";
-        }
-        if (film) oss << "film: " << film->to_string() << "\n";
-        if (sampler) oss << "sampler: " << sampler->to_string() << "\n";
         return oss.str();
     }
 };
@@ -125,9 +106,29 @@ struct FilmDesc : public SceneObjectDesc {
         return oss.str();
     }
 };
+struct SensorDesc : public SceneObjectDesc {
+    FilmDesc* film;
+    SamplerDesc *sampler;
+    Mat4f to_world;
+
+    std::string to_string() override {
+        std::ostringstream oss;
+        oss << "(SensorDesc)\n";
+        oss << "type: " << type << "\n";
+        if (properties.size() > 0) {
+            oss << "properties: {\n";
+            for (const auto [name, value] : properties)
+                oss << "    name: " << name << ", value: " << value << "\n";
+            oss << "}\n";
+        }
+        if (film) oss << "film: " << film->to_string() << "\n";
+        if (sampler) oss << "sampler: " << sampler->to_string() << "\n";
+        return oss.str();
+    }
+};
 struct ShapeDesc : public SceneObjectDesc {
-    std::shared_ptr<BSDFDesc> bsdf;
-    std::unique_ptr<EmitterDesc> emitter;
+    BSDFDesc *bsdf;
+    EmitterDesc *emitter;
     Mat4f to_world = glm::mat<4, 4, Float>(1);
 
     std::string to_string() override {
@@ -146,11 +147,11 @@ struct ShapeDesc : public SceneObjectDesc {
     }
 };
 struct SceneDesc {
-    std::unique_ptr<IntegratorDesc> integrator;
-    std::unique_ptr<SensorDesc> sensor;
-    std::vector<std::unique_ptr<ShapeDesc>> shapes;
-    std::vector<std::shared_ptr<BSDFDesc>> bsdfs;
-    std::vector<std::unique_ptr<EmitterDesc>> emitters;
+    IntegratorDesc *integrator;
+    SensorDesc *sensor;
+    std::vector<ShapeDesc*> shapes;
+    std::vector<BSDFDesc*> bsdfs;
+    std::vector<EmitterDesc*>emitters;
 
     std::string to_string() {
         std::ostringstream oss;
@@ -199,7 +200,7 @@ public:
 
 private:
     std::unordered_map<std::string, std::string> defaults;
-    std::unordered_map<std::string, std::shared_ptr<BSDFDesc>> shared_bsdfs;
+    std::unordered_map<std::string, BSDFDesc*> shared_bsdfs;
 
     SceneDesc parseScene(const pugi::xml_document& doc) {
         SceneDesc scene;
@@ -233,17 +234,16 @@ private:
         return scene;
     }
 
-    std::unique_ptr<IntegratorDesc> parseIntegrator(
-        const pugi::xml_node& node) {
-        auto integrator = std::make_unique<IntegratorDesc>();
+    IntegratorDesc *parseIntegrator(const pugi::xml_node& node) {
+        auto integrator = new IntegratorDesc{};
         integrator->type = get_default(node.attribute("type").value());
 
         parseProperties(node, integrator->properties);
         return integrator;
     }
 
-    std::unique_ptr<SensorDesc> parseSensor(const pugi::xml_node& node) {
-        auto sensor = std::make_unique<SensorDesc>();
+    SensorDesc *parseSensor(const pugi::xml_node& node) {
+        auto sensor = new SensorDesc{};
         sensor->type = get_default(node.attribute("type").value());
 
         parseProperties(node, sensor->properties);
@@ -264,8 +264,8 @@ private:
         return sensor;
     }
 
-    std::unique_ptr<ShapeDesc> parseShape(const pugi::xml_node& node) {
-        auto shape = std::make_unique<ShapeDesc>();
+    ShapeDesc *parseShape(const pugi::xml_node& node) {
+        auto shape = new ShapeDesc{};
         shape->type = get_default(node.attribute("type").value());
 
         parseProperties(node, shape->properties);
@@ -291,8 +291,8 @@ private:
         return shape;
     }
 
-    std::shared_ptr<BSDFDesc> parseBSDF(const pugi::xml_node& node) {
-        auto bsdf = std::make_shared<BSDFDesc>();
+    BSDFDesc *parseBSDF(const pugi::xml_node& node) {
+        auto bsdf = new BSDFDesc{};
         bsdf->type = get_default(node.attribute("type").value());
         if (node.attribute("id")) {
             bsdf->id = node.attribute("id").value();
@@ -303,33 +303,32 @@ private:
         return bsdf;
     }
 
-    std::unique_ptr<EmitterDesc> parseEmitter(const pugi::xml_node& node) {
-        auto emitter = std::make_unique<EmitterDesc>();
+    EmitterDesc *parseEmitter(const pugi::xml_node& node) {
+        auto emitter = new EmitterDesc{};
         emitter->type = get_default(node.attribute("type").value());
 
         parseProperties(node, emitter->properties);
         return emitter;
     }
 
-    std::unique_ptr<FilmDesc> parseFilm(const pugi::xml_node& node) {
-        auto film = std::make_unique<FilmDesc>();
+    FilmDesc *parseFilm(const pugi::xml_node& node) {
+        auto film = new FilmDesc{};
         film->type = get_default(node.attribute("type").value());
 
         parseProperties(node, film->properties);
         return film;
     }
 
-    std::unique_ptr<SamplerDesc> parseSampler(const pugi::xml_node& node) {
-        auto sampler = std::make_unique<SamplerDesc>();
+    SamplerDesc *parseSampler(const pugi::xml_node& node) {
+        auto sampler = new SamplerDesc{};
         sampler->type = get_default(node.attribute("type").value());
 
         parseProperties(node, sampler->properties);
         return sampler;
     }
 
-    std::shared_ptr<SceneObjectDesc> parseGenericObject(
-        const pugi::xml_node& node) {
-        auto obj = std::make_shared<SceneObjectDesc>();
+    SceneObjectDesc *parseGenericObject(const pugi::xml_node& node) {
+        auto obj = new SceneObjectDesc{};
         obj->type = get_default(node.attribute("type").value());
 
         parseProperties(node, obj->properties);

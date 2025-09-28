@@ -47,8 +47,13 @@ int main(int argc, char** argv) {
     SceneParser scene_parser;
     SceneDesc scene_desc = scene_parser.parseFile(input_file);
 
+    // std::cout << scene_desc.to_string() << std::endl;
+
     Scene scene;
+    scene.scene_file_directory = std::filesystem::absolute(input_file).parent_path();
     scene.load_scene(scene_desc);
+
+    // scene.print_bvh_statistics();
 
     std::cout << "The end" << std::endl;
 }

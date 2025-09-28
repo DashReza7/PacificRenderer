@@ -11,6 +11,7 @@ add_executable(${PROJECT_NAME}
     "src/main.cpp"
     # Add other source files here
     "src/core/Scene.cpp"
+    "src/core/Primitives.cpp"
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 

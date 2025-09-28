@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <vector>
+#include <string>
 
 #include "core/Integrator.h"
 #include "core/Sensor.h"
@@ -10,16 +11,29 @@
 
 class Scene {
 private:
-    std::vector<std::unique_ptr<Shape>> shapes;
-    std::unique_ptr<Sensor> sensor;
-    std::unique_ptr<Integrator> integrator;
+    std::vector<Shape *> shapes{};
+    BVHNode *bvh_root = nullptr;
+    Sensor *sensor = nullptr;
+    Integrator *integrator = nullptr;
 
-    void load_shapes(const std::vector<std::unique_ptr<ShapeDesc>>& shapes_desc);
+    void load_shapes(const std::vector<ShapeDesc *> shapes_desc);
 
+    void build_bvh(BVHNode *node, const std::vector<Geometry *> &contained_geoms);
+
+    // get all geometries in a single vector (independent of Shape)
+    std::vector<Geometry *> get_all_geoms();
+    
 public:
+    std::filesystem::path scene_file_directory;
+
     Scene() = default;
     ~Scene() = default;
 
-    // TODO: right now just load shapes
-    void load_scene(const SceneDesc& scene_desc);
+    void load_scene(const SceneDesc &scene_desc);
+
+    std::string get_bvh_str(BVHNode *node = nullptr, int idt = 0);
+
+    void print_bvh_statistics();
+
+    bool intersect_brute_force(const Ray &ray, Intersection &isc);
 };

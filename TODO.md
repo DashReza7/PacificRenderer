@@ -11,9 +11,9 @@
  - adjust the formatting in sceneParser (camel case and others)
  - Implement a logger with several log-levels
  - Test all MathUtils functions
- - change Scene parsing file names to SceneDesc (and others too) to avoid confusion with the main Scene (& Integrator, etc.) classes
  - seperate implementations from header files to source files
  - progress bar
  - by default use manual. additionally provide the opportunity to use Embree or Optix
  - replace all smart pointers with regular pointers
  - add a mesh (vector of Triangle/Quad) geometry type
+ - make bvh build parallel
