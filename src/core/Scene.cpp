@@ -2,18 +2,61 @@
 
 #include "utils/SceneParser.h"
 
-void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc) {
+Integrator* Scene::load_scene(const SceneDesc& scene_desc) {
+    auto bsdfs_dict = load_bsdfs(scene_desc.bsdfs);
+    auto emitters_dict = load_emitters(scene_desc.emitters);
+
+    load_shapes(scene_desc.shapes, bsdfs_dict, emitters_dict);
+    bvh_root = new BVHNode{};
+    build_bvh(bvh_root, get_all_geoms());
+
+    load_sensor(scene_desc.sensor);
+
+    return load_integrator(scene_desc.integrator);
+}
+
+std::unordered_map<BSDFDesc*, BSDF*> Scene::load_bsdfs(const std::vector<BSDFDesc*>& bsdfs_desc) {
+    std::unordered_map<BSDFDesc*, BSDF*> bsdfs{};
+    for (const auto& bsdf_desc : bsdfs_desc) {
+        BSDF* bsdf = nullptr;
+        if (bsdf_desc->type == "diffuse") {
+            Vec3f reflectance{0.5};
+            if (bsdf_desc->properties.find("reflectance") != bsdf_desc->properties.end())
+                reflectance = strToVec3f(bsdf_desc->properties["reflectance"]);
+            bsdf = new DiffuseBSDF{reflectance};
+
+        } else if (bsdf_desc->type == "dielectric") {
+            Float int_ior = 1.5046;
+            Float ext_ior = 1.000277;
+            if (bsdf_desc->properties.find("int_ior") != bsdf_desc->properties.end())
+                int_ior = static_cast<Float>(std::stod(bsdf_desc->properties["int_ior"]));
+            if (bsdf_desc->properties.find("ext_ior") != bsdf_desc->properties.end())
+                ext_ior = static_cast<Float>(std::stod(bsdf_desc->properties["ext_ior"]));
+            bsdf = new SmoothDielectricBSDF{int_ior, ext_ior};
+        } else {
+            throw std::runtime_error("Unsupported BSDF type: " + bsdf_desc->type);
+        }
+
+        bsdfs[bsdf_desc] = bsdf;
+    }
+
+    return bsdfs;
+}
+
+void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::unordered_map<BSDFDesc*, BSDF*>& bsdfs_dict, const std::unordered_map<EmitterDesc*, Emitter*>& emitters_dict) {
     for (const auto& shape_desc : shapes_desc) {
         auto shape = new Shape{};
-        // TODO:
-        shape->bsdf = nullptr;
+        if (shape_desc->bsdf == nullptr) {
+            throw std::runtime_error("Shape missing BSDF");
+        }
+        shape->bsdf = bsdfs_dict.at(shape_desc->bsdf);
 
         if (shape_desc->type == "obj") {
-            // TODO:
+            shape->type = Shape::Type::OBJ;
             std::vector<Vec3f*> vertices;
             std::vector<Vec3f*> normals;
             std::vector<Vec2f*> texcoords;
-            bool success = MeshLoader::load_mesh_from_file((scene_file_directory / shape_desc->properties["filename"]).string(),
+            bool success = MeshLoader::load_mesh_from_file((scene_file_path.parent_path() / shape_desc->properties["filename"]).string(),
                                                            shape->geometries, vertices, normals, texcoords);
             if (!success) {
                 throw std::runtime_error("Failed to load OBJ mesh: " + shape_desc->properties["filename"]);
@@ -32,21 +75,11 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc) {
             }
 
         } else if (shape_desc->type == "sphere") {
+            shape->type = Shape::Type::SPHERE;
             auto sphere = new Sphere{Vec3f{0}, 1.0, shape_desc->to_world};
             sphere->parent_shape = shape;
-            if (shape_desc->properties.find("center") != shape_desc->properties.end()) {
-                // split the shape_desc->properties["center"] by comma and space, and convert to double.
-                // TODO: right now only support comma. xyz format not supported.
-                std::string center_str = shape_desc->properties["center"];
-                std::istringstream ss(center_str);
-                std::string token;
-                std::vector<double> center;
-                while (std::getline(ss, token, ',')) {
-                    center.push_back(std::stod(token));
-                }
-                if (center.size() == 3)
-                    sphere->center = Vec3f{center[0], center[1], center[2]};
-            }
+            if (shape_desc->properties.find("center") != shape_desc->properties.end())
+                sphere->center = strToVec3f(shape_desc->properties["center"]);
             if (shape_desc->properties.find("radius") != shape_desc->properties.end())
                 sphere->radius = std::stod(shape_desc->properties["radius"]);
             shape->geometries.push_back(sphere);
@@ -55,8 +88,96 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc) {
             throw std::runtime_error("Unsupported shape type: " + shape_desc->type);
         }
 
+        // if the shape has an emitter(it's an area_light), link them
+        if (shape_desc->emitter != nullptr) {
+            shape->emitter = emitters_dict.at(shape_desc->emitter);
+            dynamic_cast<AreaLight*>(shape->emitter)->shape = shape;
+        }
+
         shapes.push_back(shape);
     }
+}
+
+std::unordered_map<EmitterDesc*, Emitter*> Scene::load_emitters(const std::vector<EmitterDesc*>& emitters_desc) {
+    std::unordered_map<EmitterDesc*, Emitter*> emitters_dict{};
+    Emitter* emitter = nullptr;
+    for (const auto& emitter_desc : emitters_desc) {
+        if (emitter_desc->type == "point") {
+            Vec3f intensity{1.0};
+            Vec3f position{0.0};
+            Mat4f to_world = Mat4f(1.0);
+            if (emitter_desc->properties.find("intensity") != emitter_desc->properties.end())
+                intensity = strToVec3f(emitter_desc->properties["intensity"]);
+            if (emitter_desc->properties.find("position") != emitter_desc->properties.end())
+                position = strToVec3f(emitter_desc->properties["position"]);
+            if (emitter_desc->properties.find("to_world") != emitter_desc->properties.end())
+                to_world = strToMat4f(emitter_desc->properties["to_world"]);
+
+            emitter = new PointLight{intensity, position, to_world};
+        } else if (emitter_desc->type == "area") {
+            Vec3f radiance{1.0};
+            if (emitter_desc->properties.find("radiance") != emitter_desc->properties.end())
+                radiance = strToVec3f(emitter_desc->properties["radiance"]);
+
+            emitter = new AreaLight{radiance};
+        } else {
+            throw std::runtime_error("Unsupported emitter type: " + emitter_desc->type);
+        }
+        emitters.push_back(emitter);
+        emitters_dict[emitter_desc] = emitter;
+    }
+
+    return emitters_dict;
+}
+
+Integrator* Scene::load_integrator(const IntegratorDesc* integrator_desc) {
+    Integrator* integrator = nullptr;
+    if (integrator_desc->type == "direct") {
+        int emitter_samples = 1;
+        int bsdf_samples = 1;
+        bool hide_emitters = false;
+        if (integrator_desc->properties.find("emitter_samples") != integrator_desc->properties.end())
+            emitter_samples = std::stoi(integrator_desc->properties.at("emitter_samples"));
+        if (integrator_desc->properties.find("bsdf_samples") != integrator_desc->properties.end())
+            bsdf_samples = std::stoi(integrator_desc->properties.at("bsdf_samples"));
+        if (integrator_desc->properties.find("hide_emitters") != integrator_desc->properties.end())
+            hide_emitters = (integrator_desc->properties.at("hide_emitters") == "true");
+        integrator = new DirectLightingIntegrator{this, emitter_samples, bsdf_samples, hide_emitters};
+
+    } else if (integrator_desc->type == "path") {
+        int max_depth = -1;
+        int rr_depth = 5;
+        if (integrator_desc->properties.find("max_depth") != integrator_desc->properties.end())
+            max_depth = std::stoi(integrator_desc->properties.at("max_depth"));
+        if (integrator_desc->properties.find("rr_depth") != integrator_desc->properties.end())
+            rr_depth = std::stoi(integrator_desc->properties.at("rr_depth"));
+        integrator = new PathTracer{this, max_depth, rr_depth};
+
+    } else {
+        throw std::runtime_error("Unsupported integrator type: " + integrator_desc->type);
+    }
+
+    return integrator;
+}
+
+void Scene::load_sensor(const SensorDesc* sensor_desc) {
+    Float fov = 45.0;
+    Float near_clip = 1e-2, far_clip = 1e4;
+    uint32_t width = 800, height = 600;
+    uint32_t spp = 1;
+    if (sensor_desc->properties.find("fov") != sensor_desc->properties.end())
+        fov = static_cast<Float>(std::stod(sensor_desc->properties.at("fov")));
+    if (sensor_desc->properties.find("near_clip") != sensor_desc->properties.end())
+        near_clip = static_cast<Float>(std::stod(sensor_desc->properties.at("near_clip")));
+    if (sensor_desc->properties.find("far_clip") != sensor_desc->properties.end())
+        far_clip = static_cast<Float>(std::stod(sensor_desc->properties.at("far_clip")));
+    if (sensor_desc->film->properties.find("width") != sensor_desc->film->properties.end())
+        width = static_cast<uint32_t>(std::stoi(sensor_desc->film->properties.at("width")));
+    if (sensor_desc->film->properties.find("height") != sensor_desc->film->properties.end())
+        height = static_cast<uint32_t>(std::stoi(sensor_desc->film->properties.at("height")));
+    if (sensor_desc->sampler->properties.find("sample_count") != sensor_desc->sampler->properties.end())
+        spp = static_cast<uint32_t>(std::stoi(sensor_desc->sampler->properties.at("sample_count")));
+    sensor = new Sensor{sensor_desc->to_world, fov, 0, width, height, spp, near_clip, far_clip};
 }
 
 void Scene::build_bvh(BVHNode* node, const std::vector<Geometry*>& contained_geoms) {
@@ -108,14 +229,6 @@ void Scene::build_bvh(BVHNode* node, const std::vector<Geometry*>& contained_geo
     }
 }
 
-// TODO: complete this
-void Scene::load_scene(const SceneDesc& scene_desc) {
-    load_shapes(scene_desc.shapes);
-
-    bvh_root = new BVHNode{};
-    build_bvh(bvh_root, get_all_geoms());
-}
-
 std::vector<Geometry*> Scene::get_all_geoms() {
     std::vector<Geometry*> all_geoms;
     for (const auto& shape : shapes)
@@ -150,12 +263,14 @@ std::string Scene::get_bvh_str(BVHNode* node, int idt) {
     return s;
 }
 
-void Scene::print_bvh_statistics() {
+std::string Scene::get_bvh_statistics() {
     // compute statistics like number of nodes, depth, average number of geometries per leaf node, etc.
-    // also check if any non-leaf node has geometries with size > 0
+    // also check if any non-leaf node has geometries with size > 0 (which is an error)
+
+    std::ostringstream oss;
     if (!bvh_root) {
-        std::cout << "BVH not built yet." << std::endl;
-        return;
+        oss << "BVH not built yet." << std::endl;
+        return oss.str();
     }
     int num_nodes = 0;
     int num_leaf_nodes = 0;
@@ -176,7 +291,7 @@ void Scene::print_bvh_statistics() {
         } else {
             // non-leaf node
             if (!node->geoms.empty()) {
-                std::cout << "Non-leaf node with geometries found." << std::endl;
+                std::cerr << "Non-leaf node with geometries found." << std::endl;
                 exit(EXIT_FAILURE);
             }
         }
@@ -184,18 +299,19 @@ void Scene::print_bvh_statistics() {
         traverse(node->right, depth + 1);
     };
     traverse(bvh_root, 1);
-    std::cout << "BVH Statistics:" << std::endl;
-    std::cout << "  Number of nodes: " << num_nodes << std::endl;
-    std::cout << "  Number of leaf nodes: " << num_leaf_nodes << std::endl;
-    std::cout << "  Max depth: " << max_depth << std::endl;
+    oss << "BVH Statistics:" << std::endl;
+    oss << "  Number of nodes: " << num_nodes << std::endl;
+    oss << "  Number of leaf nodes: " << num_leaf_nodes << std::endl;
+    oss << "  Max depth: " << max_depth << std::endl;
     if (num_leaf_nodes > 0)
-        std::cout << "  Average geometries per leaf: " << (total_geoms_in_leaves / num_leaf_nodes) << std::endl;
+        oss << "  Average geometries per leaf: " << (total_geoms_in_leaves / num_leaf_nodes) << std::endl;
     else
-        std::cout << "  Average geometries per leaf: N/A" << std::endl;
-    std::cout << "  Max geometries in leaf: " << max_geoms_in_leaf << std::endl;
+        oss << "  Average geometries per leaf: N/A" << std::endl;
+    oss << "  Max geometries in leaf: " << max_geoms_in_leaf << std::endl;
+    return oss.str();
 }
 
-bool Scene::intersect_brute_force(const Ray &ray, Intersection &isc) {
+bool Scene::intersect_brute_force(const Ray& ray, Intersection& isc) {
     bool is_hit = false;
     Float closest_t = ray.tmax;
 
@@ -213,4 +329,23 @@ bool Scene::intersect_brute_force(const Ray &ray, Intersection &isc) {
         }
 
     return is_hit;
+}
+
+std::string Scene::to_string() const {
+    std::ostringstream oss;
+    oss << "Scene: " << scene_file_path.string() << "\n";
+    oss << "  " << sensor->to_string() << "\n";
+    oss << "  Emitters" << "(" << emitters.size() << "):\n";
+    for (const auto& emitter : emitters)
+        oss << "    " << emitter->to_string() << "\n";
+    oss << "  Shapes" << "(" << shapes.size() << "):\n";
+    for (const auto& shape : shapes) {
+        auto shape_str = shape->to_string();
+        // indent shape_str by 2 spaces.
+        std::istringstream shape_iss(shape_str);
+        std::string line;
+        while (std::getline(shape_iss, line))
+            oss << "    " << line << "\n";
+    }
+    return oss.str();
 }

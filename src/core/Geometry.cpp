@@ -1,4 +1,4 @@
-#include "core/Primitives.h"
+#include "core/Geometry.h"
 
 bool BVHNode::intersect(const Ray& ray, Intersection& isc) {
     // AABB-ray intersection test

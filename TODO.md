@@ -17,3 +17,7 @@
  - replace all smart pointers with regular pointers
  - add a mesh (vector of Triangle/Quad) geometry type
  - make bvh build parallel
+ - implement AOV integrator
+ - implement Volumetric integrator
+ - implement normal & bump mapping
+ - implement Disney principled BRDF/BSDF

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>  // Add this include at the top
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <pugixml.hpp>
@@ -7,9 +9,42 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <filesystem>
+#include <regex>
+#include <unordered_set>
 
 #include "core/MathUtils.h"
+#include "utils/Misc.h"
+
+// Utils
+inline Vec3f strToVec3f(const std::string& value_str) {
+    Vec3f vec;
+    std::istringstream iss(value_str);
+    char comma;
+    iss >> vec.x >> comma >> vec.y >> comma >> vec.z;
+    return vec;
+}
+
+inline Mat4f strToMat4f(std::string mat_str) {
+    Mat4f mat;
+    std::istringstream iss(mat_str);
+
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+            iss >> mat[i][j];
+
+    return mat;
+}
+
+inline std::string mat4fToStr(Mat4f mat) {
+    std::ostringstream oss;
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            oss << mat[i][j];
+            if (i < 3 || j < 3) oss << " ";
+        }
+    }
+    return oss.str();
+}
 
 // Base class for all scene objects
 struct SceneObjectDesc {
@@ -47,6 +82,7 @@ struct IntegratorDesc : public SceneObjectDesc {
         return oss.str();
     }
 };
+
 struct BSDFDesc : public SceneObjectDesc {
     std::string id;
 
@@ -108,8 +144,8 @@ struct FilmDesc : public SceneObjectDesc {
 };
 struct SensorDesc : public SceneObjectDesc {
     FilmDesc* film;
-    SamplerDesc *sampler;
-    Mat4f to_world;
+    SamplerDesc* sampler;
+    Mat4f to_world = glm::mat<4, 4, Float>(1);
 
     std::string to_string() override {
         std::ostringstream oss;
@@ -125,10 +161,15 @@ struct SensorDesc : public SceneObjectDesc {
         if (sampler) oss << "sampler: " << sampler->to_string() << "\n";
         return oss.str();
     }
+
+    ~SensorDesc() {
+        delete film;
+        delete sampler;
+    }
 };
 struct ShapeDesc : public SceneObjectDesc {
-    BSDFDesc *bsdf;
-    EmitterDesc *emitter;
+    BSDFDesc* bsdf;
+    EmitterDesc* emitter;
     Mat4f to_world = glm::mat<4, 4, Float>(1);
 
     std::string to_string() override {
@@ -147,11 +188,11 @@ struct ShapeDesc : public SceneObjectDesc {
     }
 };
 struct SceneDesc {
-    IntegratorDesc *integrator;
-    SensorDesc *sensor;
+    IntegratorDesc* integrator;
+    SensorDesc* sensor;
     std::vector<ShapeDesc*> shapes;
     std::vector<BSDFDesc*> bsdfs;
-    std::vector<EmitterDesc*>emitters;
+    std::vector<EmitterDesc*> emitters;
 
     std::string to_string() {
         std::ostringstream oss;
@@ -169,6 +210,17 @@ struct SceneDesc {
             oss << emitter->to_string() << "\n\n";
 
         return oss.str();
+    }
+
+    ~SceneDesc() {
+        delete integrator;
+        delete sensor;
+        for (auto shape : shapes)
+            delete shape;
+        for (auto bsdf : bsdfs)
+            delete bsdf;
+        for (auto emitter : emitters)
+            delete emitter;
     }
 };
 
@@ -218,9 +270,14 @@ private:
                 scene.integrator = parseIntegrator(child);
             else if (node_name == "sensor")
                 scene.sensor = parseSensor(child);
-            else if (node_name == "shape")
-                scene.shapes.push_back(parseShape(child));
-            else if (node_name == "bsdf")
+            else if (node_name == "shape") {
+                ShapeDesc* shape_desc = parseShape(child);
+                scene.shapes.push_back(shape_desc);
+                if (shape_desc->emitter != nullptr)
+                    scene.emitters.push_back(shape_desc->emitter);
+                if (shape_desc->bsdf != nullptr && std::find(scene.bsdfs.begin(), scene.bsdfs.end(), shape_desc->bsdf) == scene.bsdfs.end())
+                    scene.bsdfs.push_back(shape_desc->bsdf);
+            } else if (node_name == "bsdf")
                 scene.bsdfs.push_back(parseBSDF(child));
             else if (node_name == "emitter")
                 scene.emitters.push_back(parseEmitter(child));
@@ -234,7 +291,7 @@ private:
         return scene;
     }
 
-    IntegratorDesc *parseIntegrator(const pugi::xml_node& node) {
+    IntegratorDesc* parseIntegrator(const pugi::xml_node& node) {
         auto integrator = new IntegratorDesc{};
         integrator->type = get_default(node.attribute("type").value());
 
@@ -242,11 +299,11 @@ private:
         return integrator;
     }
 
-    SensorDesc *parseSensor(const pugi::xml_node& node) {
+    SensorDesc* parseSensor(const pugi::xml_node& node) {
         auto sensor = new SensorDesc{};
         sensor->type = get_default(node.attribute("type").value());
 
-        parseProperties(node, sensor->properties);
+        parseProperties(node, sensor->properties, {"sampler", "film"});
 
         // Parse nested objects
         for (pugi::xml_node child : node.children()) {
@@ -264,11 +321,11 @@ private:
         return sensor;
     }
 
-    ShapeDesc *parseShape(const pugi::xml_node& node) {
+    ShapeDesc* parseShape(const pugi::xml_node& node) {
         auto shape = new ShapeDesc{};
         shape->type = get_default(node.attribute("type").value());
 
-        parseProperties(node, shape->properties);
+        parseProperties(node, shape->properties, {"bsdf", "emitter", "ref", "transform"});
 
         // Parse nested objects
         for (pugi::xml_node child : node.children()) {
@@ -291,7 +348,7 @@ private:
         return shape;
     }
 
-    BSDFDesc *parseBSDF(const pugi::xml_node& node) {
+    BSDFDesc* parseBSDF(const pugi::xml_node& node) {
         auto bsdf = new BSDFDesc{};
         bsdf->type = get_default(node.attribute("type").value());
         if (node.attribute("id")) {
@@ -299,11 +356,11 @@ private:
             shared_bsdfs[bsdf->id] = bsdf;
         }
 
-        parseProperties(node, bsdf->properties);
+        parseProperties(node, bsdf->properties, {"id"});
         return bsdf;
     }
 
-    EmitterDesc *parseEmitter(const pugi::xml_node& node) {
+    EmitterDesc* parseEmitter(const pugi::xml_node& node) {
         auto emitter = new EmitterDesc{};
         emitter->type = get_default(node.attribute("type").value());
 
@@ -311,7 +368,7 @@ private:
         return emitter;
     }
 
-    FilmDesc *parseFilm(const pugi::xml_node& node) {
+    FilmDesc* parseFilm(const pugi::xml_node& node) {
         auto film = new FilmDesc{};
         film->type = get_default(node.attribute("type").value());
 
@@ -319,7 +376,7 @@ private:
         return film;
     }
 
-    SamplerDesc *parseSampler(const pugi::xml_node& node) {
+    SamplerDesc* parseSampler(const pugi::xml_node& node) {
         auto sampler = new SamplerDesc{};
         sampler->type = get_default(node.attribute("type").value());
 
@@ -327,7 +384,7 @@ private:
         return sampler;
     }
 
-    SceneObjectDesc *parseGenericObject(const pugi::xml_node& node) {
+    SceneObjectDesc* parseGenericObject(const pugi::xml_node& node) {
         auto obj = new SceneObjectDesc{};
         obj->type = get_default(node.attribute("type").value());
 
@@ -337,28 +394,60 @@ private:
 
     void parseProperties(
         const pugi::xml_node& node,
-        std::unordered_map<std::string, std::string>& properties) {
+        std::unordered_map<std::string, std::string>& properties,
+        std::unordered_set<std::string> exclude_keys = {}) {
         for (pugi::xml_node child : node.children()) {
             std::string child_name = child.name();
+            if (exclude_keys.find(child_name) != exclude_keys.end())
+                continue;
             std::string name = child.attribute("name").value();
 
             if (child_name == "string") {
-                properties[name] =
-                    get_default(child.attribute("value").value());
+                properties[name] = get_default(child.attribute("value").value());
             } else if (child_name == "integer") {
-                properties[name] =
-                    get_default(child.attribute("value").value());
+                properties[name] = get_default(child.attribute("value").value());
             } else if (child_name == "float") {
-                properties[name] =
-                    get_default(child.attribute("value").value());
+                properties[name] = get_default(child.attribute("value").value());
             } else if (child_name == "boolean") {
-                properties[name] =
-                    get_default(child.attribute("value").value());
-            } else if (child_name == "point" || child_name == "vector" ||
-                       child_name == "rgb") {
-                // TODO: check the mitsuba3 format file for this section
-                properties[name] =
-                    get_default(child.attribute("value").value());
+                properties[name] = get_default(child.attribute("value").value());
+            } else if (child_name == "point" || child_name == "vector") {
+                if (child.attribute("x")) {
+                    std::string x = get_default(child.attribute("x").value());
+                    std::string y = get_default(child.attribute("y").value());
+                    std::string z = get_default(child.attribute("z").value());
+                    properties[name] = x + ", " + y + ", " + z;
+                } else if (child.attribute("value")) {
+                    std::string value_str = get_default(child.attribute("value").value());
+                    value_str = trim(value_str);
+                    if (value_str.find(',') == std::string::npos) {
+                        if (value_str.find(' ') == std::string::npos)
+                            value_str = value_str + ", " + value_str + ", " + value_str;
+                        else
+                            value_str = std::regex_replace(value_str, std::regex(" "), ", ");
+                    }
+                    properties[name] = value_str;
+                }
+            } else if (child_name == "rgb") {
+                if (child.attribute("r")) {
+                    std::string r = get_default(child.attribute("r").value());
+                    std::string g = get_default(child.attribute("g").value());
+                    std::string b = get_default(child.attribute("b").value());
+                    properties[name] = r + ", " + g + ", " + b;
+                } else if (child.attribute("value")) {
+                    std::string value_str = get_default(child.attribute("value").value());
+                    value_str = trim(value_str);
+                    if (value_str.find(',') == std::string::npos) {
+                        if (value_str.find(' ') == std::string::npos)
+                            value_str = value_str + ", " + value_str + ", " + value_str;
+                        else
+                            value_str = std::regex_replace(value_str, std::regex(" "), ", ");
+                    }
+                    properties[name] = value_str;
+                }
+            } else if (child_name == "transform") {
+                properties[name] = mat4fToStr(parseTransform(child));
+            } else {
+                throw std::runtime_error(std::string("Unknown property type: ") + child_name);
             }
         }
     }

@@ -8,14 +8,18 @@
 #include "core/Geometry.h"
 #include "core/MathUtils.h"
 #include "core/Pacific.h"
-#include "core/Primitives.h"
 #include "core/Scene.h"
 #include "core/Sensor.h"
 #include "core/Shape.h"
 #include "utils/Misc.h"
 #include "utils/SceneParser.h"
+#include "core/Sampler.h"
+// #include "utils/Logger.h"
 
 int main(int argc, char** argv) {
+    // create the global Logger
+    // Logger g_logger{LogLevel::INFO, true, ""};
+    
     std::string input_file;
     std::string output_file = "output.png";
     bool zip = false;
@@ -44,16 +48,16 @@ int main(int argc, char** argv) {
     // parse the arguments
     CLI11_PARSE(cli_app, argc, argv);
 
+    // parse scene description file
     SceneParser scene_parser;
     SceneDesc scene_desc = scene_parser.parseFile(input_file);
-
-    // std::cout << scene_desc.to_string() << std::endl;
-
+    // load Scene object from scene description
     Scene scene;
-    scene.scene_file_directory = std::filesystem::absolute(input_file).parent_path();
-    scene.load_scene(scene_desc);
+    scene.scene_file_path = std::filesystem::absolute(input_file);
+    Integrator *integrator = scene.load_scene(scene_desc);
 
-    // scene.print_bvh_statistics();
-
-    std::cout << "The end" << std::endl;
+    std::cout << integrator->to_string() << "\n" << std::endl;
+    std::cout << scene.to_string() << std::endl;
+    
+    std::cout << "\nThe end" << std::endl;
 }

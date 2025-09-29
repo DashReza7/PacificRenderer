@@ -8,11 +8,89 @@
 #include <memory>
 #include <optional>
 #include <sstream>
+#include <string>
 #include <vector>
 
 #include "core/MathUtils.h"
 #include "core/Pacific.h"
-#include "core/Primitives.h"
+
+class Shape;
+
+class Ray {
+public:
+    /// Ray origin
+    Vec3f o;
+    /// Ray direction
+    Vec3f d;
+    /// Minimum and maximum hittable distance
+    Float tmin, tmax;
+    /// Whether this is a shadow ray (any hit)
+    bool shadow_ray = false;
+
+    Ray() = default;
+    Ray(const Vec3f& o, const Vec3f& d, Float tmin, Float tmax)
+        : o(o), d(d), tmin(tmin), tmax(tmax) {}
+    ~Ray() = default;
+
+    /// return the position of the point with distance t along the ray
+    Vec3f operator()(Float t) const { return o + t * d; }
+
+    /// return the same ray with reversed direrction
+    Ray reverse() const { return Ray{o, -d, tmin, tmax}; }
+};
+
+class AABB {
+public:
+    Vec3f min_corner, max_corner;
+
+    AABB() = default;
+    AABB(const Vec3f& min_corner, const Vec3f& max_corner)
+        : min_corner(min_corner), max_corner(max_corner) {}
+    ~AABB() = default;
+
+    // union operator
+    AABB operator+(const AABB& other) const {
+        return AABB{Vec3f{std::min(min_corner.x, other.min_corner.x),
+                          std::min(min_corner.y, other.min_corner.y),
+                          std::min(min_corner.z, other.min_corner.z)},
+                    Vec3f{std::max(max_corner.x, other.max_corner.x),
+                          std::max(max_corner.y, other.max_corner.y),
+                          std::max(max_corner.z, other.max_corner.z)}};
+    }
+    
+};
+
+class Intersection {
+public:
+    Vec3f position, normal;
+    Shape* shape;
+
+    Intersection() = default;
+    Intersection(const Vec3f& position, const Vec3f& normal, Shape* shape) : position(position), normal(normal), shape(shape) {}
+    ~Intersection() = default;
+};
+
+class Geometry {
+public:
+    Shape *parent_shape;
+
+    virtual AABB get_bbox() = 0;
+    virtual bool intersect(const Ray &ray, Intersection &isc) = 0;
+    virtual Vec3f get_normal(const Vec3f &position) = 0;
+    virtual std::string to_string() = 0;
+};
+
+class BVHNode {
+public:
+    BVHNode *left, *right;
+    AABB bbox;
+    std::vector<Geometry *> geoms{};
+
+    BVHNode() = default;
+    BVHNode(BVHNode* left_, BVHNode* right_, AABB bbox_) : left(left_), right(right_), bbox(bbox_) {}
+
+    bool intersect(const Ray& ray, Intersection& isc);
+};
 
 
 class Triangle : public Geometry {
@@ -25,10 +103,6 @@ public:
     Triangle(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *an, const Vec3f *bn, const Vec3f *cn) : positions{a, b, c}, normals{std::array<const Vec3f*, 3>{an, bn, cn}} {}
     Triangle(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec2f *at, const Vec2f *bt, const Vec2f *ct) : positions{a, b, c}, tex_coords{std::array<const Vec2f*, 3>{at, bt, ct}} {}
     Triangle(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *an, const Vec3f *bn, const Vec3f *cn, const Vec2f *at, const Vec2f *bt, const Vec2f *ct) : positions{a, b, c}, normals{std::array<const Vec3f*, 3>{an, bn, cn}}, tex_coords{std::array<const Vec2f*, 3>{at, bt, ct}} {}
-
-    Geometry::Type get_type() override {
-        return Geometry::Type::Triangle;
-    }
 
     bool intersect(const Ray &ray, Intersection &isc) override {
         const Float EPSILON = 1e-8;
@@ -48,7 +122,7 @@ public:
         if (v < 0.0 || u + v > 1.0)
             return false;
         Float t = f * glm::dot(edge2, q);
-        if (t > EPSILON) // ray intersection
+        if (t >= ray.tmin && t <= ray.tmax) // ray intersection
         {
             isc.position = ray(t);
             isc.normal = get_normal(isc.position);
@@ -74,12 +148,12 @@ public:
 
     std::string to_string() override {
         std::ostringstream oss;
-        oss << "Triangle: [";
-        oss << "  vertex positions: " << std::format("[{}, {}, {}] - [{}, {}, {}], [{}, {}, {}] --- ", positions[0]->x, positions[0]->y, positions[0]->z, positions[1]->x, positions[1]->y, positions[1]->z, positions[2]->x, positions[2]->y, positions[2]->z);
+        oss << "Geometry(Triangle): [";
+        oss << " positions=" << std::format("[{}, {}, {}] - [{}, {}, {}] - [{}, {}, {}]", positions[0]->x, positions[0]->y, positions[0]->z, positions[1]->x, positions[1]->y, positions[1]->z, positions[2]->x, positions[2]->y, positions[2]->z);
         if (normals.has_value())
-            oss << "  vertex normals: " << std::format("[{}, {}, {}] - [{}, {}, {}], [{}, {}, {}] --- ", normals.value()[0]->x, normals.value()[0]->y, normals.value()[0]->z, normals.value()[1]->x, normals.value()[1]->y, normals.value()[1]->z, normals.value()[2]->x, normals.value()[2]->y, normals.value()[2]->z);
+            oss << " --- normals=" << std::format("[{}, {}, {}] - [{}, {}, {}] - [{}, {}, {}]", normals.value()[0]->x, normals.value()[0]->y, normals.value()[0]->z, normals.value()[1]->x, normals.value()[1]->y, normals.value()[1]->z, normals.value()[2]->x, normals.value()[2]->y, normals.value()[2]->z);
         if (tex_coords.has_value())
-            oss << "  vertex texcoords: " << std::format("[{}, {}] - [{}, {}], [{}, {}]", tex_coords.value()[0]->x, tex_coords.value()[0]->y, tex_coords.value()[1]->x, tex_coords.value()[1]->y, tex_coords.value()[2]->x, tex_coords.value()[2]->y);
+            oss << " --- texcoords=" << std::format("[{}, {}] - [{}, {}] - [{}, {}] ", tex_coords.value()[0]->x, tex_coords.value()[0]->y, tex_coords.value()[1]->x, tex_coords.value()[1]->y, tex_coords.value()[2]->x, tex_coords.value()[2]->y);
         oss << "]";
         return oss.str();
     }
@@ -96,9 +170,6 @@ public:
     Quad(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *d, const Vec2f *at, const Vec2f *bt, const Vec2f *ct, const Vec2f *dt) : positions{a, b, c, d}, tex_coords{std::array<const Vec2f*, 4>{at, bt, ct, dt}} {}
     Quad(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *d, const Vec3f *an, const Vec3f *bn, Vec3f *cn, const Vec3f *dn, const Vec2f *at, const Vec2f *bt, const Vec2f *ct, const Vec2f *dt) : positions{a, b, c, d}, normals{std::array<const Vec3f*, 4>{an, bn, cn, dn}}, tex_coords{std::array<const Vec2f*, 4>{at, bt, ct, dt}} {}
 
-    Geometry::Type get_type() override {
-        return Geometry::Type::Quad;
-    }
 
     bool intersect(const Ray &ray, Intersection &isc) override {
         throw std::runtime_error("Quad intersect not implemented");
@@ -137,10 +208,6 @@ public:
     Sphere() = default;
     Sphere(const Vec3f &center, Float radius, const Mat4f &transform = Mat4f(1)) : transform(transform), center(center), radius(radius) {}
     ~Sphere() = default;
-
-    Geometry::Type get_type() override {
-        return Geometry::Type::Sphere;
-    }
 
     bool intersect(const Ray &ray, Intersection &isc) override {
         // TODO: store inverse_transform from the beginning and avoid computing it by GLM
@@ -208,7 +275,9 @@ public:
     }
 
     std::string to_string() override {
-        return std::format("Sphere: [ center: [{}, {}, {}], radius: {} ]", center.x, center.y, center.z, radius);
+        std::ostringstream oss;
+        oss << "Geometry(Sphere): [ center=" << center << ", radius=" << radius << " ]";
+        return oss.str();
     }
 };
 
@@ -220,10 +289,12 @@ public:
         tinyobj::ObjReader obj_reader;
         if (!obj_reader.ParseFromFile(file_path)) {
             if (!obj_reader.Error().empty())
+                // LOG_ERROR("TinyObjReader error reading file: {}; {}", file_path, obj_reader.Error());
                 std::cerr << "TinyObjReader error reading file: " << file_path << "; " << obj_reader.Error() << "\n";
             return false;
         }
         if (!obj_reader.Warning().empty())
+            // LOG_WARNING("TinyObjReader warning reading file: {}; {}", file_path, obj_reader.Warning());
             std::cerr << "TinyObjReader warning reading file: " << file_path << "; " << obj_reader.Warning() << "\n";
 
         // Only support objs with one shape

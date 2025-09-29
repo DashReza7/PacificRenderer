@@ -11,7 +11,7 @@ add_executable(${PROJECT_NAME}
     "src/main.cpp"
     # Add other source files here
     "src/core/Scene.cpp"
-    "src/core/Primitives.cpp"
+    "src/core/Geometry.cpp"
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
@@ -103,4 +103,10 @@ endif()
 add_subdirectory(ext/tinyobjloader)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE tinyobjloader)
+###########################################################################
+
+###########################################################################
+# stb_image_write
+
+target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ext/stb)
 ###########################################################################
