@@ -18,8 +18,15 @@ public:
 
     std::vector<Geometry *> geometries{};
     BSDF *bsdf = nullptr;
+    // if AreaLight
     Emitter *emitter = nullptr;
     Type type;
+
+    /// @brief Samples a point on the surface of the shape.
+    /// @param sample1 A 1D sample point in [0, 1].
+    /// @param sample2 A 2D sample point in [0, 1]^2.
+    /// @return A tuple containing the position, normal, and PDF of the sampled point.
+    std::tuple<Vec3f, Vec3f, Float> sample_point_on_surface(Float sample1, const Vec2f &sample2) const;
 
     std::string to_string() {
         std::ostringstream oss;

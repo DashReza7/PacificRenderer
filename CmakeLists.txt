@@ -12,6 +12,20 @@ add_executable(${PROJECT_NAME}
     # Add other source files here
     "src/core/Scene.cpp"
     "src/core/Geometry.cpp"
+    "src/bsdf/diffuse.cpp"
+    "src/bsdf/dielectric.cpp"
+    "src/core/Registry.cpp"
+    "src/core/MathUtils.cpp"
+    "src/integrators/direct.cpp"
+    "src/integrators/path.cpp"
+    "src/integrators/ptracer.cpp"
+    "src/integrators/depth.cpp"
+    "src/integrators/albedo.cpp"
+    "src/integrators/geometric_normal.cpp"
+    "src/core/Integrator.cpp"
+    "src/utils/stb.cpp"
+    "src/core/Shape.cpp"
+    "src/core/Emitter.cpp"
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 

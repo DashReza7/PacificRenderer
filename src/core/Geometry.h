@@ -1,10 +1,10 @@
 #pragma once
 
-#include<tiny_obj_loader.h>
+#include <tiny_obj_loader.h>
 
-#include <iostream>
 #include <array>
 #include <format>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -15,9 +15,9 @@
 #include "core/Pacific.h"
 
 class Shape;
+class Geometry;
 
-class Ray {
-public:
+struct Ray {
     /// Ray origin
     Vec3f o;
     /// Ray direction
@@ -25,11 +25,11 @@ public:
     /// Minimum and maximum hittable distance
     Float tmin, tmax;
     /// Whether this is a shadow ray (any hit)
-    bool shadow_ray = false;
+    bool shadow_ray;
 
     Ray() = default;
-    Ray(const Vec3f& o, const Vec3f& d, Float tmin, Float tmax)
-        : o(o), d(d), tmin(tmin), tmax(tmax) {}
+    Ray(const Vec3f &o, const Vec3f &d, Float tmin, Float tmax, bool shadow_ray = false)
+        : o(o), d(d), tmin(tmin), tmax(tmax), shadow_ray(shadow_ray) {}
     ~Ray() = default;
 
     /// return the position of the point with distance t along the ray
@@ -39,17 +39,16 @@ public:
     Ray reverse() const { return Ray{o, -d, tmin, tmax}; }
 };
 
-class AABB {
-public:
+struct AABB {
     Vec3f min_corner, max_corner;
 
     AABB() = default;
-    AABB(const Vec3f& min_corner, const Vec3f& max_corner)
+    AABB(const Vec3f &min_corner, const Vec3f &max_corner)
         : min_corner(min_corner), max_corner(max_corner) {}
     ~AABB() = default;
 
     // union operator
-    AABB operator+(const AABB& other) const {
+    AABB operator+(const AABB &other) const {
         return AABB{Vec3f{std::min(min_corner.x, other.min_corner.x),
                           std::min(min_corner.y, other.min_corner.y),
                           std::min(min_corner.z, other.min_corner.z)},
@@ -57,17 +56,15 @@ public:
                           std::max(max_corner.y, other.max_corner.y),
                           std::max(max_corner.z, other.max_corner.z)}};
     }
-    
 };
 
-class Intersection {
-public:
+struct Intersection {
+    Float distance;
     Vec3f position, normal;
-    Shape* shape;
-
-    Intersection() = default;
-    Intersection(const Vec3f& position, const Vec3f& normal, Shape* shape) : position(position), normal(normal), shape(shape) {}
-    ~Intersection() = default;
+    /// Normalized direction, from the hit position to the ray origin
+    Vec3f dirn;
+    Shape *shape;
+    Geometry *geom;
 };
 
 class Geometry {
@@ -77,6 +74,7 @@ public:
     virtual AABB get_bbox() = 0;
     virtual bool intersect(const Ray &ray, Intersection &isc) = 0;
     virtual Vec3f get_normal(const Vec3f &position) = 0;
+    virtual Float area() const = 0;
     virtual std::string to_string() = 0;
 };
 
@@ -87,31 +85,34 @@ public:
     std::vector<Geometry *> geoms{};
 
     BVHNode() = default;
-    BVHNode(BVHNode* left_, BVHNode* right_, AABB bbox_) : left(left_), right(right_), bbox(bbox_) {}
+    BVHNode(BVHNode *left_, BVHNode *right_, AABB bbox_) : left(left_), right(right_), bbox(bbox_) {}
 
-    bool intersect(const Ray& ray, Intersection& isc);
+    bool intersect(const Ray &ray, Intersection &isc);
 };
 
+enum class AccelerationType {
+    NONE,
+    BVH,
+};
 
 class Triangle : public Geometry {
 public:
-    const std::array<const Vec3f*, 3> positions;
-    const std::optional<std::array<const Vec3f*, 3>> normals;
-    const std::optional<std::array<const Vec2f*, 3>> tex_coords;
+    const std::array<const Vec3f *, 3> positions;
+    const std::optional<std::array<const Vec3f *, 3>> normals;
+    const std::optional<std::array<const Vec2f *, 3>> tex_coords;
 
     Triangle(const Vec3f *a, const Vec3f *b, const Vec3f *c) : positions{a, b, c} {}
-    Triangle(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *an, const Vec3f *bn, const Vec3f *cn) : positions{a, b, c}, normals{std::array<const Vec3f*, 3>{an, bn, cn}} {}
-    Triangle(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec2f *at, const Vec2f *bt, const Vec2f *ct) : positions{a, b, c}, tex_coords{std::array<const Vec2f*, 3>{at, bt, ct}} {}
-    Triangle(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *an, const Vec3f *bn, const Vec3f *cn, const Vec2f *at, const Vec2f *bt, const Vec2f *ct) : positions{a, b, c}, normals{std::array<const Vec3f*, 3>{an, bn, cn}}, tex_coords{std::array<const Vec2f*, 3>{at, bt, ct}} {}
+    Triangle(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *an, const Vec3f *bn, const Vec3f *cn) : positions{a, b, c}, normals{std::array<const Vec3f *, 3>{an, bn, cn}} {}
+    Triangle(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec2f *at, const Vec2f *bt, const Vec2f *ct) : positions{a, b, c}, tex_coords{std::array<const Vec2f *, 3>{at, bt, ct}} {}
+    Triangle(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *an, const Vec3f *bn, const Vec3f *cn, const Vec2f *at, const Vec2f *bt, const Vec2f *ct) : positions{a, b, c}, normals{std::array<const Vec3f *, 3>{an, bn, cn}}, tex_coords{std::array<const Vec2f *, 3>{at, bt, ct}} {}
 
     bool intersect(const Ray &ray, Intersection &isc) override {
-        const Float EPSILON = 1e-8;
         Vec3f edge1 = *positions[1] - *positions[0];
         Vec3f edge2 = *positions[2] - *positions[0];
         Vec3f h = glm::cross(ray.d, edge2);
         Float a = glm::dot(edge1, h);
-        if (a > -EPSILON && a < EPSILON)
-            return false; // parallel to triangle
+        if (a > -Epsilon && a < Epsilon)
+            return false;  // parallel to triangle
         Float f = 1.0 / a;
         Vec3f s = ray.o - *positions[0];
         Float u = f * glm::dot(s, h);
@@ -119,33 +120,41 @@ public:
             return false;
         Vec3f q = glm::cross(s, edge1);
         Float v = f * glm::dot(ray.d, q);
-        if (v < 0.0 || u + v > 1.0)
+        // if (v < 0.0 || u + v > 1.0)
+        if (v < -Epsilon || u + v > 1.0 + Epsilon)
             return false;
         Float t = f * glm::dot(edge2, q);
-        if (t >= ray.tmin && t <= ray.tmax) // ray intersection
+        if (t >= ray.tmin && t <= ray.tmax)  // ray intersection
         {
+            isc.distance = t;
             isc.position = ray(t);
             isc.normal = get_normal(isc.position);
+            isc.dirn = -ray.d;
             isc.shape = parent_shape;
+            isc.geom = this;
             return true;
-        } else // isc point is behind the ray
+        } else  // isc point is behind the ray
             return false;
     }
 
     AABB get_bbox() override {
-        return AABB{Vec3f{std::min(positions[0]->x, std::min(positions[1]->x, positions[2]->x)) - Epsilon, std::min(positions[0]->y, std::min(positions[1]->y, positions[2]->y)) - Epsilon, std::min(positions[0]->z, std::min(positions[1]->z, positions[2]->z)) - Epsilon}, 
+        return AABB{Vec3f{std::min(positions[0]->x, std::min(positions[1]->x, positions[2]->x)) - Epsilon, std::min(positions[0]->y, std::min(positions[1]->y, positions[2]->y)) - Epsilon, std::min(positions[0]->z, std::min(positions[1]->z, positions[2]->z)) - Epsilon},
                     Vec3f{std::max(positions[0]->x, std::max(positions[1]->x, positions[2]->x)) + Epsilon, std::max(positions[0]->y, std::max(positions[1]->y, positions[2]->y)) + Epsilon, std::max(positions[0]->z, std::max(positions[1]->z, positions[2]->z)) + Epsilon}};
     }
 
     Vec3f get_normal(const Vec3f &position) override {
         // based on face_normals, either interpolate vn's or compute the
         // (constant) normal manually
-        if (normals.has_value()) // TODO:
-            throw std::runtime_error("Triangle get_normal not implemented");
+        if (normals.has_value())  // TODO: implement the interpolation
+            return glm::normalize(glm::cross(*positions[1] - *positions[0], *positions[2] - *positions[0]));
         else
             return glm::normalize(glm::cross(*positions[1] - *positions[0], *positions[2] - *positions[0]));
     }
 
+    Float area() const override {
+        return triangle_area(*positions[0], *positions[1], *positions[2]);
+    }
+    
     std::string to_string() override {
         std::ostringstream oss;
         oss << "Geometry(Triangle): [";
@@ -161,15 +170,14 @@ public:
 
 class Quad : public Geometry {
 public:
-    const std::array<const Vec3f*, 4> positions;
-    const std::optional<std::array<const Vec3f*, 4>> normals;
-    const std::optional<std::array<const Vec2f*, 4>> tex_coords;
+    const std::array<const Vec3f *, 4> positions;
+    const std::optional<std::array<const Vec3f *, 4>> normals;
+    const std::optional<std::array<const Vec2f *, 4>> tex_coords;
 
     Quad(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *d) : positions{a, b, c} {}
-    Quad(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *d, const Vec3f *an, const Vec3f *bn, Vec3f *cn, const Vec3f *dn) : positions{a, b, c, d}, normals{std::array<const Vec3f*, 4>{an, bn, cn, dn}} {}
-    Quad(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *d, const Vec2f *at, const Vec2f *bt, const Vec2f *ct, const Vec2f *dt) : positions{a, b, c, d}, tex_coords{std::array<const Vec2f*, 4>{at, bt, ct, dt}} {}
-    Quad(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *d, const Vec3f *an, const Vec3f *bn, Vec3f *cn, const Vec3f *dn, const Vec2f *at, const Vec2f *bt, const Vec2f *ct, const Vec2f *dt) : positions{a, b, c, d}, normals{std::array<const Vec3f*, 4>{an, bn, cn, dn}}, tex_coords{std::array<const Vec2f*, 4>{at, bt, ct, dt}} {}
-
+    Quad(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *d, const Vec3f *an, const Vec3f *bn, Vec3f *cn, const Vec3f *dn) : positions{a, b, c, d}, normals{std::array<const Vec3f *, 4>{an, bn, cn, dn}} {}
+    Quad(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *d, const Vec2f *at, const Vec2f *bt, const Vec2f *ct, const Vec2f *dt) : positions{a, b, c, d}, tex_coords{std::array<const Vec2f *, 4>{at, bt, ct, dt}} {}
+    Quad(const Vec3f *a, const Vec3f *b, const Vec3f *c, const Vec3f *d, const Vec3f *an, const Vec3f *bn, Vec3f *cn, const Vec3f *dn, const Vec2f *at, const Vec2f *bt, const Vec2f *ct, const Vec2f *dt) : positions{a, b, c, d}, normals{std::array<const Vec3f *, 4>{an, bn, cn, dn}}, tex_coords{std::array<const Vec2f *, 4>{at, bt, ct, dt}} {}
 
     bool intersect(const Ray &ray, Intersection &isc) override {
         throw std::runtime_error("Quad intersect not implemented");
@@ -187,62 +195,88 @@ public:
     Vec3f get_normal(const Vec3f &position) override {
         // based on face_normals, either interpolate vn's or compute the
         // (constant) normal manually
-        if (normals.has_value()) // TODO:
+        if (normals.has_value())  // TODO:
             throw std::runtime_error("Quad get_normal not implemented");
         else
             return glm::normalize(glm::cross(*positions[1] - *positions[0], *positions[2] - *positions[0]));
     }
 
+    Float area() const override {
+        throw std::runtime_error("Quad area not implemented");
+    }
+    
     std::string to_string() override {
         throw std::runtime_error("Quad to_string not implemented");
     }
 };
 
 class Sphere : public Geometry {
+private:
+    Mat4f inv_transform;
+    
 public:
     Vec3f center;
     Float radius;
+    Float radius_world;  // radius in world space
     // the center and radius are in local space, `transform` is used to transform. used for intersection and bbox building
     Mat4f transform = glm::mat<4, 4, Float>(1);
 
-    Sphere() = default;
-    Sphere(const Vec3f &center, Float radius, const Mat4f &transform = Mat4f(1)) : transform(transform), center(center), radius(radius) {}
-    ~Sphere() = default;
+    Sphere(const Vec3f &center, Float radius, const Mat4f &transform = Mat4f(1)) : transform(transform), center(center), radius(radius) {
+        inv_transform = glm::inverse(transform);
+        Vec3f scaled_x = Vec3f{transform * Vec4f{1, 0, 0, 0}};
+        radius_world = radius * glm::length(scaled_x);
+    }
 
+    // TODO: check for validity
     bool intersect(const Ray &ray, Intersection &isc) override {
-        // TODO: store inverse_transform from the beginning and avoid computing it by GLM
         // transform ray to local space
-        Vec3f ray_o_local = Vec3f{glm::inverse(transform) * Vec4f{ray.o, 1.0}};
-        Vec3f ray_d_local = glm::normalize(Vec3f{glm::inverse(transform) * Vec4f{ray.d, 0.0}});
-        Ray ray_local{ray_o_local, ray_d_local, ray.tmin, ray.tmax};
+        Vec3f o_local = Vec3f{inv_transform * Vec4f{ray.o, 1.0}};
+        Vec3f d_local = glm::normalize(Vec3f{inv_transform * Vec4f{ray.d, 0.0}});
 
-        // ray-sphere intersection in local space
-        Vec3f L = center - ray_local.o;
-        Float tca = glm::dot(L, ray_local.d);
-        if (tca < 0)
-            return false;
-        Float d2 = glm::dot(L, L) - tca * tca;
-        if (d2 > radius * radius)
-            return false;
-        Float thc = sqrt(radius * radius - d2);
-        Float t0 = tca - thc;
-        Float t1 = tca + thc;
+        Vec3f o_minus_c = o_local - center;
+        Float o_minus_c_length2 = dot(o_minus_c, o_minus_c);
+        Float b_prime = dot(o_minus_c, d_local);
+        Float delta_prime = Sqr(b_prime) - o_minus_c_length2 + Sqr(radius);
 
-        Float t;
-        if (t0 > ray_local.tmin && t0 < ray_local.tmax)
-            t = t0;
-        else if (t1 > ray_local.tmin && t1 < ray_local.tmax)
-            t = t1;
-        else
+        // no intersection (in any direction)
+        if (delta_prime < 0)
             return false;
 
-        // fill isc info considering the transformation (convert back to the world space)
-        isc.position = ray(t);
-        isc.position = Vec3f{transform * Vec4f{isc.position, 1.0}};
-        isc.normal = get_normal(isc.position);
-        isc.normal = glm::normalize(Vec3f{glm::transpose(glm::inverse(transform)) * Vec4f{isc.normal, 0.0}});
+        // tangent to the sphere
+        if (delta_prime < Epsilon) {
+            Float t_local = -b_prime;
+            // hit from behind
+            if (t_local < 0.0)
+                return false;
+            Vec3f local_hit_pos = o_local + t_local * d_local;
+            isc.position = Vec3f{transform * Vec4f{local_hit_pos, 1.0}};
+            isc.normal = get_normal(isc.position);
+        } else {  // hit the sphere twice (might be in the back or front of ray)
+            Float delta_prime_sqrt = std::sqrt(delta_prime);
+            Float t1_local = -b_prime - delta_prime_sqrt;
+            Float t2_local = -b_prime + delta_prime_sqrt;
+            // both hitpoints are behind the ray
+            if (t2_local <= 0.0)
+                return false;
+            if (t1_local >= 0.0) {
+                Vec3f local_hit_pos = o_local + t1_local * d_local;
+                isc.position = Vec3f{transform * Vec4f{local_hit_pos, 1.0}};
+                isc.normal = get_normal(isc.position);
+            } else {  // if (t2_local >= 0.0)
+                Vec3f local_hit_pos = o_local + t2_local * d_local;
+                isc.position = Vec3f{transform * Vec4f{o_local + t2_local * d_local, 1.0}};
+                isc.normal = get_normal(isc.position);
+            }
+        }
+
+        isc.dirn = ray.o - isc.position;
+        isc.distance = glm::length(isc.dirn);
+        isc.dirn = glm::normalize(isc.dirn);
         isc.shape = parent_shape;
-        return true;
+        isc.geom = this;
+
+        // FIXME: there's a bug here. suppose the ray hits the sphere twice. the first hit is really close. then isc.distance may be smaller than ray.tmin
+        return (isc.distance >= ray.tmin && isc.distance <= ray.tmax);
     }
 
     AABB get_bbox() override {
@@ -271,9 +305,16 @@ public:
     }
 
     Vec3f get_normal(const Vec3f &position) override {
-        return glm::normalize(position - center);
+        Vec3f local_position = Vec3f{inv_transform * Vec4f{position, 1.0}};
+        Vec3f local_normal = local_position - center;
+        Vec3f normal = Vec3f{glm::transpose(inv_transform) * Vec4f{local_normal, 0.0}};
+        return glm::normalize(normal);
     }
 
+    Float area() const override {
+        return 4.0 * Pi * Sqr(radius_world);
+    }
+    
     std::string to_string() override {
         std::ostringstream oss;
         oss << "Geometry(Sphere): [ center=" << center << ", radius=" << radius << " ]";
@@ -285,7 +326,7 @@ public:
 class MeshLoader {
 public:
     // load a triangle/quad mesh
-    static bool load_mesh_from_file(const std::string &file_path, std::vector<Geometry*> &output_mesh, std::vector<Vec3f*> &vertices, std::vector<Vec3f*> &normals, std::vector<Vec2f*> &texcoords) {
+    static bool load_mesh_from_file(const std::string &file_path, std::vector<Geometry *> &output_mesh, std::vector<Vec3f *> &vertices, std::vector<Vec3f *> &normals, std::vector<Vec2f *> &texcoords) {
         tinyobj::ObjReader obj_reader;
         if (!obj_reader.ParseFromFile(file_path)) {
             if (!obj_reader.Error().empty())
@@ -294,8 +335,7 @@ public:
             return false;
         }
         if (!obj_reader.Warning().empty())
-            // LOG_WARNING("TinyObjReader warning reading file: {}; {}", file_path, obj_reader.Warning());
-            std::cerr << "TinyObjReader warning reading file: " << file_path << "; " << obj_reader.Warning() << "\n";
+            std::cout << "TinyObjReader warning reading file: " << file_path << "; " << obj_reader.Warning() << "\n";
 
         // Only support objs with one shape
         const std::vector<tinyobj::shape_t> &shapes = obj_reader.GetShapes();

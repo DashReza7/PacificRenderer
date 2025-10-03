@@ -7,6 +7,9 @@
 
 #include "core/Pacific.h"
 
+
+#define Sqr(x) ((x)*(x))
+
 inline const Float Epsilon = 1e-4f;
 inline const Float Pi = 3.14159265358979323846;
 inline const Float InvPi = 0.31830988618379067154;
@@ -22,6 +25,7 @@ using Vec4f = glm::vec<4, Float>;
 using Vec2i = glm::vec<2, int>;
 using Vec3i = glm::vec<3, int>;
 using Vec4i = glm::vec<4, int>;
+using Mat3f = glm::mat<3, 3, Float>;
 using Mat4f = glm::mat<4, 4, Float>;
 using Mat4i = glm::mat<4, 4, int>;
 
@@ -54,3 +58,30 @@ inline std::ostream& operator<<(std::ostream& os, const Mat4f& m) {
     os << "]";
     return os;
 }
+
+
+Mat3f localToWorldMat(const Vec3f &world_z);
+
+/// @brief Transform a vector from local-space to world-space
+Vec3f localToWorld(const Vec3f &local, const Vec3f &world_z);
+
+Vec3f worldToLocal(const Vec3f &world, const Vec3f &world_z);
+
+/// @brief Reflect the incident direction `wi` about the normal `n`
+/// @param wi Incident direction (pointing outward from the surface)
+/// @param n Normal direction (pointing outward from the surface)
+/// @return Reflected direction (pointing outward from the surface)
+Vec3f reflect(const Vec3f &wi, const Vec3f &n);
+
+/// @brief Refract the incident direction `wi` through the surface with normal `n`
+/// @param wi Incident direction (pointing outward from the surface)
+/// @param n Normal direction (pointing outward from the surface)
+/// @param eta Relative index of refraction (ext_ior/int_ior)
+/// @return Refracted direction (pointing outward from the surface)
+Vec3f refract(const Vec3f &wi, const Vec3f &n, Float eta);
+
+Float triangle_area(const Vec3f &a, const Vec3f &b, const Vec3f &c);
+
+Vec3f uniformHemisphereSample(const Vec2f &sample);
+
+Vec3f cosineHemisphereSample(const Vec2f &sample);

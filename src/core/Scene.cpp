@@ -1,8 +1,9 @@
 #include "core/Scene.h"
 
+#include "core/Registry.h"
 #include "utils/SceneParser.h"
 
-Integrator* Scene::load_scene(const SceneDesc& scene_desc) {
+void Scene::load_scene(const SceneDesc& scene_desc) {
     auto bsdfs_dict = load_bsdfs(scene_desc.bsdfs);
     auto emitters_dict = load_emitters(scene_desc.emitters);
 
@@ -11,8 +12,6 @@ Integrator* Scene::load_scene(const SceneDesc& scene_desc) {
     build_bvh(bvh_root, get_all_geoms());
 
     load_sensor(scene_desc.sensor);
-
-    return load_integrator(scene_desc.integrator);
 }
 
 std::unordered_map<BSDFDesc*, BSDF*> Scene::load_bsdfs(const std::vector<BSDFDesc*>& bsdfs_desc) {
@@ -20,19 +19,9 @@ std::unordered_map<BSDFDesc*, BSDF*> Scene::load_bsdfs(const std::vector<BSDFDes
     for (const auto& bsdf_desc : bsdfs_desc) {
         BSDF* bsdf = nullptr;
         if (bsdf_desc->type == "diffuse") {
-            Vec3f reflectance{0.5};
-            if (bsdf_desc->properties.find("reflectance") != bsdf_desc->properties.end())
-                reflectance = strToVec3f(bsdf_desc->properties["reflectance"]);
-            bsdf = new DiffuseBSDF{reflectance};
-
+            bsdf = BSDFRegistry::createBSDF("diffuse", bsdf_desc->properties);
         } else if (bsdf_desc->type == "dielectric") {
-            Float int_ior = 1.5046;
-            Float ext_ior = 1.000277;
-            if (bsdf_desc->properties.find("int_ior") != bsdf_desc->properties.end())
-                int_ior = static_cast<Float>(std::stod(bsdf_desc->properties["int_ior"]));
-            if (bsdf_desc->properties.find("ext_ior") != bsdf_desc->properties.end())
-                ext_ior = static_cast<Float>(std::stod(bsdf_desc->properties["ext_ior"]));
-            bsdf = new SmoothDielectricBSDF{int_ior, ext_ior};
+            bsdf = BSDFRegistry::createBSDF("dielectric", bsdf_desc->properties);
         } else {
             throw std::runtime_error("Unsupported BSDF type: " + bsdf_desc->type);
         }
@@ -46,9 +35,8 @@ std::unordered_map<BSDFDesc*, BSDF*> Scene::load_bsdfs(const std::vector<BSDFDes
 void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::unordered_map<BSDFDesc*, BSDF*>& bsdfs_dict, const std::unordered_map<EmitterDesc*, Emitter*>& emitters_dict) {
     for (const auto& shape_desc : shapes_desc) {
         auto shape = new Shape{};
-        if (shape_desc->bsdf == nullptr) {
+        if (shape_desc->bsdf == nullptr)
             throw std::runtime_error("Shape missing BSDF");
-        }
         shape->bsdf = bsdfs_dict.at(shape_desc->bsdf);
 
         if (shape_desc->type == "obj") {
@@ -82,8 +70,8 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
                 sphere->center = strToVec3f(shape_desc->properties["center"]);
             if (shape_desc->properties.find("radius") != shape_desc->properties.end())
                 sphere->radius = std::stod(shape_desc->properties["radius"]);
+            sphere->transform = shape_desc->to_world;
             shape->geometries.push_back(sphere);
-
         } else {
             throw std::runtime_error("Unsupported shape type: " + shape_desc->type);
         }
@@ -113,7 +101,9 @@ std::unordered_map<EmitterDesc*, Emitter*> Scene::load_emitters(const std::vecto
             if (emitter_desc->properties.find("to_world") != emitter_desc->properties.end())
                 to_world = strToMat4f(emitter_desc->properties["to_world"]);
 
-            emitter = new PointLight{intensity, position, to_world};
+            Vec4f tmp_pos = to_world * Vec4f{position, 1.0};
+            position = Vec3f{tmp_pos / tmp_pos.w};
+            emitter = new PointLight{intensity, position};
         } else if (emitter_desc->type == "area") {
             Vec3f radiance{1.0};
             if (emitter_desc->properties.find("radiance") != emitter_desc->properties.end())
@@ -130,41 +120,11 @@ std::unordered_map<EmitterDesc*, Emitter*> Scene::load_emitters(const std::vecto
     return emitters_dict;
 }
 
-Integrator* Scene::load_integrator(const IntegratorDesc* integrator_desc) {
-    Integrator* integrator = nullptr;
-    if (integrator_desc->type == "direct") {
-        int emitter_samples = 1;
-        int bsdf_samples = 1;
-        bool hide_emitters = false;
-        if (integrator_desc->properties.find("emitter_samples") != integrator_desc->properties.end())
-            emitter_samples = std::stoi(integrator_desc->properties.at("emitter_samples"));
-        if (integrator_desc->properties.find("bsdf_samples") != integrator_desc->properties.end())
-            bsdf_samples = std::stoi(integrator_desc->properties.at("bsdf_samples"));
-        if (integrator_desc->properties.find("hide_emitters") != integrator_desc->properties.end())
-            hide_emitters = (integrator_desc->properties.at("hide_emitters") == "true");
-        integrator = new DirectLightingIntegrator{this, emitter_samples, bsdf_samples, hide_emitters};
-
-    } else if (integrator_desc->type == "path") {
-        int max_depth = -1;
-        int rr_depth = 5;
-        if (integrator_desc->properties.find("max_depth") != integrator_desc->properties.end())
-            max_depth = std::stoi(integrator_desc->properties.at("max_depth"));
-        if (integrator_desc->properties.find("rr_depth") != integrator_desc->properties.end())
-            rr_depth = std::stoi(integrator_desc->properties.at("rr_depth"));
-        integrator = new PathTracer{this, max_depth, rr_depth};
-
-    } else {
-        throw std::runtime_error("Unsupported integrator type: " + integrator_desc->type);
-    }
-
-    return integrator;
-}
-
 void Scene::load_sensor(const SensorDesc* sensor_desc) {
     Float fov = 45.0;
     Float near_clip = 1e-2, far_clip = 1e4;
     uint32_t width = 800, height = 600;
-    uint32_t spp = 1;
+    uint32_t spp = 4;
     if (sensor_desc->properties.find("fov") != sensor_desc->properties.end())
         fov = static_cast<Float>(std::stod(sensor_desc->properties.at("fov")));
     if (sensor_desc->properties.find("near_clip") != sensor_desc->properties.end())
@@ -229,14 +189,14 @@ void Scene::build_bvh(BVHNode* node, const std::vector<Geometry*>& contained_geo
     }
 }
 
-std::vector<Geometry*> Scene::get_all_geoms() {
+std::vector<Geometry*> Scene::get_all_geoms() const {
     std::vector<Geometry*> all_geoms;
     for (const auto& shape : shapes)
         all_geoms.insert(all_geoms.end(), shape->geometries.begin(), shape->geometries.end());
     return all_geoms;
 }
 
-std::string Scene::get_bvh_str(BVHNode* node, int idt) {
+std::string Scene::get_bvh_str(BVHNode* node, int idt) const {
     if (node == nullptr)
         node = bvh_root;
 
@@ -263,7 +223,7 @@ std::string Scene::get_bvh_str(BVHNode* node, int idt) {
     return s;
 }
 
-std::string Scene::get_bvh_statistics() {
+std::string Scene::get_bvh_statistics() const {
     // compute statistics like number of nodes, depth, average number of geometries per leaf node, etc.
     // also check if any non-leaf node has geometries with size > 0 (which is an error)
 
@@ -311,24 +271,51 @@ std::string Scene::get_bvh_statistics() {
     return oss.str();
 }
 
-bool Scene::intersect_brute_force(const Ray& ray, Intersection& isc) {
+bool Scene::ray_intersect_bruteforce(const Ray& ray, Intersection& isc) const {
     bool is_hit = false;
-    Float closest_t = ray.tmax;
-
+    Float best_dist = ray.tmax;
     for (const auto& shape : shapes)
         for (const auto& geom : shape->geometries) {
             Intersection temp_isc;
             if (geom->intersect(ray, temp_isc)) {
-                Float t = glm::length(temp_isc.position - ray.o);
-                if (t < closest_t) {
-                    closest_t = t;
+                if (ray.shadow_ray)
+                    return true;
+                if (temp_isc.distance < best_dist) {
+                    best_dist = temp_isc.distance;
                     isc = temp_isc;
                     is_hit = true;
                 }
             }
         }
-
     return is_hit;
+}
+
+bool Scene::ray_intersect_bvh(const Ray& ray, Intersection& isc) const {
+    if (bvh_root == nullptr)
+        throw std::runtime_error("BVH not built");
+    return bvh_root->intersect(ray, isc);
+}
+
+bool Scene::ray_intersect(const Ray& ray, Intersection& isc) const {
+    if (accel_type == AccelerationType::NONE)
+        return ray_intersect_bruteforce(ray, isc);
+    else if (accel_type == AccelerationType::BVH)
+        return ray_intersect_bvh(ray, isc);
+    else
+        throw std::runtime_error("Unknown acceleration type");
+}
+
+EmitterSample Scene::sample_emitter(const Intersection& isc, Float sample1, const Vec3f &sample2) const {
+    // sample an emitter index
+    uint32_t emitter_index = std::min(int(sample1 * emitters.size()), int(emitters.size() - 1));
+    Float emitter_index_pmf = 1.0 / emitters.size();
+    
+    auto emitter = emitters[emitter_index];
+
+    EmitterSample emitter_sample = emitter->sampleLi(this, isc, sample2);
+    emitter_sample.pdf *= emitter_index_pmf;
+    
+    return emitter_sample;
 }
 
 std::string Scene::to_string() const {

@@ -38,9 +38,11 @@ bool BVHNode::intersect(const Ray& ray, Intersection& isc) {
             Intersection isc_tmp{};
             bool is_hit_tmp = geom->intersect(ray, isc_tmp);
             if (is_hit_tmp) {
+                if (ray.shadow_ray)
+                    return true;
                 is_hit = true;
-                if (glm::length(isc_tmp.position - ray.o) < best_dist) {
-                    best_dist = glm::length(isc_tmp.position - ray.o);
+                if (isc_tmp.distance < best_dist) {
+                    best_dist = isc_tmp.distance;
                     isc = isc_tmp;
                 }
             }
@@ -54,9 +56,7 @@ bool BVHNode::intersect(const Ray& ray, Intersection& isc) {
     hit_right = right->intersect(ray, isc_right);
 
     if (hit_left && hit_right) {
-        Float dist_left = glm::length(isc_left.position - ray.o);
-        Float dist_right = glm::length(isc_right.position - ray.o);
-        if (dist_left < dist_right)
+        if (isc_left.distance < isc_right.distance)
             isc = isc_left;
         else
             isc = isc_right;

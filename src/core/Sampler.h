@@ -5,10 +5,6 @@
 class Sampler {
 private:
     uint64_t state;
-    uint32_t spp;
-    
-public:
-    Sampler(uint32_t seed, uint32_t spp) : state(seed), spp(spp) {}
     
     uint32_t next_uint32() {
         uint64_t oldstate = state;
@@ -17,9 +13,23 @@ public:
         uint32_t rot = oldstate >> 59u;
         return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
     }
+
+public:
+    uint32_t spp;
+    
+    Sampler(uint32_t seed, uint32_t spp) : state(seed), spp(spp) {}
+
     
     Float get_sample() {
         return (next_uint32() >> 8) * 0x1.0p-24f; // 24-bit precision
+    }
+
+    Vec2f get_sample_2d() {
+        return Vec2f{get_sample(), get_sample()};
+    }
+    
+    Vec3f get_sample_3d() {
+        return Vec3f{get_sample(), get_sample(), get_sample()};
     }
 
     std::string to_string() const {

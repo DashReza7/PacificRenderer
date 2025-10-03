@@ -3,6 +3,11 @@
  - The BSDF referencing doesn't support forward referencing.
 
 **TODO:**
+
+Urgent:
+ - Set up the registry for Emitters
+ -
+
  - Convert all () functions with \{\} 
  - organize the	codebase into namespaces, like the math utils.
  - look for all float and change them to Float (SceneParser.h is suspiciosu)
@@ -21,3 +26,6 @@
  - implement Volumetric integrator
  - implement normal & bump mapping
  - implement Disney principled BRDF/BSDF
+ - Fix the names to be more consistent (e.g. Scene vs scene, BSDF vs bsdf, etc.)
+ - Make the `Intersection` at ray_intersect function an `std::optional`
+ - Add using a config file to set up small grained details, like the MIS strategy, etc.

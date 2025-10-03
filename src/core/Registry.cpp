@@ -1,0 +1,46 @@
+#include <stdexcept>
+
+#include "core/Registry.h"
+#include "core/Scene.h"
+
+// --------------------------- BSDFRegistry Implementation -----------------------
+void BSDFRegistry::registerBSDF(const std::string& type, BSDFCreator creator) {
+    BSDFRegistry::getCreators()[type] = creator;
+}
+
+BSDF* BSDFRegistry::createBSDF(const std::string& type, const std::unordered_map<std::string, std::string>& properties) {
+    auto it = BSDFRegistry::getCreators().find(type);
+    if (it == BSDFRegistry::getCreators().end()) {
+        throw std::runtime_error("Unknown BSDF type: " + type);
+    }
+    return it->second(properties);
+}
+
+std::vector<std::string> BSDFRegistry::getRegisteredTypes() {
+    std::vector<std::string> types;
+    for (const auto& pair : BSDFRegistry::getCreators()) {
+        types.push_back(pair.first);
+    }
+    return types;
+}
+
+// ------------------------ IntegratorRegistry Implementation ---------------------
+void IntegratorRegistry::registerIntegrator(const std::string& type, IntegratorRegistry::IntegratorCreator creator) {
+    IntegratorRegistry::getCreators()[type] = creator;
+}
+
+Integrator* IntegratorRegistry::createIntegrator(const std::string& type, const std::unordered_map<std::string, std::string>& properties) {
+    auto it = IntegratorRegistry::getCreators().find(type);
+    if (it == IntegratorRegistry::getCreators().end()) {
+        throw std::runtime_error("Unknown Integrator type: " + type);
+    }
+    return it->second(properties);
+}
+
+std::vector<std::string> IntegratorRegistry::getRegisteredTypes() {
+    std::vector<std::string> types;
+    for (const auto& pair : IntegratorRegistry::getCreators()) {
+        types.push_back(pair.first);
+    }
+    return types;
+}

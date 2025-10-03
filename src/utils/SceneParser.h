@@ -5,46 +5,15 @@
 #include <iostream>
 #include <memory>
 #include <pugixml.hpp>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <unordered_map>
-#include <vector>
-#include <regex>
 #include <unordered_set>
+#include <vector>
 
 #include "core/MathUtils.h"
 #include "utils/Misc.h"
-
-// Utils
-inline Vec3f strToVec3f(const std::string& value_str) {
-    Vec3f vec;
-    std::istringstream iss(value_str);
-    char comma;
-    iss >> vec.x >> comma >> vec.y >> comma >> vec.z;
-    return vec;
-}
-
-inline Mat4f strToMat4f(std::string mat_str) {
-    Mat4f mat;
-    std::istringstream iss(mat_str);
-
-    for (int i = 0; i < 4; ++i)
-        for (int j = 0; j < 4; ++j)
-            iss >> mat[i][j];
-
-    return mat;
-}
-
-inline std::string mat4fToStr(Mat4f mat) {
-    std::ostringstream oss;
-    for (int i = 0; i < 4; ++i) {
-        for (int j = 0; j < 4; ++j) {
-            oss << mat[i][j];
-            if (i < 3 || j < 3) oss << " ";
-        }
-    }
-    return oss.str();
-}
 
 // Base class for all scene objects
 struct SceneObjectDesc {
@@ -254,6 +223,41 @@ private:
     std::unordered_map<std::string, std::string> defaults;
     std::unordered_map<std::string, BSDFDesc*> shared_bsdfs;
 
+    /// @brief utility function for parsing a node containing a vector type(point, rgb, vector, etc.) `value` or `x`, `r`, etc.
+    /// @param special_char the special character of that vector type. e.g. `point` and `vector` have "x", `rgb` has "r"
+    std::string parseVectorType(const pugi::xml_node& node, const std::string& special_char) {
+        if (node.attribute(special_char)) {
+            std::string char1, char2, char3;
+            if (special_char == "x") {
+                char1 = "x";
+                char2 = "y";
+                char3 = "z";
+            } else if (special_char == "r") {
+                char1 = "r";
+                char2 = "g";
+                char3 = "b";
+            } else {
+                throw std::runtime_error("Unknown special character for vector type: " +
+                                         special_char);
+            }
+
+            std::string x = get_default(node.attribute(char1).value());
+            std::string y = get_default(node.attribute(char2).value());
+            std::string z = get_default(node.attribute(char3).value());
+            return x + ", " + y + ", " + z;
+        } else /* if (node.attribute("value")) */ {
+            std::string value_str = get_default(node.attribute("value").value());
+            value_str = trim(value_str);
+            if (value_str.find(',') == std::string::npos) {
+                if (value_str.find(' ') == std::string::npos)
+                    value_str = value_str + ", " + value_str + ", " + value_str;
+                else
+                    value_str = std::regex_replace(value_str, std::regex(" "), ", ");
+            }
+            return value_str;
+        }
+    }
+
     SceneDesc parseScene(const pugi::xml_document& doc) {
         SceneDesc scene;
 
@@ -411,39 +415,9 @@ private:
             } else if (child_name == "boolean") {
                 properties[name] = get_default(child.attribute("value").value());
             } else if (child_name == "point" || child_name == "vector") {
-                if (child.attribute("x")) {
-                    std::string x = get_default(child.attribute("x").value());
-                    std::string y = get_default(child.attribute("y").value());
-                    std::string z = get_default(child.attribute("z").value());
-                    properties[name] = x + ", " + y + ", " + z;
-                } else if (child.attribute("value")) {
-                    std::string value_str = get_default(child.attribute("value").value());
-                    value_str = trim(value_str);
-                    if (value_str.find(',') == std::string::npos) {
-                        if (value_str.find(' ') == std::string::npos)
-                            value_str = value_str + ", " + value_str + ", " + value_str;
-                        else
-                            value_str = std::regex_replace(value_str, std::regex(" "), ", ");
-                    }
-                    properties[name] = value_str;
-                }
+                properties[name] = parseVectorType(child, "x");
             } else if (child_name == "rgb") {
-                if (child.attribute("r")) {
-                    std::string r = get_default(child.attribute("r").value());
-                    std::string g = get_default(child.attribute("g").value());
-                    std::string b = get_default(child.attribute("b").value());
-                    properties[name] = r + ", " + g + ", " + b;
-                } else if (child.attribute("value")) {
-                    std::string value_str = get_default(child.attribute("value").value());
-                    value_str = trim(value_str);
-                    if (value_str.find(',') == std::string::npos) {
-                        if (value_str.find(' ') == std::string::npos)
-                            value_str = value_str + ", " + value_str + ", " + value_str;
-                        else
-                            value_str = std::regex_replace(value_str, std::regex(" "), ", ");
-                    }
-                    properties[name] = value_str;
-                }
+                properties[name] = parseVectorType(child, "r");
             } else if (child_name == "transform") {
                 properties[name] = mat4fToStr(parseTransform(child));
             } else {
@@ -455,73 +429,43 @@ private:
     Mat4f parseTransform(const pugi::xml_node& node) {
         Mat4f trafo = glm::mat<4, 4, Float>(1);
 
-        for (pugi::xml_node child : node.children()) {
+        // TODO: fix this
+        // Traverse children in reverse order
+        std::vector<pugi::xml_node> children;
+        for (pugi::xml_node child : node.children())
+            children.push_back(child);
+        for (auto it = children.rbegin(); it != children.rend(); ++it) {
+        // for (auto it = children.begin(); it != children.end(); ++it) {
+            pugi::xml_node child = *it;
             std::string child_name = child.name();
 
             if (child_name == "translate") {
-                // TODO: change as_float to as_double adaptively
-                Float x = child.attribute("x") ? child.attribute("x").as_float() : 0.0f;
-                Float y = child.attribute("y") ? child.attribute("y").as_float() : 0.0f;
-                Float z = child.attribute("z") ? child.attribute("z").as_float() : 0.0f;
-
-                if (child.attribute("value")) {
-                    std::string value_str = child.attribute("value").value();
-                    std::istringstream iss(value_str);
-                    char comma;
-                    iss >> x >> comma >> y >> comma >> z;
-                }
-
-                trafo = glm::translate(trafo, Vec3f{x, y, z});
+                auto translate_value_str = parseVectorType(child, "x");
+                trafo = glm::translate(trafo, strToVec3f(translate_value_str));
             } else if (child_name == "rotate") {
                 // Handle rotation - simplified version
                 Float angle = child.attribute("angle")
                                   ? child.attribute("angle").as_float()
                                   : 0.0f;
-                Float x = child.attribute("x") ? child.attribute("x").as_float()
-                                               : 0.0f;
-                Float y = child.attribute("y") ? child.attribute("y").as_float()
-                                               : 0.0f;
-                Float z = child.attribute("z") ? child.attribute("z").as_float()
-                                               : 0.0f;
-
-                if (child.attribute("value")) {
-                    std::string value_str = child.attribute("value").value();
-                    std::istringstream iss(value_str);
-                    char comma;
-                    iss >> x >> comma >> y >> comma >> z;
-                }
-
-                trafo = glm::rotate(trafo, glm::radians(angle), Vec3f{x, y, z});
+                auto axis_value_str = parseVectorType(child, "x");
+                trafo = glm::rotate(trafo, glm::radians(angle), strToVec3f(axis_value_str));
             } else if (child_name == "scale") {
-                Float x = child.attribute("x") ? child.attribute("x").as_float()
-                                               : 1.0f;
-                Float y = child.attribute("y") ? child.attribute("y").as_float()
-                                               : 1.0f;
-                Float z = child.attribute("z") ? child.attribute("z").as_float()
-                                               : 1.0f;
-
-                if (child.attribute("value")) {
-                    std::string value_str = child.attribute("value").value();
-                    std::istringstream iss(value_str);
-                    char comma;
-                    iss >> x >> comma >> y >> comma >> z;
-                }
-
-                trafo = glm::scale(trafo, Vec3f{x, y, z});
+                auto scale_value_str = parseVectorType(child, "x");
+                trafo = glm::scale(trafo, strToVec3f(scale_value_str));
             } else if (child_name == "matrix") {
                 Mat4f matrix;
                 std::string value = child.attribute("value").value();
                 std::istringstream iss(value);
 
-                for (int i = 0; i < 16; ++i) iss >> matrix[i % 4][i / 4];
+                for (int i = 0; i < 16; ++i)
+                    iss >> matrix[i % 4][i / 4];
 
-                trafo = matrix * trafo;
+                trafo = trafo * matrix;
             } else if (child_name == "lookat") {
                 std::string origin_str = child.attribute("origin").value();
                 std::string target_str = child.attribute("target").value();
                 std::string up_str = child.attribute("up").value();
                 Vec3f origin, target, up;
-
                 char comma;
                 std::istringstream iss(origin_str);
                 iss >> origin.x >> comma >> origin.y >> comma >> origin.z;
@@ -530,8 +474,15 @@ private:
                 iss = std::istringstream(up_str);
                 iss >> up.x >> comma >> up.y >> comma >> up.z;
 
-                Mat4f lookat_mat = glm::lookAt(origin, target, up);
-                trafo = lookat_mat * trafo;
+                // glm::lookAt gives -Z forward, +X right
+                // We want +Z forward, +X left, so flip both axes
+                Mat4f flip = Mat4f(1.0f);
+                flip[0][0] = -1.0f;  // flip X (right -> left)
+                flip[2][2] = -1.0f;  // flip Z (-Z forward -> +Z forward)
+
+                Mat4f lookat_mat = glm::inverse(glm::lookAt(origin, target, up)) * flip;
+
+                trafo = trafo * lookat_mat;
             }
         }
 
