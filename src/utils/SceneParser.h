@@ -376,7 +376,8 @@ private:
         auto film = new FilmDesc{};
         film->type = get_default(node.attribute("type").value());
 
-        parseProperties(node, film->properties);
+        // TODO: implement reconstruction filters
+        parseProperties(node, film->properties, {"rfilter"});
         return film;
     }
 

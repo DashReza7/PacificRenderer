@@ -25,7 +25,9 @@ add_executable(${PROJECT_NAME}
     "src/core/Integrator.cpp"
     "src/utils/stb.cpp"
     "src/core/Shape.cpp"
-    "src/core/Emitter.cpp"
+    "src/lights/point.cpp"
+    "src/lights/area.cpp"
+    "src/lights/directional.cpp"
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 

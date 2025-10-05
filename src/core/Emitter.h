@@ -6,78 +6,37 @@
 class Shape;
 class Scene;
 
-
-struct EmitterSample {
-    Float pdf;
-    Vec3f position;
-    bool is_valid;
-    Vec3f radiance;
-
-    EmitterSample(Float pdf, const Vec3f &position, bool is_valid, const Vec3f &radiance) : pdf(pdf), position(position), is_valid(is_valid), radiance(radiance) {}
+enum class EmitterFlags {
+    NONE = 0,
+    DELTA_POSITION = 1 << 0,
+    AREA = 1 << 1,
+    DELTA_DIRECTION = 1 << 2
 };
 
-// Right now only RGB emitters are supported
+// TODO: change the position member to dirn
+struct EmitterSample {
+    Float pdf;
+    // direction towards the shading point
+    Vec3f direction;
+    bool is_valid;
+    Vec3f radiance;
+    EmitterFlags emitter_flags;
+
+    EmitterSample(Float pdf, const Vec3f &direction, bool is_valid, const Vec3f &radiance, EmitterFlags emitter_flags)
+        : pdf(pdf), direction(direction), is_valid(is_valid), radiance(radiance), emitter_flags(emitter_flags) {}
+};
+
 class Emitter {
 public:
-    enum class Type {
-        POINT,
-        AREA
-    };
-    Type type;
+    /// Only used for area lights to set their corresponding shape
+    virtual void set_shape(const Shape *shape) {}
 
-    Emitter(Emitter::Type type) : type(type) {}
-
-    /// Returns the radiance to the isc point.
+    /// Returns the radiance to the shading point.
     /// Remark: this function does not account for occlusions
-    virtual Vec3f eval(const Intersection &isc) const = 0;
+    virtual Vec3f eval(const Vec3f &shading_posn) const = 0;
 
     /// Used for NEE. Returned pdf is in solid angle measure(or 1 for Delta light sources)
     virtual EmitterSample sampleLi(const Scene *scene, const Intersection &isc, const Vec3f &sample) const = 0;
 
     virtual std::string to_string() const = 0;
-};
-
-class PointLight final : public Emitter {
-public:
-    Vec3f intensity;
-    Vec3f position;
-
-    PointLight(const Vec3f &intensity, const Vec3f &position) : Emitter(Emitter::Type::POINT), intensity(intensity), position(position) {}
-
-    virtual Vec3f eval(const Intersection &isc) const override {
-        return intensity / glm::dot(position - isc.position, position - isc.position);
-    }
-
-    EmitterSample sampleLi(const Scene *scene, const Intersection &isc, const Vec3f &sample) const override;
-
-    std::string to_string() const override {
-        std::ostringstream oss;
-        oss << "Emitter(PointLight): [ intensity=" << intensity << ", position=" << position << " ]";
-        return oss.str();
-    }
-};
-
-// Right now only uniform area emitters are supported.
-// (texture emitters are not supported)
-class AreaLight final : public Emitter {
-private:
-    Vec3f radiance;
-
-public:
-    Shape *shape;  // the shape that this area light is attached to
-
-    AreaLight(const Vec3f &radiance) : Emitter(Emitter::Type::AREA), radiance(radiance) {}
-
-    // FIXME: validate the physical correctness
-    virtual Vec3f eval(const Intersection &isc) const override {
-        return radiance;
-    }
-
-    virtual EmitterSample sampleLi(const Scene *scene, const Intersection &isc, const Vec3f &sample) const override;
-    
-    std::string to_string() const override {
-        std::ostringstream oss;
-        oss << "Emitter(AreaLight): [ radiance=" << radiance << " ]";
-        return oss.str();
-    }
 };

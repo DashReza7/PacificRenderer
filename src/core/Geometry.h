@@ -239,7 +239,7 @@ public:
         Float delta_prime = Sqr(b_prime) - o_minus_c_length2 + Sqr(radius);
 
         // no intersection (in any direction)
-        if (delta_prime < 0)
+        if (delta_prime <= 0)
             return false;
 
         // tangent to the sphere
@@ -389,6 +389,8 @@ public:
 
             } else if (num_face_vertices == 4) {
                 // Quad
+                throw std::runtime_error("Quad not implemented");
+                
                 std::array<int, 4> vertex_indices;
                 std::array<int, 4> normal_indices;
                 std::array<int, 4> texcoord_indices;

@@ -6,6 +6,8 @@
 
 Urgent:
  - Set up the registry for Emitters
+ - Directional Emitter
+ - Implement two-sided BSDFs
  -
 
  - Convert all () functions with \{\} 
@@ -29,3 +31,5 @@ Urgent:
  - Fix the names to be more consistent (e.g. Scene vs scene, BSDF vs bsdf, etc.)
  - Make the `Intersection` at ray_intersect function an `std::optional`
  - Add using a config file to set up small grained details, like the MIS strategy, etc.
+ - Move the ArgParsing to ArgParser.h
+

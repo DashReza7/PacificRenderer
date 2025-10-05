@@ -76,9 +76,9 @@ Vec3f reflect(const Vec3f &wi, const Vec3f &n);
 /// @brief Refract the incident direction `wi` through the surface with normal `n`
 /// @param wi Incident direction (pointing outward from the surface)
 /// @param n Normal direction (pointing outward from the surface)
-/// @param eta Relative index of refraction (ext_ior/int_ior)
+/// @param eta Relative index of refraction (eta_i / eta_t)
 /// @return Refracted direction (pointing outward from the surface)
-Vec3f refract(const Vec3f &wi, const Vec3f &n, Float eta);
+bool refract(const Vec3f &wi, const Vec3f &n, Float eta, Vec3f &wo);
 
 Float triangle_area(const Vec3f &a, const Vec3f &b, const Vec3f &c);
 

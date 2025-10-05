@@ -20,16 +20,16 @@ public:
     Sampler(uint32_t seed, uint32_t spp) : state(seed), spp(spp) {}
 
     
-    Float get_sample() {
+    Float get_1D() {
         return (next_uint32() >> 8) * 0x1.0p-24f; // 24-bit precision
     }
 
-    Vec2f get_sample_2d() {
-        return Vec2f{get_sample(), get_sample()};
+    Vec2f get_2D() {
+        return Vec2f{get_1D(), get_1D()};
     }
     
-    Vec3f get_sample_3d() {
-        return Vec3f{get_sample(), get_sample(), get_sample()};
+    Vec3f get_3D() {
+        return Vec3f{get_1D(), get_1D(), get_1D()};
     }
 
     std::string to_string() const {

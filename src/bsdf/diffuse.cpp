@@ -2,35 +2,18 @@
 #include "core/Registry.h"
 #include "utils/Misc.h"
 
+// TODO: implement two-sided diffuse
 // Texture reflectance not supported
 class DiffuseBSDF final : public BSDF {
 public:
     Vec3f reflectance;
     bool cosine_sampling;
 
-    DiffuseBSDF(const Vec3f &reflectance, bool cosine_sampling) : reflectance(reflectance), cosine_sampling(cosine_sampling) {}
-
-    std::pair<BSDFSample, Vec3f> sample(const Intersection &isc, Float sample1, const Vec2f &sample2) const override {
-        if (cosine_sampling) {
-            Vec3f wo_local = cosineHemisphereSample(sample2);
-            // diffuse pdf&eval are independent of wi
-            return {BSDFSample{localToWorld(wo_local, isc.normal),
-                               pdf(Vec3f{0.0, 0.0, 1.0}, wo_local),
-                               1.0},
-                    eval(Vec3f{0.0, 0.0, 1.0}, wo_local)};
-        } else {  // uniform hemisphere sampling
-            Vec3f wo_local = uniformHemisphereSample(sample2);
-            // diffuse pdf&eval are independent of wi
-            return {BSDFSample{localToWorld(wo_local, isc.normal),
-                               pdf(Vec3f{0.0, 0.0, 1.0}, wo_local),
-                               1.0},
-                    eval(Vec3f{0.0, 0.0, 1.0}, wo_local)};
-        }
-    }
+    DiffuseBSDF(BSDFFlags flags, const Vec3f &reflectance, bool cosine_sampling) : BSDF(flags), reflectance(reflectance), cosine_sampling(cosine_sampling) {}
 
     Vec3f eval(const Vec3f &wi, const Vec3f &wo) const override {
         if (wi.z <= 0 || wo.z <= 0)
-            return Vec3f{0.0f};
+            return Vec3f{0.0};
         return reflectance * InvPi * wo.z;
     }
 
@@ -39,8 +22,20 @@ public:
             return 0.0f;
         if (cosine_sampling)
             return wo.z * InvPi;
-        else
+        else  // uniform hemispher sammpling
             return Inv2Pi;
+    }
+
+    std::pair<BSDFSample, Vec3f> sample(const Vec3f &wi, Float sample1, const Vec2f &sample2) const override {
+        if (cosine_sampling) {
+            Vec3f wo = cosineHemisphereSample(sample2);
+            return {BSDFSample{wo, pdf(Vec3f{0, 0, 1}, wo), 1, 1.0},
+                    eval(Vec3f{0, 0, 1}, wo)};
+        } else {  // uniform hemisphere sampling
+            Vec3f wo = uniformHemisphereSample(sample2);
+            return {BSDFSample{wo, pdf(Vec3f{0, 0, 1}, wo), 1, 1.0},
+                    eval(Vec3f{0, 0, 1}, wo)};
+        }
     }
 
     std::string to_string() const override {
@@ -52,7 +47,7 @@ public:
 
 // --------------------------- Registry functions ---------------------------
 BSDF *createDiffuseBSDF(const std::unordered_map<std::string, std::string> &properties) {
-    Vec3f reflectance{0.5f, 0.5f, 0.5f};
+    Vec3f reflectance{0.5, 0.5, 0.5};
     bool cosine_sampling = true;
 
     auto it = properties.find("reflectance");
@@ -63,7 +58,7 @@ BSDF *createDiffuseBSDF(const std::unordered_map<std::string, std::string> &prop
     if (it != properties.end())
         cosine_sampling = (it->second == "true");
 
-    return new DiffuseBSDF(reflectance, cosine_sampling);
+    return new DiffuseBSDF(BSDFFlags::Diffuse, reflectance, cosine_sampling);
 }
 
 namespace {

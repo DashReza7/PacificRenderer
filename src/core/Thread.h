@@ -35,7 +35,7 @@ public:
 
         for (size_t i = 0; i < num_threads; ++i) {
             // Create a unique RNG for this thread
-            rngs.emplace_back(master_sampler.get_sample(), master_sampler.spp);
+            rngs.emplace_back(master_sampler.get_1D(), master_sampler.spp);
 
             workers.emplace_back([this, i] {
                 // This thread's dedicated RNG (no sharing!)

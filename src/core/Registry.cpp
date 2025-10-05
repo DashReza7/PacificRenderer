@@ -44,3 +44,24 @@ std::vector<std::string> IntegratorRegistry::getRegisteredTypes() {
     }
     return types;
 }
+
+// -------------------------- EmitterRegistry Implementation -----------------------
+void EmitterRegistry::registerEmitter(const std::string& type, EmitterRegistry::EmitterCreator creator) {
+    EmitterRegistry::getCreators()[type] = creator;
+}
+
+Emitter* EmitterRegistry::createEmitter(const std::string& type, const std::unordered_map<std::string, std::string>& properties) {
+    auto it = EmitterRegistry::getCreators().find(type);
+    if (it == EmitterRegistry::getCreators().end()) {
+        throw std::runtime_error("Unknown Emitter type: " + type);
+    }
+    return it->second(properties);
+}
+
+std::vector<std::string> EmitterRegistry::getRegisteredTypes() {
+    std::vector<std::string> types;
+    for (const auto& pair : EmitterRegistry::getCreators()) {
+        types.push_back(pair.first);
+    }
+    return types;
+}

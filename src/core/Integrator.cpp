@@ -1,11 +1,10 @@
 #include "core/Integrator.h"
 
+#include <algorithm>
 #include <chrono>
 #include <iostream>
-#include <algorithm>
 
 #include "core/Thread.h"
-
 
 void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_threads) {
     uint32_t width = sensor->film.width;
@@ -50,7 +49,7 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
                             uint32_t col = inblock_col + block_size * block_col;
                             Vec3f radiance{0.0};
                             for (size_t i = 0; i < sensor->sampler.spp; i++) {
-                                Ray sensor_ray = sensor->sample_ray(row, col, sampler.get_sample_2d());
+                                Ray sensor_ray = sensor->sample_ray(row, col, sampler.get_2D());
                                 Vec3f returned_radiance = this->sample_radiance(scene, &sampler, sensor_ray);
                                 radiance += returned_radiance;
                             }
@@ -72,8 +71,28 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
     for (auto &result : results)
         result.get();
     std::cout << std::endl;
-    
+
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end_time - start_time;
     std::cout << "Rendering completed in " << elapsed.count() << " seconds.";
+}
+
+Float SamplingIntegrator::get_mis_weight_nee(const Intersection &isc, const EmitterSample &emitter_sample) const {
+    if (emitter_sample.emitter_flags == EmitterFlags::DELTA_DIRECTION)
+        return 1.0;
+    if (!isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
+        Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);
+        Vec3f wo_local = worldToLocal(-emitter_sample.direction, isc.normal);
+        Float bsdf_sampling_pdf = isc.shape->bsdf->pdf(wi_local, wo_local);
+        return Sqr(emitter_sample.pdf) / (Sqr(emitter_sample.pdf) + Sqr(bsdf_sampling_pdf));
+    }
+
+    return 0.0;
+}
+
+Float SamplingIntegrator::get_mis_weight_bsdf(const Scene *scene, const Intersection &isc, const BSDFSample &bsdf_sample) const {
+    if (isc.shape->bsdf->has_flag(BSDFFlags::Delta))
+        return 1.0;
+    Float nee_pdf = scene->pdf_nee(isc, localToWorld(bsdf_sample.wo, isc.normal));
+    return Sqr(bsdf_sample.pdf) / (Sqr(bsdf_sample.pdf) + Sqr(nee_pdf));
 }

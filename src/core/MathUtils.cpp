@@ -27,15 +27,17 @@ Vec3f reflect(const Vec3f &wi, const Vec3f &n) {
     return -wi + Float(2.0 * dot(wi, n)) * n;
 }
 
-Vec3f refract(const Vec3f &wi, const Vec3f &n, Float eta) {
-    Float cos_theta_i = glm::clamp(dot(n, wi), Float(-1.0), Float(1.0));
+// eta: eta_i/eta_t
+bool refract(const Vec3f &wi, const Vec3f &n, Float eta, Vec3f &wo) {
+    Float cos_theta_i = dot(n, wi);
     Float sin2_theta_i = std::max(Float(0), Float(1) - Sqr(cos_theta_i));
-    Float sin2_theta_t = sin2_theta_i / Sqr(eta);
+    Float sin2_theta_t = Sqr(eta) * sin2_theta_i;
     // total internal reflection
     if (sin2_theta_t >= 1.0)
-        return Vec3f{0.0};
-    Float cos_theta_t = glm::clamp(std::sqrt(1.0 - sin2_theta_t), 0.0, 1.0);
-    return eta * -wi + (eta * cos_theta_i - cos_theta_t) * n;
+        return false;
+    Float cos_theta_t = glm::max(std::sqrt(1.0 - sin2_theta_t), 0.0);
+    wo = eta * -wi + (eta * cos_theta_i - cos_theta_t) * n;
+    return true;
 }
 
 Float triangle_area(const Vec3f &a, const Vec3f &b, const Vec3f &c) {

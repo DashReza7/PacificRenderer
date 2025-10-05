@@ -1,3 +1,5 @@
+// Core module for handling plugins in a registry design pattern
+
 #pragma once
 
 #include "core/BSDF.h"
@@ -7,6 +9,8 @@
 
 class Integrator;
 class Scene;
+class Emitter;
+
 
 class BSDFRegistry {
 public:
@@ -50,3 +54,23 @@ private:
     }
 };
 
+class EmitterRegistry {
+public:
+    // Function signature for BSDF creators
+    using EmitterCreator = std::function<Emitter*(const std::unordered_map<std::string, std::string>&)>;
+    
+    // Register a BSDF type with its creator function
+    static void registerEmitter(const std::string& type, EmitterCreator creator);
+    
+    // Create a BSDF by type name
+    static Emitter* createEmitter(const std::string& type, const std::unordered_map<std::string, std::string>& properties);
+    
+    // List all registered types
+    static std::vector<std::string> getRegisteredTypes();
+
+private:
+    static std::unordered_map<std::string, EmitterCreator>& getCreators() {
+        static std::unordered_map<std::string, EmitterCreator> creators;
+        return creators;
+    }
+};

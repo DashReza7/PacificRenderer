@@ -14,7 +14,6 @@ private:
 
 public:
     DirectLightingIntegrator(int emitter_samples, int bsdf_samples, bool hide_emitters) : emitter_samples(emitter_samples), bsdf_samples(bsdf_samples), hide_emitters(hide_emitters) {}
-    ~DirectLightingIntegrator() override = default;
 
     Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray) const override {
         Intersection isc;
@@ -28,45 +27,35 @@ public:
         if (isc.shape->emitter != nullptr) {
             // hit an area light
             // area lights return their radiance, without considering isc
-            radiance += isc.shape->emitter->eval(isc);
+            radiance += isc.shape->emitter->eval(isc.position);
         }
         // ----------------------- Emitter sampling -----------------------
         Float nee_weight = 1.0 / Float(emitter_samples);
         for (size_t i = 0; i < emitter_samples; i++) {
-            EmitterSample emitter_sample = scene->sample_emitter(isc, sampler->get_sample(), sampler->get_sample_3d());
+            EmitterSample emitter_sample = scene->sample_emitter(isc, sampler->get_1D(), sampler->get_3D());
             if (emitter_sample.is_valid) {
-                Vec3f wo_world = glm::normalize(emitter_sample.position - isc.position);
-                Vec3f wi_world = isc.dirn;
-                Vec3f wo_local = worldToLocal(wo_world, isc.normal);
-                Vec3f wi_local = worldToLocal(wi_world, isc.normal);
+                Vec3f wo_local = worldToLocal(-emitter_sample.direction, isc.normal);
+                Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);
+                Vec3f bsdf_value = isc.shape->bsdf->eval(wi_local, wo_local);
                 
-                // compute MIS weight
-                Float bsdf_sampling_pdf = isc.shape->bsdf->pdf(wi_local, wo_local);
-                // Float mis_weight = emitter_sample.pdf / (emitter_sample.pdf + bsdf_sampling_pdf);
-                Float mis_weight = Sqr(emitter_sample.pdf) / (Sqr(emitter_sample.pdf) + Sqr(bsdf_sampling_pdf));
-
-                radiance += mis_weight * nee_weight * emitter_sample.radiance * isc.shape->bsdf->eval(wi_local, wo_local) / emitter_sample.pdf;
+                Float mis_weight = get_mis_weight_nee(isc, emitter_sample);
+                radiance += mis_weight * nee_weight * emitter_sample.radiance * bsdf_value / emitter_sample.pdf;
             }
         }
 
         // ------------------------ BSDF sampling -------------------------
         Float bsdf_weight = 1.0 / Float(bsdf_samples);
         for (size_t i = 0; i < bsdf_samples; i++) {
-            auto [bsdf_sample, bsdf_value] = isc.shape->bsdf->sample(isc, sampler->get_sample(), sampler->get_sample_2d());
+            auto [bsdf_sample, bsdf_value] = isc.shape->bsdf->sample(worldToLocal(isc.dirn, isc.normal), sampler->get_1D(), sampler->get_2D());
 
             // check if the sample intersects any light
-            Intersection tmp_isc{};
-            bool is_occluded = scene->ray_intersect(Ray{isc.position + isc.normal * Epsilon, bsdf_sample.wo, Epsilon, 1e4}, tmp_isc);
+                Intersection tmp_isc{};
+            bool is_occluded = scene->ray_intersect(Ray{isc.position + bsdf_sample.normal_sign * isc.normal * Epsilon, localToWorld(bsdf_sample.wo, isc.normal), Epsilon, 1e4}, tmp_isc);
             if (!is_occluded || tmp_isc.shape->emitter == nullptr || dot(isc.position - tmp_isc.position, tmp_isc.normal) < 0)
                 continue;
 
-            // compute MIS weight
-            // TODO: check for zero division
-            Float nee_pdf = scene->pdf_emitter_sampling(isc, bsdf_sample.wo);
-            // Float mis_weight = bsdf_sample.pdf / (bsdf_sample.pdf + nee_pdf);
-            Float mis_weight = Sqr(bsdf_sample.pdf) / (Sqr(bsdf_sample.pdf) + Sqr(nee_pdf));
-            
-            radiance += mis_weight * bsdf_weight * tmp_isc.shape->emitter->eval(isc) * bsdf_value / bsdf_sample.pdf;
+            Float mis_weight = get_mis_weight_bsdf(scene, isc, bsdf_sample);
+            radiance += mis_weight * bsdf_weight * tmp_isc.shape->emitter->eval(isc.position) * bsdf_value / bsdf_sample.pdf;
         }
 
         // ----------------------------------------------------------------

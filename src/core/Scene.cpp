@@ -79,7 +79,7 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
         // if the shape has an emitter(it's an area_light), link them
         if (shape_desc->emitter != nullptr) {
             shape->emitter = emitters_dict.at(shape_desc->emitter);
-            dynamic_cast<AreaLight*>(shape->emitter)->shape = shape;
+            shape->emitter->set_shape(shape);
         }
 
         shapes.push_back(shape);
@@ -88,31 +88,8 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
 
 std::unordered_map<EmitterDesc*, Emitter*> Scene::load_emitters(const std::vector<EmitterDesc*>& emitters_desc) {
     std::unordered_map<EmitterDesc*, Emitter*> emitters_dict{};
-    Emitter* emitter = nullptr;
     for (const auto& emitter_desc : emitters_desc) {
-        if (emitter_desc->type == "point") {
-            Vec3f intensity{1.0};
-            Vec3f position{0.0};
-            Mat4f to_world = Mat4f(1.0);
-            if (emitter_desc->properties.find("intensity") != emitter_desc->properties.end())
-                intensity = strToVec3f(emitter_desc->properties["intensity"]);
-            if (emitter_desc->properties.find("position") != emitter_desc->properties.end())
-                position = strToVec3f(emitter_desc->properties["position"]);
-            if (emitter_desc->properties.find("to_world") != emitter_desc->properties.end())
-                to_world = strToMat4f(emitter_desc->properties["to_world"]);
-
-            Vec4f tmp_pos = to_world * Vec4f{position, 1.0};
-            position = Vec3f{tmp_pos / tmp_pos.w};
-            emitter = new PointLight{intensity, position};
-        } else if (emitter_desc->type == "area") {
-            Vec3f radiance{1.0};
-            if (emitter_desc->properties.find("radiance") != emitter_desc->properties.end())
-                radiance = strToVec3f(emitter_desc->properties["radiance"]);
-
-            emitter = new AreaLight{radiance};
-        } else {
-            throw std::runtime_error("Unsupported emitter type: " + emitter_desc->type);
-        }
+        Emitter* emitter = EmitterRegistry::createEmitter(emitter_desc->type, emitter_desc->properties);
         emitters.push_back(emitter);
         emitters_dict[emitter_desc] = emitter;
     }
@@ -305,17 +282,30 @@ bool Scene::ray_intersect(const Ray& ray, Intersection& isc) const {
         throw std::runtime_error("Unknown acceleration type");
 }
 
-EmitterSample Scene::sample_emitter(const Intersection& isc, Float sample1, const Vec3f &sample2) const {
+EmitterSample Scene::sample_emitter(const Intersection& isc, Float sample1, const Vec3f& sample2) const {
     // sample an emitter index
     uint32_t emitter_index = std::min(int(sample1 * emitters.size()), int(emitters.size() - 1));
     Float emitter_index_pmf = 1.0 / emitters.size();
-    
+
     auto emitter = emitters[emitter_index];
 
     EmitterSample emitter_sample = emitter->sampleLi(this, isc, sample2);
     emitter_sample.pdf *= emitter_index_pmf;
-    
+
     return emitter_sample;
+}
+
+Float Scene::pdf_nee(const Intersection& isc, const Vec3f& w) const {
+    Ray traced_ray{isc.position + isc.normal * Epsilon, w, Epsilon, 1e4};
+    Intersection traced_isc;
+    bool is_hit = this->ray_intersect(traced_ray, traced_isc);
+    if (!is_hit || traced_isc.shape->emitter == nullptr)
+        return false;
+    // traced ray hit an emitter. Find its probability
+    Float pdf = 1.0 / emitters.size();
+    pdf /= traced_isc.shape->geometries.size();
+    pdf /= traced_isc.geom->area();
+    return pdf;
 }
 
 std::string Scene::to_string() const {
