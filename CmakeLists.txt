@@ -28,6 +28,7 @@ add_executable(${PROJECT_NAME}
     "src/lights/point.cpp"
     "src/lights/area.cpp"
     "src/lights/directional.cpp"
+    "src/filters/gaussian.cpp"
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 

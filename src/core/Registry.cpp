@@ -65,3 +65,24 @@ std::vector<std::string> EmitterRegistry::getRegisteredTypes() {
     }
     return types;
 }
+
+// -------------------------- RFilterRegistry Implementation -----------------------
+void RFilterRegistry::registerRFilter(const std::string& type, RFilterRegistry::RFilterCreator creator) {
+    RFilterRegistry::getCreators()[type] = creator;
+}
+
+RFilter* RFilterRegistry::createRFilter(const std::string& type, const std::unordered_map<std::string, std::string>& properties) {
+    auto it = RFilterRegistry::getCreators().find(type);
+    if (it == RFilterRegistry::getCreators().end()) {
+        throw std::runtime_error("Unknown RFilter type: " + type);
+    }
+    return it->second(properties);
+}
+
+std::vector<std::string> RFilterRegistry::getRegisteredTypes() {
+    std::vector<std::string> types;
+    for (const auto& pair : RFilterRegistry::getCreators()) {
+        types.push_back(pair.first);
+    }
+    return types;
+}

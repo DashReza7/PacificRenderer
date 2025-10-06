@@ -10,6 +10,7 @@
 class Integrator;
 class Scene;
 class Emitter;
+class RFilter;
 
 
 class BSDFRegistry {
@@ -56,13 +57,13 @@ private:
 
 class EmitterRegistry {
 public:
-    // Function signature for BSDF creators
+    // Function signature for Emitter creators
     using EmitterCreator = std::function<Emitter*(const std::unordered_map<std::string, std::string>&)>;
     
-    // Register a BSDF type with its creator function
+    // Register a Emitter type with its creator function
     static void registerEmitter(const std::string& type, EmitterCreator creator);
     
-    // Create a BSDF by type name
+    // Create a Emitter by type name
     static Emitter* createEmitter(const std::string& type, const std::unordered_map<std::string, std::string>& properties);
     
     // List all registered types
@@ -74,3 +75,25 @@ private:
         return creators;
     }
 };
+
+class RFilterRegistry {
+public:
+    // Function signature for RFilter creators
+    using RFilterCreator = std::function<RFilter*(const std::unordered_map<std::string, std::string>&)>;
+    
+    // Register a RFilter type with its creator function
+    static void registerRFilter(const std::string& type, RFilterCreator creator);
+
+    // Create a RFilter by type name
+    static RFilter* createRFilter(const std::string& type, const std::unordered_map<std::string, std::string>& properties);
+
+    // List all registered types
+    static std::vector<std::string> getRegisteredTypes();
+
+private:
+    static std::unordered_map<std::string, RFilterCreator>& getCreators() {
+        static std::unordered_map<std::string, RFilterCreator> creators;
+        return creators;
+    }
+};
+

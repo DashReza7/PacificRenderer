@@ -7,13 +7,13 @@ class Scene;
 
 class Integrator {
 public:
-    virtual void render(const Scene *scene, Sensor *sensor, uint32_t n_threads = 1) = 0;
+    virtual void render(const Scene *scene, Sensor *sensor, uint32_t n_threads, bool show_progress) = 0;
     virtual std::string to_string() const = 0;
 };
 
 class SamplingIntegrator : public Integrator {
 public:
-    virtual void render(const Scene *scene, Sensor *sensor, uint32_t n_threads = 1) override;
+    virtual void render(const Scene *scene, Sensor *sensor, uint32_t n_threads, bool show_progress) override;
     /// @brief Sample the Radiance along the given ray
     virtual Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray) const = 0;
 

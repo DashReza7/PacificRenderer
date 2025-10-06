@@ -8,7 +8,7 @@
 // (texture emitters are not supported)
 class AreaLight final : public Emitter {
 private:
-    Vec3f radiance;
+    const Vec3f radiance;
 
 public:
     const Shape *shape;  // the shape that this area light is attached to

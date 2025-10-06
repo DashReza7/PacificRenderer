@@ -69,6 +69,7 @@ struct BSDFDesc : public SceneObjectDesc {
         return oss.str();
     }
 };
+
 struct EmitterDesc : public SceneObjectDesc {
     std::string to_string() override {
         std::ostringstream oss;
@@ -83,6 +84,7 @@ struct EmitterDesc : public SceneObjectDesc {
         return oss.str();
     }
 };
+
 struct SamplerDesc : public SceneObjectDesc {
     std::string to_string() override {
         std::ostringstream oss;
@@ -97,7 +99,25 @@ struct SamplerDesc : public SceneObjectDesc {
         return oss.str();
     }
 };
+
+struct RFilterDesc : public SceneObjectDesc {
+    std::string to_string() override {
+        std::ostringstream oss;
+        oss << "(RFilterDesc)\n";
+        oss << "type: " << type << "\n";
+        if (properties.size() > 0) {
+            oss << "properties: {\n";
+            for (const auto [name, value] : properties)
+                oss << "    name: " << name << ", value: " << value << "\n";
+            oss << "}";
+        }
+        return oss.str();
+    }
+};
+
 struct FilmDesc : public SceneObjectDesc {
+    RFilterDesc* rfilter;
+
     std::string to_string() override {
         std::ostringstream oss;
         oss << "(FilmDesc)\n";
@@ -111,6 +131,7 @@ struct FilmDesc : public SceneObjectDesc {
         return oss.str();
     }
 };
+
 struct SensorDesc : public SceneObjectDesc {
     FilmDesc* film;
     SamplerDesc* sampler;
@@ -307,7 +328,7 @@ private:
         auto sensor = new SensorDesc{};
         sensor->type = get_default(node.attribute("type").value());
 
-        parseProperties(node, sensor->properties, {"sampler", "film"});
+        parseProperties(node, sensor->properties, {"sampler", "film", "rfilter"});
 
         // Parse nested objects
         for (pugi::xml_node child : node.children()) {
@@ -360,6 +381,8 @@ private:
             shared_bsdfs[bsdf->id] = bsdf;
         }
 
+        // TODO: what about two-sided BSDFs???
+        
         parseProperties(node, bsdf->properties, {"id"});
         return bsdf;
     }
@@ -375,10 +398,29 @@ private:
     FilmDesc* parseFilm(const pugi::xml_node& node) {
         auto film = new FilmDesc{};
         film->type = get_default(node.attribute("type").value());
+        film->rfilter = new RFilterDesc{};
+        film->rfilter->type = "gaussian";
+        film->rfilter->properties["stddev"] = "0.5";
 
-        // TODO: implement reconstruction filters
+        // Parse nested objects
+        for (pugi::xml_node child : node.children()) {
+            std::string child_name = child.name();
+            if (child_name == "rfilter") {
+                delete film->rfilter;  // Delete the default rfilter
+                film->rfilter = parseRFilter(child);
+            }
+        }
+
         parseProperties(node, film->properties, {"rfilter"});
         return film;
+    }
+
+    RFilterDesc* parseRFilter(const pugi::xml_node& node) {
+        auto rfilter = new RFilterDesc{};
+        rfilter->type = get_default(node.attribute("type").value());
+
+        parseProperties(node, rfilter->properties);
+        return rfilter;
     }
 
     SamplerDesc* parseSampler(const pugi::xml_node& node) {
@@ -436,7 +478,7 @@ private:
         for (pugi::xml_node child : node.children())
             children.push_back(child);
         for (auto it = children.rbegin(); it != children.rend(); ++it) {
-        // for (auto it = children.begin(); it != children.end(); ++it) {
+            // for (auto it = children.begin(); it != children.end(); ++it) {
             pugi::xml_node child = *it;
             std::string child_name = child.name();
 

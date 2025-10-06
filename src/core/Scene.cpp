@@ -102,19 +102,26 @@ void Scene::load_sensor(const SensorDesc* sensor_desc) {
     Float near_clip = 1e-2, far_clip = 1e4;
     uint32_t width = 800, height = 600;
     uint32_t spp = 4;
+    RFilter *rfilter;
+    
     if (sensor_desc->properties.find("fov") != sensor_desc->properties.end())
         fov = static_cast<Float>(std::stod(sensor_desc->properties.at("fov")));
     if (sensor_desc->properties.find("near_clip") != sensor_desc->properties.end())
         near_clip = static_cast<Float>(std::stod(sensor_desc->properties.at("near_clip")));
     if (sensor_desc->properties.find("far_clip") != sensor_desc->properties.end())
         far_clip = static_cast<Float>(std::stod(sensor_desc->properties.at("far_clip")));
+    // parse Film
     if (sensor_desc->film->properties.find("width") != sensor_desc->film->properties.end())
         width = static_cast<uint32_t>(std::stoi(sensor_desc->film->properties.at("width")));
     if (sensor_desc->film->properties.find("height") != sensor_desc->film->properties.end())
         height = static_cast<uint32_t>(std::stoi(sensor_desc->film->properties.at("height")));
+    // parse Film's RFilter
+    rfilter = RFilterRegistry::createRFilter(sensor_desc->film->rfilter->type, sensor_desc->film->rfilter->properties);
+    // parse Sampler
     if (sensor_desc->sampler->properties.find("sample_count") != sensor_desc->sampler->properties.end())
         spp = static_cast<uint32_t>(std::stoi(sensor_desc->sampler->properties.at("sample_count")));
-    sensor = new Sensor{sensor_desc->to_world, fov, 0, width, height, spp, near_clip, far_clip};
+        
+    sensor = new Sensor{sensor_desc->to_world, fov, 0, width, height, spp, near_clip, far_clip, rfilter};
 }
 
 void Scene::build_bvh(BVHNode* node, const std::vector<Geometry*>& contained_geoms) {

@@ -6,8 +6,8 @@
 
 class PointLight final : public Emitter {
 public:
-    Vec3f intensity;
-    Vec3f position;
+    const Vec3f intensity;
+    const Vec3f position;
 
     PointLight(const Vec3f &intensity, const Vec3f &position) : intensity(intensity), position(position) {}
 

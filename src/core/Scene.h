@@ -9,14 +9,12 @@
 #include "core/Shape.h"
 #include "utils/SceneParser.h"
 
-
 class Scene {
 private:
     std::vector<Shape *> shapes{};
     BVHNode *bvh_root = nullptr;
     AccelerationType accel_type = AccelerationType::BVH;
     std::vector<Emitter *> emitters{};
-
 
     std::unordered_map<BSDFDesc *, BSDF *> load_bsdfs(const std::vector<BSDFDesc *> &bsdfs_desc);
     std::unordered_map<EmitterDesc *, Emitter *> load_emitters(const std::vector<EmitterDesc *> &emitters_desc);
@@ -30,11 +28,9 @@ private:
     bool ray_intersect_bruteforce(const Ray &ray, Intersection &isc) const;
     bool ray_intersect_bvh(const Ray &ray, Intersection &isc) const;
 
-    
 public:
     Sensor *sensor = nullptr;
     std::filesystem::path scene_file_path;
-
 
     /// Load the scene from a description. Returns an integrator.
     void load_scene(const SceneDesc &scene_desc);

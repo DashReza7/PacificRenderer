@@ -15,7 +15,7 @@ private:
 public:
     ParticleTracerIntegrator(int max_depth, int rr_depth, bool hide_emitters) : max_depth(max_depth), rr_depth(rr_depth), hide_emitters(hide_emitters) {}
 
-    void render(const Scene *scene, Sensor *sensor, uint32_t n_threads) override {
+    void render(const Scene *scene, Sensor *sensor, uint32_t n_threads, bool show_progress) override {
     }
 
     std::string to_string() const override {

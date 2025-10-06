@@ -50,6 +50,9 @@ public:
             // ------------------------ BSDF sampling -------------------------
 
             auto [bsdf_sample, bsdf_value] = curr_isc.shape->bsdf->sample(worldToLocal(curr_isc.dirn, curr_isc.normal), sampler->get_1D(), sampler->get_2D());
+            if (bsdf_sample.pdf <= 0 || bsdf_value == Vec3f{0.0})
+                break;
+            
             Float mis_weight = get_mis_weight_bsdf(scene, curr_isc, bsdf_sample);
             throughput *= mis_weight * bsdf_value / bsdf_sample.pdf;
 
@@ -63,7 +66,7 @@ public:
             if (depth + 1 >= rr_depth) {
                 Float rr_survive_prob = std::min(std::max(throughput.x, std::max(throughput.y, throughput.z)), Float(0.95));
                 if (sampler->get_1D() > rr_survive_prob)
-                    return radiance;
+                    break;
                 throughput /= rr_survive_prob;
             }
         }

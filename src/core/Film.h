@@ -2,28 +2,64 @@
 #include <algorithm>
 #include <cstdint>
 #include <fstream>
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include "core/MathUtils.h"
+#include "core/RFilter.h"
 #include "stb_image_write.h"
 
 // TODO: right now, no reconstruction filter, just store raw pixel values
 class Film {
+private:
+    std::vector<Float> pixels_weights_sum;
+    std::vector<std::mutex> pixels_mutex;
+    const RFilter* rfilter;
+
 public:
     std::vector<Vec3f> pixels;  // in RGB format, [0, 1], row-major order
     uint32_t width, height;
 
-    Film(uint32_t width, uint32_t height) : width(width), height(height), pixels(width * height) {}
+    Film(uint32_t width, uint32_t height, const RFilter* rfilter) : width(width), height(height), pixels(width * height), pixels_weights_sum(width * height), pixels_mutex(width * height), rfilter(rfilter) {}
 
     /// row: 0 is bottom, height-1 is top
     /// col: 0 is left, width-1 is right
-    void set_pixel(uint32_t row, uint32_t col, const Vec3f& color) {
-        if (col >= width || row >= height)
-            throw std::out_of_range("Pixel coordinates out of range");
-        pixels[row * width + col] = color;
+    /// px, py are the sample position in sensor space (in range [0, 1])
+    void commit_sample(const Vec3f& value, uint32_t row, uint32_t col, Float px, Float py) {
+        Float x = px * width - (col + 0.5);
+        Float y = py * height - (row + 0.5);
+        // TODO: compute the sample weight for all affected pixels
+        for (int r = row - rfilter->bound; r <= row + rfilter->bound; r++) {
+            if (r < 0 || r >= height)
+                continue;
+            for (int c = col - rfilter->bound; c <= col + rfilter->bound; c++) {
+                if (c < 0 || c >= width)
+                    continue;
+                Float filter_weight = rfilter->eval(x - (c - col), y - (r - row));
+                std::lock_guard<std::mutex> lock(pixels_mutex[r * width + c]);
+                pixels[r * width + c] += filter_weight * value;
+                pixels_weights_sum[r * width + c] += filter_weight;
+
+                // TODO: for debug. No filter
+                // if (r == row && c == col) {
+                //     pixels[r * width + c] += value;
+                //     pixels_weights_sum[r * width + c] += 1.0;
+                // }
+            }
+        }
     }
 
+    /// called after the rendering is complete. divides each pixel by its weight_sum
+    void normalize_pixels() {
+        for (uint32_t row = 0; row < height; row++)
+            for (uint32_t col = 0; col < width; col++)
+                if (pixels_weights_sum[row * width + col] <= 0)
+                    pixels[row * width + col] = Vec3f{0.0};
+                else
+                    pixels[row * width + col] /= pixels_weights_sum[row * width + col];
+    }
+    
     /// Output the image to a file (PNG format)
     void output_image(const std::string& filename, bool tone_mapping = true) const {
         std::vector<Vec3f> mapped_pixels = pixels;
@@ -33,7 +69,7 @@ public:
                 color = glm::pow(color, Vec3f{1.0 / 2.2});  // gamma correction
             }
         }
-        
+
         if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".png")
             save_png(filename, mapped_pixels);
         else if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".ppm")

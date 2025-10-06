@@ -8,6 +8,9 @@
 #include "core/MathUtils.h"
 #include "core/Pacific.h"
 
+// TODO: add an `is_valid` to BSDFSample, so that when the sample is invalid,
+// like when the pdf is too small, we can just ignore it in the integrator.
+
 /// @brief BSDFSample object.
 /// wo is in world space
 struct BSDFSample {
@@ -26,7 +29,7 @@ struct BSDFSample {
 enum class BSDFFlags {
     None = 0,
     Delta = 1 << 0,  // delta distribution, i.e. perfect specular reflection/refraction
-    Diffuse = 1 << 1,
+    TwoSided = 1 << 1
 };
 
 class BSDF {

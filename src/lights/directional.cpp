@@ -6,9 +6,9 @@
 
 class DirectionalLight final : public Emitter {
 public:
-    Vec3f irradiance;
+    const Vec3f irradiance;
     // direction of light propagation
-    Vec3f direction;
+    const Vec3f direction;
 
     DirectionalLight(const Vec3f &irradiance, const Vec3f &direction) : irradiance(irradiance), direction(direction) {}
 

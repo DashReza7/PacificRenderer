@@ -38,7 +38,6 @@ public:
                     Vec3f{fr}};
         } else {  // refraction
             // TODO: should be changed when transferring importance instead of radiance
-            // TODO: is the returned BSDF value correct???
             return {BSDFSample{refracted_dirn, Float(1.0) - fr, effective_eta, -effective_normal_sign},
                     Vec3f{Sqr(effective_eta) * (Float(1.0) - fr)}};
         }

@@ -12,6 +12,7 @@ public:
     DiffuseBSDF(BSDFFlags flags, const Vec3f &reflectance, bool cosine_sampling) : BSDF(flags), reflectance(reflectance), cosine_sampling(cosine_sampling) {}
 
     Vec3f eval(const Vec3f &wi, const Vec3f &wo) const override {
+        // TODO: what about two-sided BSDFs
         if (wi.z <= 0 || wo.z <= 0)
             return Vec3f{0.0};
         return reflectance * InvPi * wo.z;
@@ -27,6 +28,7 @@ public:
     }
 
     std::pair<BSDFSample, Vec3f> sample(const Vec3f &wi, Float sample1, const Vec2f &sample2) const override {
+        // TODO: what about the two-sided BSDF
         if (cosine_sampling) {
             Vec3f wo = cosineHemisphereSample(sample2);
             return {BSDFSample{wo, pdf(Vec3f{0, 0, 1}, wo), 1, 1.0},
@@ -58,7 +60,7 @@ BSDF *createDiffuseBSDF(const std::unordered_map<std::string, std::string> &prop
     if (it != properties.end())
         cosine_sampling = (it->second == "true");
 
-    return new DiffuseBSDF(BSDFFlags::Diffuse, reflectance, cosine_sampling);
+    return new DiffuseBSDF(BSDFFlags::None, reflectance, cosine_sampling);
 }
 
 namespace {

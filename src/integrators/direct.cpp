@@ -5,7 +5,6 @@
 #include "core/Registry.h"
 #include "core/Scene.h"
 
-
 class DirectLightingIntegrator : public SamplingIntegrator {
 private:
     int emitter_samples;
@@ -37,7 +36,7 @@ public:
                 Vec3f wo_local = worldToLocal(-emitter_sample.direction, isc.normal);
                 Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);
                 Vec3f bsdf_value = isc.shape->bsdf->eval(wi_local, wo_local);
-                
+
                 Float mis_weight = get_mis_weight_nee(isc, emitter_sample);
                 radiance += mis_weight * nee_weight * emitter_sample.radiance * bsdf_value / emitter_sample.pdf;
             }
@@ -49,9 +48,12 @@ public:
             auto [bsdf_sample, bsdf_value] = isc.shape->bsdf->sample(worldToLocal(isc.dirn, isc.normal), sampler->get_1D(), sampler->get_2D());
 
             // check if the sample intersects any light
-                Intersection tmp_isc{};
+            Intersection tmp_isc{};
             bool is_occluded = scene->ray_intersect(Ray{isc.position + bsdf_sample.normal_sign * isc.normal * Epsilon, localToWorld(bsdf_sample.wo, isc.normal), Epsilon, 1e4}, tmp_isc);
-            if (!is_occluded || tmp_isc.shape->emitter == nullptr || dot(isc.position - tmp_isc.position, tmp_isc.normal) < 0)
+            if (!is_occluded ||
+                tmp_isc.shape->emitter == nullptr ||
+                dot(isc.position - tmp_isc.position, tmp_isc.normal) < 0 ||
+                bsdf_sample.pdf <= 0)
                 continue;
 
             Float mis_weight = get_mis_weight_bsdf(scene, isc, bsdf_sample);

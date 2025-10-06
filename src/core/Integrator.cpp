@@ -6,7 +6,7 @@
 
 #include "core/Thread.h"
 
-void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_threads) {
+void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_threads, bool show_progress) {
     uint32_t width = sensor->film.width;
     uint32_t height = sensor->film.height;
     uint32_t total_pixels = width * height;
@@ -19,18 +19,20 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    // for (size_t row = 0; row < height; row++) {
-    //     for (size_t col = 0; col < width; col++) {
-    //         Vec3f radiance{0.0};
+    // for (int row = 0; row < height; row++) {
+    //     for (int col = 0; col < width; col++) {
+    //         // TODO: debug
+    //         // if (row <= -1 || row >= 60 || col <= -1 || col >= 60)
+    //         //     continue;
     //         for (size_t i = 0; i < sensor->sampler.spp; i++) {
-    //             Ray sensor_ray = sensor->sample_ray(row, col, sensor->sampler.get_sample_2d());
+    //             Float px, py;
+    //             Ray sensor_ray = sensor->sample_ray(row, col, sensor->sampler.get_2D(), px, py);
     //             Vec3f returned_radiance = this->sample_radiance(scene, &sensor->sampler, sensor_ray);
-    //             radiance += returned_radiance;
+    //             sensor->film.commit_sample(returned_radiance, row, col, px, py);
     //         }
-    //         radiance /= sensor->sampler.spp;
-    //         sensor->film.set_pixel(row, col, radiance);
-    //         if ((row * height + col + 1) % 100 == 0 || (row == height - 1 && col == width - 1))
-    //             std::cout << "\rCompleted " << row * height + col + 1 << " / " << total_pixels << " pixels." << std::flush;
+    //         if (show_progress)
+    //             if((row * height + col + 1) % 100 == 0 || (row == height - 1 && col == width - 1))
+    //                 std::cout << "\rProgress: " << std::format("{:.02f}", ((row * width + col + 1) / static_cast<double>(total_pixels)) * 100) << "%" << std::flush;
     //     }
     // }
 
@@ -40,30 +42,46 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
     for (uint32_t block_row = 0; block_row < n_row_blocks; block_row++) {
         for (uint32_t block_col = 0; block_col < n_col_blocks; block_col++) {
             results.emplace_back(
-                tpool.enqueue([this, block_row, block_col, scene, sensor, &print_mutex, &n_rendered_pixels, total_pixels, block_size, width, height](Sampler &sampler) {
+                tpool.enqueue([this, block_row, block_col, scene, sensor, &print_mutex, &n_rendered_pixels, total_pixels, block_size, width, height, show_progress](Sampler &sampler) {
                     uint32_t row_bound = std::min(block_size, height - block_row * block_size);
                     uint32_t col_bound = std::min(block_size, width - block_col * block_size);
                     for (size_t inblock_row = 0; inblock_row < row_bound; inblock_row++) {
                         for (size_t inblock_col = 0; inblock_col < col_bound; inblock_col++) {
                             uint32_t row = inblock_row + block_size * block_row;
                             uint32_t col = inblock_col + block_size * block_col;
-                            Vec3f radiance{0.0};
+                            // TODO: for debug purposes
+                            // row = 158;
+                            // col = 69;
+                            // if (row <= 215 || row >= 232 || col <= 50 || col >= 67)
+                            //     continue;
                             for (size_t i = 0; i < sensor->sampler.spp; i++) {
-                                Ray sensor_ray = sensor->sample_ray(row, col, sampler.get_2D());
+                                // sample position in sensor space ([0, 1])
+                                Float px, py;
+                                Ray sensor_ray = sensor->sample_ray(row, col, sampler.get_2D(), px, py);
                                 Vec3f returned_radiance = this->sample_radiance(scene, &sampler, sensor_ray);
-                                radiance += returned_radiance;
+
+                                // check for invalid values
+                                if (std::isnan(returned_radiance.x) || std::isnan(returned_radiance.y) || std::isnan(returned_radiance.z) ||
+                                    std::isinf(returned_radiance.x) || std::isinf(returned_radiance.y) || std::isinf(returned_radiance.z) ||
+                                    returned_radiance.x < 0 || returned_radiance.y < 0 || returned_radiance.z < 0) {
+                                    std::lock_guard<std::mutex> lock(print_mutex);
+                                    std::cerr << "Warning: returned radiance is invalid at pixel (" << row << ", " << col << "): " << returned_radiance << "\n";
+                                    exit(EXIT_FAILURE);
+                                }
+
+                                sensor->film.commit_sample(returned_radiance, row, col, px, py);
                             }
-                            radiance /= sensor->sampler.spp;
-                            sensor->film.set_pixel(row, col, radiance);
                         }
                     }
 
                     // Update progress
-                    n_rendered_pixels.fetch_add(row_bound * col_bound);
-                    size_t completed = n_rendered_pixels;
-                    {
-                        std::lock_guard<std::mutex> lock(print_mutex);
-                        std::cout << "\rProgress: " << std::format("{:.02f}", (completed / static_cast<double>(total_pixels)) * 100) << "%" << std::flush;
+                    if (show_progress) {
+                        n_rendered_pixels.fetch_add(row_bound * col_bound);
+                        size_t completed = n_rendered_pixels;
+                        {
+                            std::lock_guard<std::mutex> lock(print_mutex);
+                            std::cout << "\rProgress: " << std::format("{:.02f}", (completed / static_cast<double>(total_pixels)) * 100) << "%" << std::flush;
+                        }
                     }
                 }));
         }
@@ -71,6 +89,8 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
     for (auto &result : results)
         result.get();
     std::cout << std::endl;
+
+    sensor->film.normalize_pixels();
 
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end_time - start_time;
