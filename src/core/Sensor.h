@@ -24,8 +24,9 @@ public:
         py = (static_cast<Float>(row) + sample2.y) / static_cast<Float>(film.height);
 
         // Map to [-1, 1] range, with correct orientation
-        Float x = -(2.0 * px - 1.0) * aspect_ratio * std::tan(glm::radians(fov) * 0.5);  // Negate for +X = left
-        Float y = (2.0 * py - 1.0) * std::tan(glm::radians(fov) * 0.5);                  // +Y = up
+        // Horizontal FoV
+        Float x = -(2.0 * px - 1.0) * std::tan(glm::radians(fov) * 0.5);
+        Float y =  (2.0 * py - 1.0) / aspect_ratio * std::tan(glm::radians(fov) * 0.5);
 
         // Ray in camera space (camera looks toward +Z)
         Vec3f origin_cam{0, 0, 0};

@@ -103,6 +103,7 @@ void Scene::load_sensor(const SensorDesc* sensor_desc) {
     uint32_t width = 800, height = 600;
     uint32_t spp = 4;
     RFilter *rfilter;
+    uint32_t seed = 0;
     
     if (sensor_desc->properties.find("fov") != sensor_desc->properties.end())
         fov = static_cast<Float>(std::stod(sensor_desc->properties.at("fov")));
@@ -120,8 +121,10 @@ void Scene::load_sensor(const SensorDesc* sensor_desc) {
     // parse Sampler
     if (sensor_desc->sampler->properties.find("sample_count") != sensor_desc->sampler->properties.end())
         spp = static_cast<uint32_t>(std::stoi(sensor_desc->sampler->properties.at("sample_count")));
-        
-    sensor = new Sensor{sensor_desc->to_world, fov, 0, width, height, spp, near_clip, far_clip, rfilter};
+    if (sensor_desc->sampler->properties.find("seed") != sensor_desc->sampler->properties.end())
+        seed = static_cast<uint32_t>(std::stoi(sensor_desc->sampler->properties.at("seed")));
+
+    sensor = new Sensor{sensor_desc->to_world, fov, seed, width, height, spp, near_clip, far_clip, rfilter};
 }
 
 void Scene::build_bvh(BVHNode* node, const std::vector<Geometry*>& contained_geoms) {
@@ -303,11 +306,11 @@ EmitterSample Scene::sample_emitter(const Intersection& isc, Float sample1, cons
 }
 
 Float Scene::pdf_nee(const Intersection& isc, const Vec3f& w) const {
-    Ray traced_ray{isc.position + isc.normal * Epsilon, w, Epsilon, 1e4};
+    Ray traced_ray{isc.position + sign(glm::dot(isc.normal, w)) * isc.normal * Epsilon, w, Epsilon, 1e4};
     Intersection traced_isc;
     bool is_hit = this->ray_intersect(traced_ray, traced_isc);
     if (!is_hit || traced_isc.shape->emitter == nullptr)
-        return false;
+        return 0.0;
     // traced ray hit an emitter. Find its probability
     Float pdf = 1.0 / emitters.size();
     pdf /= traced_isc.shape->geometries.size();

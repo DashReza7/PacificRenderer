@@ -35,7 +35,12 @@ public:
 
         for (size_t i = 0; i < num_threads; ++i) {
             // Create a unique RNG for this thread
-            rngs.emplace_back(master_sampler.get_1D(), master_sampler.spp);
+            Float sample_val = master_sampler.get_1D();  // [0,1)
+            // convert to uint64_t seed
+            // BUG: different threads may be correlated
+            // FIXME: this gives poor randomness
+            uint64_t seed = static_cast<uint64_t>(sample_val * 1e6);
+            rngs.emplace_back(seed, master_sampler.spp);
 
             workers.emplace_back([this, i] {
                 // This thread's dedicated RNG (no sharing!)

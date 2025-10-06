@@ -85,3 +85,7 @@ Float triangle_area(const Vec3f &a, const Vec3f &b, const Vec3f &c);
 Vec3f uniformHemisphereSample(const Vec2f &sample);
 
 Vec3f cosineHemisphereSample(const Vec2f &sample);
+
+inline Float sign(Float x) {
+    return x > 0.0 ? 1.0 : (x < 0.0 ? -1.0 : 0.0);
+}

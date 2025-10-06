@@ -20,17 +20,13 @@ public:
         Intersection curr_isc;
         bool is_hit = scene->ray_intersect(curr_ray, curr_isc);
         for (int depth = 0; depth < max_depth || max_depth < 0; depth++) {
-            if (!is_hit) {
-                // TODO: implement environment light sampling
-                return radiance;
-            }
+            if (!is_hit)  // TODO: implement environment light sampling
+                break;
 
             // ----------------------- Visible emitters -----------------------
 
-            // only when directly seen by sensor. It's handled by BSDF sampling for later hits
-            if (depth == 0 && curr_isc.shape->emitter) {
+            if (depth == 0 && curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_ray.d) < 0.0)
                 radiance += throughput * curr_isc.shape->emitter->eval(curr_isc.position);
-            }
 
             // ----------------------- Emitter sampling -----------------------
 
@@ -56,9 +52,9 @@ public:
             Float mis_weight = get_mis_weight_bsdf(scene, curr_isc, bsdf_sample);
             throughput *= mis_weight * bsdf_value / bsdf_sample.pdf;
 
-            curr_ray = Ray{curr_isc.position + bsdf_sample.normal_sign * curr_isc.normal * Epsilon, localToWorld(bsdf_sample.wo, curr_isc.normal), Epsilon, 1e4};
+            curr_ray = Ray{curr_isc.position + sign(glm::dot(localToWorld(bsdf_sample.wo, curr_isc.normal), curr_isc.normal)) * curr_isc.normal * Epsilon, localToWorld(bsdf_sample.wo, curr_isc.normal), Epsilon, 1e4};
             is_hit = scene->ray_intersect(curr_ray, curr_isc);
-            if (is_hit && curr_isc.shape->emitter) {
+            if (is_hit && curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_ray.d) < 0.0) {
                 radiance += throughput * curr_isc.shape->emitter->eval(curr_isc.position);
             }
 

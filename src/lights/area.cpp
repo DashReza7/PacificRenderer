@@ -30,10 +30,11 @@ public:
         Vec3f dirn = position - isc.position;
         Float distance = glm::length(dirn);
         dirn = glm::normalize(dirn);
-        bool is_valid = glm::dot(normal, dirn) < 0 && glm::dot(isc.normal, dirn) > 0;
+        // BUG
+        bool is_valid = glm::dot(normal, dirn) < 0.0;
         if (is_valid) {
             // check for occlusion
-            Ray shadow_ray{isc.position + isc.normal * Epsilon, dirn, Epsilon, distance - 2 * Epsilon, false};
+            Ray shadow_ray{isc.position + sign(glm::dot(isc.normal, dirn)) * isc.normal * Epsilon, dirn, Epsilon, distance - 2 * Epsilon, false};
             Intersection tmp_isc;
             bool is_hit = scene->ray_intersect(shadow_ray, tmp_isc);
             if (is_hit) {
@@ -42,7 +43,7 @@ public:
                     is_valid = false;
             }
         }
-        pdf *= Sqr(distance) / glm::dot(normal, -dirn);
+        pdf *= Sqr(distance) / std::abs(glm::dot(normal, -dirn));
         return EmitterSample{pdf, -dirn, is_valid, radiance, EmitterFlags::AREA};
     }
 

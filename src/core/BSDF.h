@@ -12,7 +12,6 @@
 // like when the pdf is too small, we can just ignore it in the integrator.
 
 /// @brief BSDFSample object.
-/// wo is in world space
 struct BSDFSample {
     /// Outgoing direction in world space
     Vec3f wo;
@@ -20,10 +19,8 @@ struct BSDFSample {
     Float pdf;
     /// Relative ior (from incoming medium to outgoing medium)
     Float eta;
-    /// This gets multiplied by the isc.normal when creating trace ray, to avoid self-intersection.
-    Float normal_sign;
 
-    BSDFSample(const Vec3f &wo, Float pdf, Float eta, Float normal_sign) : wo(wo), pdf(pdf), eta(eta), normal_sign(normal_sign) {}
+    BSDFSample(const Vec3f &wo, Float pdf, Float eta) : wo(wo), pdf(pdf), eta(eta) {}
 };
 
 enum class BSDFFlags {

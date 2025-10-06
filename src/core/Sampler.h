@@ -17,7 +17,11 @@ private:
 public:
     uint32_t spp;
     
-    Sampler(uint32_t seed, uint32_t spp) : state(seed), spp(spp) {}
+    Sampler(uint64_t seed, uint32_t spp) : state(0), spp(spp) {
+        next_uint32();
+        state += seed;
+        next_uint32();
+    }
 
     
     Float get_1D() {

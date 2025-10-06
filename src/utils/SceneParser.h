@@ -373,17 +373,35 @@ private:
         return shape;
     }
 
-    BSDFDesc* parseBSDF(const pugi::xml_node& node) {
+    BSDFDesc* parseBSDF(const pugi::xml_node& node, bool allow_twosided = true) {
         auto bsdf = new BSDFDesc{};
         bsdf->type = get_default(node.attribute("type").value());
-        if (node.attribute("id")) {
-            bsdf->id = node.attribute("id").value();
-            shared_bsdfs[bsdf->id] = bsdf;
+
+        // TODO: handle resource deallocation on errors
+        // TODO: Right now only same BSDF is supported for twosided
+        if (bsdf->type == "twosided") {
+            if (std::distance(node.children().begin(), node.children().end()) != 1)
+                throw std::runtime_error(
+                    "A twosided BSDF must have exactly one child BSDF. Two separate BSDFs are not yet supported.");
+
+            if (!allow_twosided)
+                throw std::runtime_error("Nested twosided BSDFs are not supported.");
+
+            delete bsdf;
+            bsdf = parseBSDF(*node.children().begin(), false);
+            bsdf->properties["twosided"] = "true";
+            if (node.attribute("id")) {
+                bsdf->id = node.attribute("id").value();
+                shared_bsdfs[bsdf->id] = bsdf;
+            }
+        } else {
+            parseProperties(node, bsdf->properties, {"id"});
+            if (node.attribute("id")) {
+                bsdf->id = node.attribute("id").value();
+                shared_bsdfs[bsdf->id] = bsdf;
+            }
         }
 
-        // TODO: what about two-sided BSDFs???
-        
-        parseProperties(node, bsdf->properties, {"id"});
         return bsdf;
     }
 
@@ -427,6 +445,8 @@ private:
         auto sampler = new SamplerDesc{};
         sampler->type = get_default(node.attribute("type").value());
 
+        sampler->properties["seed"] = "0";
+        
         parseProperties(node, sampler->properties);
         return sampler;
     }

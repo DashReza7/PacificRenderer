@@ -18,6 +18,8 @@ struct EmitterSample {
     Float pdf;
     // direction towards the shading point
     Vec3f direction;
+    // Whether there's an occlusion between the isc and the emitter sample point
+    // Remark: This does not handle whether the isc.normal is in the correct side
     bool is_valid;
     Vec3f radiance;
     EmitterFlags emitter_flags;

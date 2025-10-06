@@ -17,18 +17,18 @@ public:
     }
 
     EmitterSample sampleLi(const Scene *scene, const Intersection &isc, const Vec3f &sample) const override {
-        Vec3f dirn = isc.position - position;
+        Vec3f dirn = position - isc.position;
         Float distance = glm::length(dirn);
         dirn = glm::normalize(dirn);
-        bool is_valid = dot(dirn, isc.normal) > 0.0;
+        bool is_valid = true;
         if (is_valid) {
             // check for occlusion
-            Ray shadow_ray{isc.position + isc.normal * Epsilon, dirn, Epsilon, distance - 2 * Epsilon, true};
+            Ray shadow_ray{isc.position + sign(glm::dot(isc.normal, dirn)) * isc.normal * Epsilon, dirn, Epsilon, distance - 2 * Epsilon, true};
             Intersection tmp_isc{};
             is_valid = !scene->ray_intersect(shadow_ray, tmp_isc);
         }
 
-        return EmitterSample{1.0, dirn, is_valid, intensity / Sqr(distance), EmitterFlags::DELTA_POSITION};
+        return EmitterSample{1.0, -dirn, is_valid, intensity / Sqr(distance), EmitterFlags::DELTA_POSITION};
     }
 
     std::string to_string() const override {

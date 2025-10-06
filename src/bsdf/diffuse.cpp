@@ -13,16 +13,16 @@ public:
 
     Vec3f eval(const Vec3f &wi, const Vec3f &wo) const override {
         // TODO: what about two-sided BSDFs
-        if (wi.z <= 0 || wo.z <= 0)
+        if (wi.z * wo.z <= 0.0)
             return Vec3f{0.0};
-        return reflectance * InvPi * wo.z;
+        return InvPi * std::abs(wo.z) * reflectance;
     }
 
     Float pdf(const Vec3f &wi, const Vec3f &wo) const override {
-        if (wi.z <= 0 || wo.z <= 0)
+        if (wi.z * wo.z <= 0.0)
             return 0.0f;
         if (cosine_sampling)
-            return wo.z * InvPi;
+            return std::abs(wo.z) * InvPi;
         else  // uniform hemispher sammpling
             return Inv2Pi;
     }
@@ -31,12 +31,18 @@ public:
         // TODO: what about the two-sided BSDF
         if (cosine_sampling) {
             Vec3f wo = cosineHemisphereSample(sample2);
-            return {BSDFSample{wo, pdf(Vec3f{0, 0, 1}, wo), 1, 1.0},
-                    eval(Vec3f{0, 0, 1}, wo)};
+            if (wi.z < 0.0 && this->has_flag(BSDFFlags::TwoSided))
+                wo.z = -wo.z;
+            
+            return {BSDFSample{wo, pdf(wi, wo), 1},
+                    eval(wi, wo)};
         } else {  // uniform hemisphere sampling
             Vec3f wo = uniformHemisphereSample(sample2);
-            return {BSDFSample{wo, pdf(Vec3f{0, 0, 1}, wo), 1, 1.0},
-                    eval(Vec3f{0, 0, 1}, wo)};
+            if (wi.z < 0.0 && this->has_flag(BSDFFlags::TwoSided))
+                wo.z = -wo.z;
+            
+            return {BSDFSample{wo, pdf(wi, wo), 1},
+                    eval(wi, wo)};
         }
     }
 
@@ -60,7 +66,12 @@ BSDF *createDiffuseBSDF(const std::unordered_map<std::string, std::string> &prop
     if (it != properties.end())
         cosine_sampling = (it->second == "true");
 
-    return new DiffuseBSDF(BSDFFlags::None, reflectance, cosine_sampling);
+    BSDFFlags flags = BSDFFlags::None;
+    it = properties.find("two_sided");
+    if (it != properties.end() && it->second == "true")
+        flags = BSDFFlags::TwoSided;
+
+    return new DiffuseBSDF(flags, reflectance, cosine_sampling);
 }
 
 namespace {

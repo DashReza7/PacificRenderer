@@ -59,14 +59,22 @@ public:
                 else
                     pixels[row * width + col] /= pixels_weights_sum[row * width + col];
     }
-    
+
     /// Output the image to a file (PNG format)
     void output_image(const std::string& filename, bool tone_mapping = true) const {
         std::vector<Vec3f> mapped_pixels = pixels;
         if (tone_mapping) {
             for (auto& color : mapped_pixels) {
+                // tonemapping
                 color = color / (color + Vec3f{1.0});
-                color = glm::pow(color, Vec3f{1.0 / 2.2});  // gamma correction
+
+                // gamma correction
+                for (int i = 0; i < 3; i++) {
+                    if (color[i] <= 0.0031308)
+                        color[i] = Float(12.92) * color[i];
+                    else
+                        color[i] = 1.055 * std::pow(color[i], 1.0 / 2.4) - 0.055;
+                }
             }
         }
 

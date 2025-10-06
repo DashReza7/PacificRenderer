@@ -49,11 +49,11 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
                         for (size_t inblock_col = 0; inblock_col < col_bound; inblock_col++) {
                             uint32_t row = inblock_row + block_size * block_row;
                             uint32_t col = inblock_col + block_size * block_col;
+
                             // TODO: for debug purposes
-                            // row = 158;
-                            // col = 69;
-                            // if (row <= 215 || row >= 232 || col <= 50 || col >= 67)
+                            // if (row != 200 || col != 537)
                             //     continue;
+                                
                             for (size_t i = 0; i < sensor->sampler.spp; i++) {
                                 // sample position in sensor space ([0, 1])
                                 Float px, py;

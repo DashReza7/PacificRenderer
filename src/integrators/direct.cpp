@@ -23,16 +23,18 @@ public:
 
         Vec3f radiance{0.0};
         // ----------------------- Visible emitters -----------------------
-        if (isc.shape->emitter != nullptr) {
-            // hit an area light
-            // area lights return their radiance, without considering isc
+        
+        if (isc.shape->emitter != nullptr && glm::dot(isc.normal, ray.d) < 0.0)
             radiance += isc.shape->emitter->eval(isc.position);
-        }
+            
         // ----------------------- Emitter sampling -----------------------
+        
         Float nee_weight = 1.0 / Float(emitter_samples);
         for (size_t i = 0; i < emitter_samples; i++) {
             EmitterSample emitter_sample = scene->sample_emitter(isc, sampler->get_1D(), sampler->get_3D());
             if (emitter_sample.is_valid) {
+                // TODO: check for correct orientation of isc
+                
                 Vec3f wo_local = worldToLocal(-emitter_sample.direction, isc.normal);
                 Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);
                 Vec3f bsdf_value = isc.shape->bsdf->eval(wi_local, wo_local);
@@ -43,13 +45,14 @@ public:
         }
 
         // ------------------------ BSDF sampling -------------------------
+        
         Float bsdf_weight = 1.0 / Float(bsdf_samples);
         for (size_t i = 0; i < bsdf_samples; i++) {
             auto [bsdf_sample, bsdf_value] = isc.shape->bsdf->sample(worldToLocal(isc.dirn, isc.normal), sampler->get_1D(), sampler->get_2D());
 
             // check if the sample intersects any light
             Intersection tmp_isc{};
-            bool is_occluded = scene->ray_intersect(Ray{isc.position + bsdf_sample.normal_sign * isc.normal * Epsilon, localToWorld(bsdf_sample.wo, isc.normal), Epsilon, 1e4}, tmp_isc);
+            bool is_occluded = scene->ray_intersect(Ray{isc.position + sign(glm::dot(localToWorld(bsdf_sample.wo, isc.normal), isc.normal)) * isc.normal * Epsilon, localToWorld(bsdf_sample.wo, isc.normal), Epsilon, 1e4}, tmp_isc);
             if (!is_occluded ||
                 tmp_isc.shape->emitter == nullptr ||
                 dot(isc.position - tmp_isc.position, tmp_isc.normal) < 0 ||
@@ -61,6 +64,7 @@ public:
         }
 
         // ----------------------------------------------------------------
+        
         return radiance;
     }
 

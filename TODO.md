@@ -1,12 +1,14 @@
 **Notes:**
  - The scene parser can't parse all mitsuba3 files.
  - The BSDF referencing doesn't support forward referencing.
+ - Right now, all AreaLights are one-sided.
 
 **TODO:**
 
 Urgent:
- - Implement two-sided BSDFs
+ - BUG in twosided BSDFs in dragon scene (or intersection)
  - Implement a logger with several log-levels
+ - implement shading normals instead of just the geometric normal
 
 Others:
  - Convert all () constructors to {}

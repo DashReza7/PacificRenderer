@@ -19,7 +19,7 @@ public:
 
     EmitterSample sampleLi(const Scene *scene, const Intersection &isc, const Vec3f &sample) const override {
         Intersection tmp_isc;
-        bool is_hit = scene->ray_intersect(Ray{isc.position + isc.normal * Epsilon, -direction, Epsilon, 1e4, true}, tmp_isc);
+        bool is_hit = scene->ray_intersect(Ray{isc.position + sign(glm::dot(isc.normal, -direction)) * isc.normal * Epsilon, -direction, Epsilon, 1e4, true}, tmp_isc);
 
         return EmitterSample{1.0, direction, !is_hit, irradiance, EmitterFlags::DELTA_DIRECTION};
     }

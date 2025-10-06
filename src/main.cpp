@@ -7,9 +7,11 @@
 #include "utils/ArgParser.h"
 #include "utils/SceneParser.h"
 
+#include "core/Sampler.h"
+
 // #include "utils/Logger.h"
 
-int main(int argc, char** argv) {
+int run(int argc, char **argv) {
     // TODO: create the global Logger
     // Logger g_logger{LogLevel::INFO, true, ""};
 
@@ -26,7 +28,21 @@ int main(int argc, char** argv) {
     Integrator* integrator = IntegratorRegistry::createIntegrator(scene_desc.integrator->type, scene_desc.integrator->properties);
 
     integrator->render(&scene, scene.sensor, std::stoi(props["n_threads"]), props["show_progress"] == "true");
+
     scene.sensor->film.output_image(props["output_file"], true);
 
+    return 0;
+}
+
+int main(int argc, char** argv) {
+    int result = 0;
+    try {
+        result = run(argc, argv);
+    } catch(const std::exception& e) {
+        std::cerr << e.what() << '\n';
+        exit(EXIT_FAILURE);
+    }
+    
     std::cout << "\nThe end" << std::endl;
+    return result;
 }
