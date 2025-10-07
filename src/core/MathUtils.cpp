@@ -56,3 +56,23 @@ Vec3f cosineHemisphereSample(const Vec2f &sample) {
     Float phi = 2.0 * Pi * sample.y;
     return Vec3f{std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)};
 }
+
+Vec3f barycentric(const Vec3f& v0, const Vec3f& v1, const Vec3f& v2, const Vec3f& p) {
+    Vec3f v0v1 = v1 - v0;
+    Vec3f v0v2 = v2 - v0;
+    Vec3f v0p  = p  - v0;
+
+    Float d00 = glm::dot(v0v1, v0v1);
+    Float d01 = glm::dot(v0v1, v0v2);
+    Float d11 = glm::dot(v0v2, v0v2);
+    Float d20 = glm::dot(v0p,  v0v1);
+    Float d21 = glm::dot(v0p,  v0v2);
+
+    Float denom = d00 * d11 - d01 * d01;
+
+    Float w1 = (d11 * d20 - d01 * d21) / denom;
+    Float w2 = (d00 * d21 - d01 * d20) / denom;
+    Float w0 = 1.0f - w1 - w2;
+    
+    return Vec3f{w0, w1, w2};
+}

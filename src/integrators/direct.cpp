@@ -81,24 +81,21 @@ Integrator *createDirectLightingIntegrator(const std::unordered_map<std::string,
     int bsdf_samples = 1;
     bool hide_emitters = false;
 
-    auto it = properties.find("shading_samples");
-    if (it != properties.end()) {
-        emitter_samples = std::stoi(it->second);
-        bsdf_samples = emitter_samples;
-    } else {
-        it = properties.find("emitter_samples");
-        if (it != properties.end())
-            emitter_samples = std::stoi(it->second);
-
-        it = properties.find("bsdf_samples");
-        if (it != properties.end())
-            bsdf_samples = std::stoi(it->second);
+    for (const auto &[key, value] : properties) {
+        if (key == "shading_samples") {
+            bsdf_samples = std::stoi(value);
+            emitter_samples = bsdf_samples;
+        } else if (key == "emitter_samples") {
+            emitter_samples = std::stoi(value);
+        } else if (key == "bsdf_samples") {
+            bsdf_samples = std::stoi(value);
+        } else if (key == "hide_emitters") {
+            hide_emitters = (value == "true" || value == "1");
+        } else {
+            throw std::runtime_error("Unknown property '" + key + "' for Direct Lighting integrator");
+        }
     }
-
-    it = properties.find("hide_emitters");
-    if (it != properties.end())
-        hide_emitters = (it->second == "true");
-
+    
     return new DirectLightingIntegrator(emitter_samples, bsdf_samples, hide_emitters);
 }
 

@@ -58,9 +58,13 @@ public:
 Emitter *createAreaLight(const std::unordered_map<std::string, std::string> &properties) {
     Vec3f radiance{0.5, 0.5, 0.5};
 
-    auto it = properties.find("radiance");
-    if (it != properties.end())
-        radiance = strToVec3f(it->second);
+    for (const auto &[key, value] : properties) {
+        if (key == "radiance") {
+            radiance = strToVec3f(value);
+        } else {
+            throw std::runtime_error("Unknown property '" + key + "' for Area Light emitter");
+        }
+    }
 
     return new AreaLight{radiance};
 }

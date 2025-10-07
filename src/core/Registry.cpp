@@ -86,3 +86,24 @@ std::vector<std::string> RFilterRegistry::getRegisteredTypes() {
     }
     return types;
 }
+
+// -------------------------- GeometryRegistry Implementation -----------------------
+void GeometryRegistry::registerGeometry(const std::string& type, GeometryRegistry::GeometryCreator creator) {
+    GeometryRegistry::getCreators()[type] = creator;
+}
+
+Geometry* GeometryRegistry::createGeometry(const std::string& type, const std::unordered_map<std::string, std::string>& properties, const Shape *parent_shape, const GeometryCreationContext* ctx) {
+    auto it = GeometryRegistry::getCreators().find(type);
+    if (it == GeometryRegistry::getCreators().end()) {
+        throw std::runtime_error("Unknown Geometry type: " + type);
+    }
+    return it->second(properties, parent_shape, ctx);
+}
+
+std::vector<std::string> GeometryRegistry::getRegisteredTypes() {
+    std::vector<std::string> types;
+    for (const auto& pair : GeometryRegistry::getCreators()) {
+        types.push_back(pair.first);
+    }
+    return types;
+}

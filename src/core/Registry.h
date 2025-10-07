@@ -2,15 +2,19 @@
 
 #pragma once
 
-#include "core/BSDF.h"
 #include <functional>
 #include <unordered_map>
 #include <string>
+// #include "core/Geometry.h"
 
+class BSDF;
 class Integrator;
 class Scene;
 class Emitter;
 class RFilter;
+class Geometry;
+class Shape;
+struct GeometryCreationContext;
 
 
 class BSDFRegistry {
@@ -97,3 +101,23 @@ private:
     }
 };
 
+class GeometryRegistry {
+public:
+    // Function signature for Geometry creators
+    using GeometryCreator = std::function<Geometry*(const std::unordered_map<std::string, std::string>&, const Shape *, const GeometryCreationContext*)>;
+    
+    // Register a Geometry type with its creator function
+    static void registerGeometry(const std::string& type, GeometryCreator creator);
+
+    // Create a Geometry by type name
+    static Geometry* createGeometry(const std::string& type, const std::unordered_map<std::string, std::string>& properties, const Shape *parent_shape, const GeometryCreationContext* ctx);
+
+    // List all registered types
+    static std::vector<std::string> getRegisteredTypes();
+
+private:
+    static std::unordered_map<std::string, GeometryCreator>& getCreators() {
+        static std::unordered_map<std::string, GeometryCreator> creators;
+        return creators;
+    }
+};

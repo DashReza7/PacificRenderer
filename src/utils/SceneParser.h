@@ -158,9 +158,12 @@ struct SensorDesc : public SceneObjectDesc {
     }
 };
 struct ShapeDesc : public SceneObjectDesc {
-    BSDFDesc* bsdf;
-    EmitterDesc* emitter;
-    Mat4f to_world = glm::mat<4, 4, Float>(1);
+    BSDFDesc* bsdf = nullptr;
+    EmitterDesc* emitter = nullptr;
+
+    ShapeDesc() {
+        properties["to_world"] = mat4fToStr(Mat4f{1.0});
+    }
 
     std::string to_string() override {
         std::ostringstream oss;
@@ -177,6 +180,7 @@ struct ShapeDesc : public SceneObjectDesc {
         return oss.str();
     }
 };
+
 struct SceneDesc {
     IntegratorDesc* integrator;
     SensorDesc* sensor;
@@ -350,7 +354,7 @@ private:
         auto shape = new ShapeDesc{};
         shape->type = get_default(node.attribute("type").value());
 
-        parseProperties(node, shape->properties, {"bsdf", "emitter", "ref", "transform"});
+        parseProperties(node, shape->properties, {"bsdf", "emitter", "ref"});
 
         // Parse nested objects
         for (pugi::xml_node child : node.children()) {
@@ -365,8 +369,6 @@ private:
                 shape->bsdf = shared_bsdfs[id];
             } else if (child_name == "emitter") {
                 shape->emitter = parseEmitter(child);
-            } else if (child_name == "transform") {
-                shape->to_world = parseTransform(child);
             }
         }
 
@@ -389,6 +391,7 @@ private:
 
             delete bsdf;
             bsdf = parseBSDF(*node.children().begin(), false);
+            // TODO:
             bsdf->properties["twosided"] = "true";
             if (node.attribute("id")) {
                 bsdf->id = node.attribute("id").value();

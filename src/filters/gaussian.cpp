@@ -23,14 +23,15 @@ RFilter *createGaussianFilter(const std::unordered_map<std::string, std::string>
     Float radius = 2.0f;
     Float stddev = 0.5f;
 
-    auto it = properties.find("radius");
-    if (it != properties.end())
-        radius = std::stof(it->second);
-
-    it = properties.find("stddev");
-    if (it != properties.end())
-        stddev = std::stof(it->second);
-
+    for (const auto &[key, value] : properties) {
+        if (key == "radius") {
+            radius = std::stod(value);
+        } else if (key == "stddev") {
+            stddev = std::stod(value);
+        } else {
+            throw std::runtime_error("Unknown property '" + key + "' for Gaussian RFilter");
+        }
+    }
     return new GaussianFilter{radius, stddev};
 }
 

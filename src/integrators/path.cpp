@@ -54,9 +54,8 @@ public:
 
             curr_ray = Ray{curr_isc.position + sign(glm::dot(localToWorld(bsdf_sample.wo, curr_isc.normal), curr_isc.normal)) * curr_isc.normal * Epsilon, localToWorld(bsdf_sample.wo, curr_isc.normal), Epsilon, 1e4};
             is_hit = scene->ray_intersect(curr_ray, curr_isc);
-            if (is_hit && curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_ray.d) < 0.0) {
+            if (is_hit && curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_ray.d) < 0.0)
                 radiance += throughput * curr_isc.shape->emitter->eval(curr_isc.position);
-            }
 
             // do RussianRoulette
             if (depth + 1 >= rr_depth) {
@@ -83,18 +82,18 @@ Integrator *createPathTracerIntegrator(const std::unordered_map<std::string, std
     int rr_depth = 5;
     bool hide_emitters = false;
 
-    auto it = properties.find("max_depth");
-    if (it != properties.end())
-        max_depth = std::stoi(it->second);
-
-    it = properties.find("rr_depth");
-    if (it != properties.end())
-        rr_depth = std::stoi(it->second);
-
-    it = properties.find("hide_emitters");
-    if (it != properties.end())
-        hide_emitters = (it->second == "true");
-
+    for (const auto &[key, value] : properties) {
+        if (key == "max_depth") {
+            max_depth = std::stoi(value);
+        } else if (key == "rr_depth") {
+            rr_depth = std::stoi(value);
+        } else if (key == "hide_emitters") {
+            hide_emitters = (value == "true" || value == "1");
+        } else {
+            throw std::runtime_error("Unknown property '" + key + "' for Path Tracer integrator");
+        }
+    }
+    
     return new PathTracerIntegrator(max_depth, rr_depth, hide_emitters);
 }
 

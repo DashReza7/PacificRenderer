@@ -36,18 +36,18 @@ Emitter *createDirectionalLight(const std::unordered_map<std::string, std::strin
     Vec3f irradiance{1.0, 1.0, 1.0};
     Vec3f direction{0.0, 0.0, 1.0};
 
-    auto it = properties.find("irradiance");
-    if (it != properties.end())
-        irradiance = strToVec3f(it->second);
-
-    it = properties.find("direction");
-    if (it != properties.end())
-        direction = strToVec3f(it->second);
-
-    it = properties.find("to_world");
-    if (it != properties.end())
-        direction = Vec3f{strToMat4f(it->second) * Vec4f{direction, 0.0}};
-
+    for (const auto &[key, value] : properties) {
+        if (key == "irradiance") {
+            irradiance = strToVec3f(value);
+        } else if (key == "direction") {
+            direction = strToVec3f(value);
+        } else if (key == "to_world") {
+            direction = Vec3f{strToMat4f(value) * Vec4f{direction, 0.0}};
+        } else {
+            throw std::runtime_error("Unknown property '" + key + "' for Directional Light emitter");
+        }
+    }
+        
     return new DirectionalLight{irradiance, direction};
 }
 

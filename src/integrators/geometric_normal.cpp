@@ -31,6 +31,10 @@ public:
 
 // ------------------- Registry functions -------------------
 Integrator* createGeometricNormalIntegrator(const std::unordered_map<std::string, std::string>& properties) {
+    if (properties.size() > 0) {
+        throw std::runtime_error("Geometric Normal integrator does not take any properties");
+    }
+    
     return new GeometricNormalIntegrator();
 }
 

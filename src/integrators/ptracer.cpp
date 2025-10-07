@@ -32,16 +32,18 @@ Integrator* createParticleTracerIntegrator(const std::unordered_map<std::string,
     int rr_depth = 5;
     bool hide_emitters = false;
 
-    if (properties.find("max_depth") != properties.end()) {
-        max_depth = std::stoi(properties.at("max_depth"));
+    for (const auto& [key, value] : properties) {
+        if (key == "max_depth") {
+            max_depth = std::stoi(value);
+        } else if (key == "rr_depth") {
+            rr_depth = std::stoi(value);
+        } else if (key == "hide_emitters") {
+            hide_emitters = (value == "true" || value == "1");
+        } else {
+            throw std::runtime_error("Unknown property '" + key + "' for Particle Tracer integrator");
+        }
     }
-    if (properties.find("rr_depth") != properties.end()) {
-        rr_depth = std::stoi(properties.at("rr_depth"));
-    }
-    if (properties.find("hide_emitters") != properties.end()) {
-        hide_emitters = properties.at("hide_emitters") == "true";
-    }
-
+    
     return new ParticleTracerIntegrator(max_depth, rr_depth, hide_emitters);
 }
 

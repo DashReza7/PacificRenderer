@@ -44,34 +44,21 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
             std::vector<Vec3f*> vertices;
             std::vector<Vec3f*> normals;
             std::vector<Vec2f*> texcoords;
-            bool success = MeshLoader::load_mesh_from_file((scene_file_path.parent_path() / shape_desc->properties["filename"]).string(),
-                                                           shape->geometries, vertices, normals, texcoords);
-            if (!success) {
+            bool success = MeshLoader::load_mesh_from_file((scene_file_path.parent_path() / shape_desc->properties["filename"]).string(), shape, shape->geometries, vertices, normals, texcoords);
+            if (!success)
                 throw std::runtime_error("Failed to load OBJ mesh: " + shape_desc->properties["filename"]);
-            }
 
             // apply transform
+            Mat4f to_world = strToMat4f(shape_desc->properties["to_world"]);
             for (auto& vertex : vertices)
-                *vertex = Vec3f{shape_desc->to_world * Vec4f{*vertex, 1.0}};
+                *vertex = Vec3f{to_world * Vec4f{*vertex, 1.0}};
             // use the inverse transpose of the upper-left 3x3 part of the matrix
             // TODO: check for correctness
             for (auto& normal : normals)
-                *normal = glm::normalize(Vec3f{glm::transpose(glm::inverse(shape_desc->to_world)) * Vec4f{*normal, 0.0}});
-
-            for (auto& geom : shape->geometries) {
-                geom->parent_shape = shape;
-            }
-
+                *normal = glm::normalize(Vec3f{glm::transpose(glm::inverse(to_world)) * Vec4f{*normal, 0.0}});
         } else if (shape_desc->type == "sphere") {
             shape->type = Shape::Type::SPHERE;
-            auto sphere = new Sphere{Vec3f{0}, 1.0, shape_desc->to_world};
-            sphere->parent_shape = shape;
-            if (shape_desc->properties.find("center") != shape_desc->properties.end())
-                sphere->center = strToVec3f(shape_desc->properties["center"]);
-            if (shape_desc->properties.find("radius") != shape_desc->properties.end())
-                sphere->radius = std::stod(shape_desc->properties["radius"]);
-            sphere->transform = shape_desc->to_world;
-            shape->geometries.push_back(sphere);
+            shape->geometries.push_back(GeometryRegistry::createGeometry("sphere", shape_desc->properties, shape, nullptr));
         } else {
             throw std::runtime_error("Unsupported shape type: " + shape_desc->type);
         }

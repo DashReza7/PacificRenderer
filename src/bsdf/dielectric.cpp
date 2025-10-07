@@ -52,13 +52,15 @@ BSDF *createDielectricBSDF(const std::unordered_map<std::string, std::string> &p
     Float int_ior = 1.5046;    // bk27
     Float ext_ior = 1.000277;  // air
 
-    auto it = properties.find("int_ior");
-    if (it != properties.end())
-        int_ior = Float(std::stod(it->second));
-
-    it = properties.find("ext_ior");
-    if (it != properties.end())
-        ext_ior = Float(std::stod(it->second));
+    for (const auto &[key, value] : properties) {
+        if (key == "int_ior") {
+            int_ior = std::stod(value);
+        } else if (key == "ext_ior") {
+            ext_ior = std::stod(value);
+        } else {
+            throw std::runtime_error("Unknown property '" + key + "' for Dielectric BSDF");
+        }
+    }
 
     return new SmoothDielectricBSDF(BSDFFlags::Delta, ext_ior / int_ior);
 }

@@ -28,6 +28,10 @@ public:
 
 // ------------------- Registry functions -------------------
 Integrator* createAlbedoIntegrator(const std::unordered_map<std::string, std::string>& properties) {
+    if (properties.size() > 0) {
+        throw std::runtime_error("Albedo integrator does not take any properties");
+    }
+    
     return new AlbedoIntegrator();
 }
 

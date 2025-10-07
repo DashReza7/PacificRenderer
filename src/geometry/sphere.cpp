@@ -1,0 +1,164 @@
+#include "core/Geometry.h"
+#include "core/Registry.h"
+#include "utils/Misc.h"
+
+class Sphere : public Geometry {
+private:
+    Mat4f inv_transform;
+
+public:
+    Vec3f center;
+    Float radius;
+    Float radius_world;  // radius in world space
+    // the center and radius are in local space, `transform` is used to transform. used for intersection and bbox building
+    Mat4f transform;
+
+    Sphere(const Vec3f &center, Float radius, const Mat4f &transform, const Shape *parent_shape) : transform(transform), center(center), radius(radius) {
+        inv_transform = glm::inverse(transform);
+        Vec3f scaled_x = Vec3f{transform * Vec4f{1, 0, 0, 0}};
+        radius_world = radius * glm::length(scaled_x);
+        this->parent_shape = parent_shape;
+    }
+
+    // TODO: check for validity
+    bool intersect(const Ray &ray, Intersection &isc) const override {
+        // transform ray to local space
+        Vec3f o_local = Vec3f{inv_transform * Vec4f{ray.o, 1.0}};
+        Vec3f d_local = glm::normalize(Vec3f{inv_transform * Vec4f{ray.d, 0.0}});
+
+        Vec3f o_minus_c = o_local - center;
+        Float o_minus_c_length2 = dot(o_minus_c, o_minus_c);
+        Float b_prime = dot(o_minus_c, d_local);
+        Float delta_prime = Sqr(b_prime) - o_minus_c_length2 + Sqr(radius);
+
+        // no intersection (in any direction)
+        if (delta_prime <= 0)
+            return false;
+
+        // tangent to the sphere
+        if (delta_prime < Epsilon) {
+            Float t_local = -b_prime;
+            // hit from behind
+            if (t_local < 0.0)
+                return false;
+            Vec3f local_hit_pos = o_local + t_local * d_local;
+            isc.position = Vec3f{transform * Vec4f{local_hit_pos, 1.0}};
+            isc.normal = get_normal(isc.position);
+        } else {  // hit the sphere twice (might be in the back or front of ray)
+            Float delta_prime_sqrt = std::sqrt(delta_prime);
+            Float t1_local = -b_prime - delta_prime_sqrt;
+            Float t2_local = -b_prime + delta_prime_sqrt;
+            // both hitpoints are behind the ray
+            if (t2_local <= 0.0)
+                return false;
+            if (t1_local >= 0.0) {
+                Vec3f local_hit_pos = o_local + t1_local * d_local;
+                isc.position = Vec3f{transform * Vec4f{local_hit_pos, 1.0}};
+                isc.normal = get_normal(isc.position);
+            } else {  // if (t2_local >= 0.0)
+                Vec3f local_hit_pos = o_local + t2_local * d_local;
+                isc.position = Vec3f{transform * Vec4f{o_local + t2_local * d_local, 1.0}};
+                isc.normal = get_normal(isc.position);
+            }
+        }
+
+        isc.dirn = ray.o - isc.position;
+        isc.distance = glm::length(isc.dirn);
+        isc.dirn = glm::normalize(isc.dirn);
+        isc.shape = parent_shape;
+        isc.geom = this;
+
+        // FIXME: there's a bug here. suppose the ray hits the sphere twice. the first hit is really close. then isc.distance may be smaller than ray.tmin
+        return (isc.distance >= ray.tmin && isc.distance <= ray.tmax);
+    }
+
+    AABB get_bbox() const override {
+        Vec3f corner_1 = center + Vec3f{radius, radius, radius};
+        Vec3f corner_2 = center + Vec3f{radius, radius, -radius};
+        Vec3f corner_3 = center + Vec3f{radius, -radius, radius};
+        Vec3f corner_4 = center + Vec3f{radius, -radius, -radius};
+        Vec3f corner_5 = center + Vec3f{-radius, radius, radius};
+        Vec3f corner_6 = center + Vec3f{-radius, radius, -radius};
+        Vec3f corner_7 = center + Vec3f{-radius, -radius, radius};
+        Vec3f corner_8 = center + Vec3f{-radius, -radius, -radius};
+        corner_1 = Vec3f{transform * Vec4f{corner_1, 1.0}};
+        corner_2 = Vec3f{transform * Vec4f{corner_2, 1.0}};
+        corner_3 = Vec3f{transform * Vec4f{corner_3, 1.0}};
+        corner_4 = Vec3f{transform * Vec4f{corner_4, 1.0}};
+        corner_5 = Vec3f{transform * Vec4f{corner_5, 1.0}};
+        corner_6 = Vec3f{transform * Vec4f{corner_6, 1.0}};
+        corner_7 = Vec3f{transform * Vec4f{corner_7, 1.0}};
+        corner_8 = Vec3f{transform * Vec4f{corner_8, 1.0}};
+        return AABB{Vec3f{std::min(std::min(std::min(corner_1.x, corner_2.x), std::min(corner_3.x, corner_4.x)), std::min(std::min(corner_5.x, corner_6.x), std::min(corner_7.x, corner_8.x))) - Epsilon,
+                          std::min(std::min(std::min(corner_1.y, corner_2.y), std::min(corner_3.y, corner_4.y)), std::min(std::min(corner_5.y, corner_6.y), std::min(corner_7.y, corner_8.y))) - Epsilon,
+                          std::min(std::min(std::min(corner_1.z, corner_2.z), std::min(corner_3.z, corner_4.z)), std::min(std::min(corner_5.z, corner_6.z), std::min(corner_7.z, corner_8.z))) - Epsilon},
+                    Vec3f{std::max(std::max(std::max(corner_1.x, corner_2.x), std::max(corner_3.x, corner_4.x)), std::max(std::max(corner_5.x, corner_6.x), std::max(corner_7.x, corner_8.x))) + Epsilon,
+                          std::max(std::max(std::max(corner_1.y, corner_2.y), std::max(corner_3.y, corner_4.y)), std::max(std::max(corner_5.y, corner_6.y), std::max(corner_7.y, corner_8.y))) + Epsilon,
+                          std::max(std::max(std::max(corner_1.z, corner_2.z), std::max(corner_3.z, corner_4.z)), std::max(std::max(corner_5.z, corner_6.z), std::max(corner_7.z, corner_8.z))) + Epsilon}};
+    }
+
+    Vec3f get_normal(const Vec3f &position) const override {
+        Vec3f local_position = Vec3f{inv_transform * Vec4f{position, 1.0}};
+        Vec3f local_normal = local_position - center;
+        Vec3f normal = Vec3f{glm::transpose(inv_transform) * Vec4f{local_normal, 0.0}};
+        return glm::normalize(normal);
+    }
+
+    Float area() const override {
+        return 4.0 * Pi * Sqr(radius_world);
+    }
+
+    std::tuple<Vec3f, Vec3f, Float> sample_point_on_surface(const Vec2f &sample) const override {
+        // uniform sampling on sphere surface
+        Float phi = 2.0 * Pi * sample.x;
+        Float theta = acos(1.0 - 2.0 * sample.y);
+        Vec3f normal{
+            sin(theta) * cos(phi),
+            sin(theta) * sin(phi),
+            cos(theta)};
+        Vec3f position = center + radius * normal;
+        position = Vec3f{transform * Vec4f{position, 1.0}};
+        // calculate the true radius
+        Vec3f scaled_x = transform * Vec4f{1, 0, 0, 0};
+        Float radius = radius * glm::length(scaled_x);
+        Float pdf = 1.0 / (4.0 * Pi * Sqr(radius));
+        
+        return {position, get_normal(position), pdf};
+    }
+
+    std::string to_string() const override {
+        std::ostringstream oss;
+        oss << "Geometry(Sphere): [ center=" << center << ", radius=" << radius << " ]";
+        return oss.str();
+    }
+};
+
+// --------------------------- Registry functions ---------------------------
+Geometry *createSphere(const std::unordered_map<std::string, std::string> &properties, const Shape *parent_shape, const GeometryCreationContext *ctx) {
+    Vec3f center{0.0, 0.0, 0.0};
+    Float radius = 1.0;
+    Mat4f transform{1.0};
+    for (const auto &[key, value] : properties) {
+        if (key == "center") {
+            center = strToVec3f(value);
+        } else if (key == "radius") {
+            radius = std::stod(value);
+        } else if (key == "to_world") {
+            transform = strToMat4f(value);
+        } else {
+            throw std::runtime_error("Unknown property '" + key + "' for sphere geometry");
+        }
+    }
+
+    return new Sphere{center, radius, transform, parent_shape};
+}
+
+namespace {
+struct SphereRegistrar {
+    SphereRegistrar() {
+        GeometryRegistry::registerGeometry("sphere", createSphere);
+    }
+};
+
+static SphereRegistrar registrar;
+}  // namespace

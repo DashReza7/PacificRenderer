@@ -34,7 +34,9 @@ int run(int argc, char **argv) {
     return 0;
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
+    std::cout << "Starting..." << std::endl;
+    
     int result = 0;
     try {
         result = run(argc, argv);

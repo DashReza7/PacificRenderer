@@ -10,7 +10,7 @@
 
 #define Sqr(x) ((x)*(x))
 
-inline const Float Epsilon = 1e-4f;
+inline const Float Epsilon = 1e-5;
 inline const Float Pi = 3.14159265358979323846;
 inline const Float InvPi = 0.31830988618379067154;
 inline const Float Inv2Pi = 0.15915494309189533577;
@@ -89,3 +89,7 @@ Vec3f cosineHemisphereSample(const Vec2f &sample);
 inline Float sign(Float x) {
     return x > 0.0 ? 1.0 : (x < 0.0 ? -1.0 : 0.0);
 }
+
+// Remark: p must be in the same plane as the vertices
+Vec3f barycentric(const Vec3f& v0, const Vec3f& v1, const Vec3f& v2, const Vec3f& p);
+

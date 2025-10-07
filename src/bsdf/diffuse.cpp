@@ -33,14 +33,14 @@ public:
             Vec3f wo = cosineHemisphereSample(sample2);
             if (wi.z < 0.0 && this->has_flag(BSDFFlags::TwoSided))
                 wo.z = -wo.z;
-            
+
             return {BSDFSample{wo, pdf(wi, wo), 1},
                     eval(wi, wo)};
         } else {  // uniform hemisphere sampling
             Vec3f wo = uniformHemisphereSample(sample2);
             if (wi.z < 0.0 && this->has_flag(BSDFFlags::TwoSided))
                 wo.z = -wo.z;
-            
+
             return {BSDFSample{wo, pdf(wi, wo), 1},
                     eval(wi, wo)};
         }
@@ -57,19 +57,19 @@ public:
 BSDF *createDiffuseBSDF(const std::unordered_map<std::string, std::string> &properties) {
     Vec3f reflectance{0.5, 0.5, 0.5};
     bool cosine_sampling = true;
-
-    auto it = properties.find("reflectance");
-    if (it != properties.end())
-        reflectance = strToVec3f(it->second);
-
-    it = properties.find("cosine_sampling");
-    if (it != properties.end())
-        cosine_sampling = (it->second == "true");
-
     BSDFFlags flags = BSDFFlags::None;
-    it = properties.find("two_sided");
-    if (it != properties.end() && it->second == "true")
-        flags = BSDFFlags::TwoSided;
+
+    for (const auto &[key, value] : properties) {
+        if (key == "reflectance") {
+            reflectance = strToVec3f(value);
+        } else if (key == "cosine_sampling") {
+            cosine_sampling = (value == "true");
+        } else if (key == "twosided") {
+            flags = BSDFFlags::TwoSided;
+        } else {
+            throw std::runtime_error("Unknown property '" + key + "' for Diffuse BSDF");
+        }
+    }
 
     return new DiffuseBSDF(flags, reflectance, cosine_sampling);
 }

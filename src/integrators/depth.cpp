@@ -25,6 +25,10 @@ public:
 
 // ------------------- Registry functions -------------------
 Integrator* createDepthIntegrator(const std::unordered_map<std::string, std::string>& properties) {
+    if (properties.size() > 0) {
+        throw std::runtime_error("Depth integrator does not take any properties");
+    }
+    
     return new DepthIntegrator();
 }
 

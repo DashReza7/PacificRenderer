@@ -43,18 +43,18 @@ Emitter *createPointLight(const std::unordered_map<std::string, std::string> &pr
     Vec3f intensity{1.0, 1.0, 1.0};
     Vec3f position{0.0, 0.0, 0.0};
 
-    auto it = properties.find("intensity");
-    if (it != properties.end())
-        intensity = strToVec3f(it->second);
-
-    it = properties.find("position");
-    if (it != properties.end())
-        position = strToVec3f(it->second);
-
-    it = properties.find("to_world");
-    if (it != properties.end())
-        position = Vec3f{strToMat4f(it->second) * Vec4f{position, 1.0}};
-
+    for (const auto &[key, value] : properties) {
+        if (key == "intensity") {
+            intensity = strToVec3f(value);
+        } else if (key == "position") {
+            position = strToVec3f(value);
+        } else if (key == "to_world") {
+            position = Vec3f{strToMat4f(value) * Vec4f{position, 1.0}};
+        } else {
+            throw std::runtime_error("Unknown property '" + key + "' for Point Light emitter");
+        }
+    }
+    
     return new PointLight{intensity, position};
 }
 
