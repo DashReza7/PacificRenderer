@@ -12,8 +12,8 @@ class Geometry;
 class Shape {
 public:
     enum class Type {
-        OBJ,
-        SPHERE,
+        Mesh,
+        Sphere,
     };
 
     std::vector<Geometry *> geometries{};
@@ -31,9 +31,9 @@ public:
     std::string to_string() {
         std::ostringstream oss;
         oss << "Shape";
-        if (type == Type::OBJ)
+        if (type == Type::Mesh)
             oss << "(OBJ)";
-        else if (type == Type::SPHERE)
+        else if (type == Type::Sphere)
             oss << "(Sphere)";
         if (emitter)
             oss << "(Emitter)";

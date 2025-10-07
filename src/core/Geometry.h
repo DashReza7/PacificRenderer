@@ -69,6 +69,10 @@ struct GeometryCreationContext {
     std::array<const Vec3f *, 3> vp = {nullptr, nullptr, nullptr};
     std::array<const Vec3f *, 3> vn = {nullptr, nullptr, nullptr};
     std::array<const Vec2f *, 3> vt = {nullptr, nullptr, nullptr};
+
+    GeometryCreationContext() = default;
+    GeometryCreationContext(const Vec3f *v0, const Vec3f *v1, const Vec3f *v2, const Vec3f *n0 = nullptr, const Vec3f *n1 = nullptr, const Vec3f *n2 = nullptr, const Vec2f *t0 = nullptr, const Vec2f *t1 = nullptr, const Vec2f *t2 = nullptr)
+        : vp{v0, v1, v2}, vn{n0, n1, n2}, vt{t0, t1, t2} {}
 };
 
 class Geometry {

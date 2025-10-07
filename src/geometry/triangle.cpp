@@ -7,8 +7,10 @@ public:
     const std::array<const Vec3f *, 3> positions;
     const std::array<const Vec3f *, 3> normals;
     const std::array<const Vec2f *, 3> tex_coords;
+    bool face_normals;
+    bool flip_normals;
 
-    Triangle(const std::array<const Vec3f *, 3> &positions_, const std::array<const Vec3f *, 3> &normals_, const std::array<const Vec2f *, 3> &tex_coords_, const Shape *parent_shape) : positions(positions_), normals(normals_), tex_coords(tex_coords_) {
+    Triangle(const std::array<const Vec3f *, 3> &positions_, const std::array<const Vec3f *, 3> &normals_, const std::array<const Vec2f *, 3> &tex_coords_, const Shape *parent_shape, bool face_normals_, bool flip_normals_) : positions(positions_), normals(normals_), tex_coords(tex_coords_), face_normals(face_normals_), flip_normals(flip_normals_) {
         this->parent_shape = parent_shape;
     }
 
@@ -49,14 +51,14 @@ public:
     }
 
     Vec3f get_normal(const Vec3f &position) const override {
-        // based on face_normals, either interpolate vn's or compute the
-        // (constant) normal manually
-        if (normals[0] != nullptr) {
-            Vec3f bary_coords = barycentric(*positions[0], *positions[1], *positions[2], position);
-            return bary_coords.x * (*normals[0]) + bary_coords.y * (*normals[1]) + bary_coords.z * (*normals[2]);
+        Vec3f normal;
+        if (face_normals) {
+            normal = glm::normalize(glm::cross(*positions[1] - *positions[0], *positions[2] - *positions[0]));
         } else {
-            return glm::normalize(glm::cross(*positions[1] - *positions[0], *positions[2] - *positions[0]));
+            Vec3f bary_coords = barycentric(*positions[0], *positions[1], *positions[2], position);
+            normal = glm::normalize(bary_coords.x * (*normals[0]) + bary_coords.y * (*normals[1]) + bary_coords.z * (*normals[2]));
         }
+        return flip_normals ? -normal : normal;
     }
 
     Float area() const override {
@@ -66,12 +68,10 @@ public:
     std::tuple<Vec3f, Vec3f, Float> sample_point_on_surface(const Vec2f &sample) const override {
         // uniform sampling on triangle surface
         Float r_sqrd = std::sqrt(sample.x);
-        Vec3f rnd_pt = *positions[0] * (Float(1.0) - sample.y) * r_sqrd
-                     + *positions[1] * (Float(1.0) - r_sqrd)
-                     + *positions[2] * sample.y * r_sqrd;
+        Vec3f rnd_pt = *positions[0] * (Float(1.0) - sample.y) * r_sqrd + *positions[1] * (Float(1.0) - r_sqrd) + *positions[2] * sample.y * r_sqrd;
         Vec3f normal = get_normal(rnd_pt);
         Float pdf = 1.0 / triangle_area(*positions[0], *positions[1], *positions[2]);
-        
+
         return {rnd_pt, normal, pdf};
     }
 
@@ -90,10 +90,28 @@ public:
 
 // --------------------------- Registry functions ---------------------------
 Geometry *createTriangle(const std::unordered_map<std::string, std::string> &properties, const Shape *parent_shape, const GeometryCreationContext *ctx) {
-    if (properties.size() > 0) {
-        throw std::runtime_error("Triangle geometry does not take any properties");
+    bool face_normals = false;
+    bool flip_normals = false;
+
+    for (const auto &[key, value] : properties) {
+        if (key == "face_normals") {
+            face_normals = (value == "true" || value == "1");
+        } else if (key == "flip_normals") {
+            flip_normals = (value == "true" || value == "1");
+        }else if (key == "to_world") {
+            // ignore. handled in Shape            
+        } else {
+            throw std::runtime_error("Unknown property '" + key + "' for triangle geometry.");
+        }
     }
-    auto triangle = new Triangle{ctx->vp, ctx->vn, ctx->vt, parent_shape};
+
+    if (!face_normals && (ctx->vn[0] == nullptr || ctx->vn[1] == nullptr || ctx->vn[2] == nullptr)) {
+        // std::cerr << "Warning: No vertex normals provided for triangle, using face normals instead." << std::endl;
+        face_normals = true;
+    }
+
+    
+    auto triangle = new Triangle{ctx->vp, ctx->vn, ctx->vt, parent_shape, face_normals, flip_normals};
     return triangle;
 }
 

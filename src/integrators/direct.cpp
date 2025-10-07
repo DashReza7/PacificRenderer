@@ -30,19 +30,20 @@ public:
         // ----------------------- Emitter sampling -----------------------
         
         Float nee_weight = 1.0 / Float(emitter_samples);
-        for (size_t i = 0; i < emitter_samples; i++) {
-            EmitterSample emitter_sample = scene->sample_emitter(isc, sampler->get_1D(), sampler->get_3D());
-            if (emitter_sample.is_valid) {
-                // TODO: check for correct orientation of isc
+        if (isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) || glm::dot(isc.normal, isc.dirn) > 0.0)
+            for (size_t i = 0; i < emitter_samples; i++) {
+                EmitterSample emitter_sample = scene->sample_emitter(isc, sampler->get_1D(), sampler->get_3D());
+                if (emitter_sample.is_valid) {
+                    // TODO: check for correct orientation of isc
+                    
+                    Vec3f wo_local = worldToLocal(-emitter_sample.direction, isc.normal);
+                    Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);
+                    Vec3f bsdf_value = isc.shape->bsdf->eval(wi_local, wo_local);
                 
-                Vec3f wo_local = worldToLocal(-emitter_sample.direction, isc.normal);
-                Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);
-                Vec3f bsdf_value = isc.shape->bsdf->eval(wi_local, wo_local);
-
-                Float mis_weight = get_mis_weight_nee(isc, emitter_sample);
-                radiance += mis_weight * nee_weight * emitter_sample.radiance * bsdf_value / emitter_sample.pdf;
+                    Float mis_weight = get_mis_weight_nee(isc, emitter_sample);
+                    radiance += mis_weight * nee_weight * emitter_sample.radiance * bsdf_value / emitter_sample.pdf;
+                }
             }
-        }
 
         // ------------------------ BSDF sampling -------------------------
         

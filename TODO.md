@@ -9,8 +9,11 @@ Urgent:
  - BUG in twosided BSDFs in dragon scene (or intersection)
  - Implement a logger with several log-levels
  - implement shading normals instead of just the geometric normal
+ - possible bug in BVH build (AABB of flat surfaces might be too thin)
 
 Others:
+ - create a UI for setting up the scene and changing parameters (maybe with nanogui)
+ - The `hide_emitters` parameter in the scene file doesn't work right now.
  - Convert all () constructors to {}
  - organize the	codebase into namespaces, like the math utils.
  - Error handling in SceneParser
@@ -24,4 +27,5 @@ Others:
  - Fix the names to be more consistent (e.g. Scene vs scene, BSDF vs bsdf, etc.)
  - Add using a config file to set up small grained details, like the MIS strategy, etc.
  - check to delete all allocated memory
+ - Review the to_string functions
  

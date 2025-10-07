@@ -6,7 +6,7 @@ std::tuple<Vec3f, Vec3f, Float> Shape::sample_point_on_surface(Float sample1, co
 
     Geometry *geom = geometries[0];
     // randomly select a geometry and sample on it
-    if (type == Type::OBJ)
+    if (type == Type::Mesh)
         geom = geometries[std::min(int(sample1 * geometries.size()), int(geometries.size() - 1))];
     auto [p, n, pdf] = geom->sample_point_on_surface(sample2);
     pdf /= geometries.size();

@@ -120,8 +120,8 @@ public:
         position = Vec3f{transform * Vec4f{position, 1.0}};
         // calculate the true radius
         Vec3f scaled_x = transform * Vec4f{1, 0, 0, 0};
-        Float radius = radius * glm::length(scaled_x);
-        Float pdf = 1.0 / (4.0 * Pi * Sqr(radius));
+        Float R = radius * glm::length(scaled_x);
+        Float pdf = 1.0 / (4.0 * Pi * Sqr(R));
         
         return {position, get_normal(position), pdf};
     }

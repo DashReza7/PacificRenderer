@@ -51,7 +51,7 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
                             uint32_t col = inblock_col + block_size * block_col;
 
                             // TODO: for debug purposes
-                            // if (row != 200 || col != 537)
+                            // if (row != 94 || col != 137)
                             //     continue;
                                 
                             for (size_t i = 0; i < sensor->sampler.spp; i++) {

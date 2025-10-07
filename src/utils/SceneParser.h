@@ -250,27 +250,28 @@ private:
 
     /// @brief utility function for parsing a node containing a vector type(point, rgb, vector, etc.) `value` or `x`, `r`, etc.
     /// @param special_char the special character of that vector type. e.g. `point` and `vector` have "x", `rgb` has "r"
-    std::string parseVectorType(const pugi::xml_node& node, const std::string& special_char) {
-        if (node.attribute(special_char)) {
-            std::string char1, char2, char3;
-            if (special_char == "x") {
-                char1 = "x";
-                char2 = "y";
-                char3 = "z";
-            } else if (special_char == "r") {
-                char1 = "r";
-                char2 = "g";
-                char3 = "b";
-            } else {
-                throw std::runtime_error("Unknown special character for vector type: " +
-                                         special_char);
-            }
+    std::string parseVectorType(const pugi::xml_node& node) {
+        std::string a, b, c;
+        if (!node.attribute("value")) {
+            std::string a, b, c;
+            if (node.attribute("x"))
+                a = node.attribute("x").value();
+            else if (node.attribute("r"))
+                a = node.attribute("r").value();
+            if (node.attribute("y"))
+                b = node.attribute("y").value();
+            else if (node.attribute("g"))
+                b = node.attribute("g").value();
+            if (node.attribute("z"))
+                c = node.attribute("z").value();
+            else if (node.attribute("b"))
+                c = node.attribute("b").value();
 
-            std::string x = get_default(node.attribute(char1).value());
-            std::string y = get_default(node.attribute(char2).value());
-            std::string z = get_default(node.attribute(char3).value());
-            return x + ", " + y + ", " + z;
-        } else /* if (node.attribute("value")) */ {
+            a = get_default(a);
+            b = get_default(b);
+            c = get_default(c);
+            return a + ", " + b + ", " + c;
+        } else {
             std::string value_str = get_default(node.attribute("value").value());
             value_str = trim(value_str);
             if (value_str.find(',') == std::string::npos) {
@@ -481,9 +482,9 @@ private:
             } else if (child_name == "boolean") {
                 properties[name] = get_default(child.attribute("value").value());
             } else if (child_name == "point" || child_name == "vector") {
-                properties[name] = parseVectorType(child, "x");
+                properties[name] = parseVectorType(child);
             } else if (child_name == "rgb") {
-                properties[name] = parseVectorType(child, "r");
+                properties[name] = parseVectorType(child);
             } else if (child_name == "transform") {
                 properties[name] = mat4fToStr(parseTransform(child));
             } else {
@@ -506,17 +507,17 @@ private:
             std::string child_name = child.name();
 
             if (child_name == "translate") {
-                auto translate_value_str = parseVectorType(child, "x");
+                auto translate_value_str = parseVectorType(child);
                 trafo = glm::translate(trafo, strToVec3f(translate_value_str));
             } else if (child_name == "rotate") {
                 // Handle rotation - simplified version
                 Float angle = child.attribute("angle")
                                   ? child.attribute("angle").as_float()
                                   : 0.0f;
-                auto axis_value_str = parseVectorType(child, "x");
+                auto axis_value_str = parseVectorType(child);
                 trafo = glm::rotate(trafo, glm::radians(angle), strToVec3f(axis_value_str));
             } else if (child_name == "scale") {
-                auto scale_value_str = parseVectorType(child, "x");
+                auto scale_value_str = parseVectorType(child);
                 trafo = glm::scale(trafo, strToVec3f(scale_value_str));
             } else if (child_name == "matrix") {
                 Mat4f matrix;

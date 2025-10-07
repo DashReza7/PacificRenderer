@@ -3,6 +3,8 @@
 #include "core/Registry.h"
 #include "utils/SceneParser.h"
 
+// BUG: memory leak for shapes, geometries, bsdfs, emitters, sensor
+
 void Scene::load_scene(const SceneDesc& scene_desc) {
     auto bsdfs_dict = load_bsdfs(scene_desc.bsdfs);
     auto emitters_dict = load_emitters(scene_desc.emitters);
@@ -33,7 +35,8 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
         shape->bsdf = bsdfs_dict.at(shape_desc->bsdf);
 
         if (shape_desc->type == "obj") {
-            shape->type = Shape::Type::OBJ;
+            // TODO: save vertices, normals, texcoords in the scene, and delete them at the end
+            shape->type = Shape::Type::Mesh;
             std::vector<Vec3f*> vertices;
             std::vector<Vec3f*> normals;
             std::vector<Vec2f*> texcoords;
@@ -50,8 +53,42 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
             for (auto& normal : normals)
                 *normal = glm::normalize(Vec3f{glm::transpose(glm::inverse(to_world)) * Vec4f{*normal, 0.0}});
         } else if (shape_desc->type == "sphere") {
-            shape->type = Shape::Type::SPHERE;
+            shape->type = Shape::Type::Sphere;
             shape->geometries.push_back(GeometryRegistry::createGeometry("sphere", shape_desc->properties, shape, nullptr));
+        } else if (shape_desc->type == "cube") {
+            // BUG: texture coordinates are not correct
+            shape->type = Shape::Type::Mesh;
+            auto properties = shape_desc->properties;
+            properties["face_normals"] = "true";
+            
+            std::vector<Vec3f*> vertices;
+            vertices.push_back(new Vec3f{-1.0, -1.0, -1.0});
+            vertices.push_back(new Vec3f{-1.0, -1.0,  1.0});
+            vertices.push_back(new Vec3f{-1.0,  1.0, -1.0});
+            vertices.push_back(new Vec3f{-1.0,  1.0,  1.0});
+            vertices.push_back(new Vec3f{ 1.0, -1.0, -1.0});
+            vertices.push_back(new Vec3f{ 1.0, -1.0,  1.0});
+            vertices.push_back(new Vec3f{ 1.0,  1.0, -1.0});
+            vertices.push_back(new Vec3f{ 1.0,  1.0,  1.0});
+            auto it = shape_desc->properties.find("to_world");
+            if (it != shape_desc->properties.end()) {
+                auto to_world = strToMat4f(it->second);
+                for (auto& vertex : vertices)
+                    *vertex = Vec3f{to_world * Vec4f{*vertex, 1.0}};
+            }
+
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[0], vertices[1], vertices[2]}));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[1], vertices[3], vertices[2]}));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[4], vertices[6], vertices[5]}));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[5], vertices[6], vertices[7]}));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[0], vertices[4], vertices[1]}));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[1], vertices[4], vertices[5]}));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[2], vertices[3], vertices[6]}));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[3], vertices[7], vertices[6]}));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[0], vertices[2], vertices[4]}));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[2], vertices[6], vertices[4]}));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[1], vertices[5], vertices[3]}));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[3], vertices[5], vertices[7]}));
         } else {
             throw std::runtime_error("Unsupported shape type: " + shape_desc->type);
         }
@@ -281,7 +318,7 @@ EmitterSample Scene::sample_emitter(const Intersection& isc, Float sample1, cons
 
     EmitterSample emitter_sample = emitter->sampleLi(this, isc, sample2);
     emitter_sample.pdf *= emitter_index_pmf;
-
+    
     return emitter_sample;
 }
 

@@ -32,14 +32,16 @@ public:
 
             // only if the BSDF is not of Delta type(e.g. perfectly specular)
             if (!curr_isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
-                EmitterSample emitter_sample = scene->sample_emitter(curr_isc, sampler->get_1D(), sampler->get_3D());
-                if (emitter_sample.is_valid) {
-                    Vec3f wo_local = worldToLocal(-emitter_sample.direction, curr_isc.normal);
-                    Vec3f wi_local = worldToLocal(curr_isc.dirn, curr_isc.normal);
-                    Vec3f bsdf_value = curr_isc.shape->bsdf->eval(wi_local, wo_local);
+                if (curr_isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) || glm::dot(curr_isc.normal, curr_isc.dirn) > 0.0) {
+                    EmitterSample emitter_sample = scene->sample_emitter(curr_isc, sampler->get_1D(), sampler->get_3D());
+                    if (emitter_sample.is_valid) {
+                        Vec3f wo_local = worldToLocal(-emitter_sample.direction, curr_isc.normal);
+                        Vec3f wi_local = worldToLocal(curr_isc.dirn, curr_isc.normal);
+                        Vec3f bsdf_value = curr_isc.shape->bsdf->eval(wi_local, wo_local);
 
-                    Float mis_weight = get_mis_weight_nee(curr_isc, emitter_sample);
-                    radiance += mis_weight * throughput * emitter_sample.radiance * bsdf_value / emitter_sample.pdf;
+                        Float mis_weight = get_mis_weight_nee(curr_isc, emitter_sample);
+                        radiance += mis_weight * throughput * emitter_sample.radiance * bsdf_value / emitter_sample.pdf;
+                    }
                 }
             }
 
@@ -48,7 +50,7 @@ public:
             auto [bsdf_sample, bsdf_value] = curr_isc.shape->bsdf->sample(worldToLocal(curr_isc.dirn, curr_isc.normal), sampler->get_1D(), sampler->get_2D());
             if (bsdf_sample.pdf <= 0 || bsdf_value.x <= 0.0 || bsdf_value.y <= 0.0 || bsdf_value.z <= 0.0)
                 break;
-            
+
             Float mis_weight = get_mis_weight_bsdf(scene, curr_isc, bsdf_sample);
             throughput *= mis_weight * bsdf_value / bsdf_sample.pdf;
 
@@ -93,7 +95,7 @@ Integrator *createPathTracerIntegrator(const std::unordered_map<std::string, std
             throw std::runtime_error("Unknown property '" + key + "' for Path Tracer integrator");
         }
     }
-    
+
     return new PathTracerIntegrator(max_depth, rr_depth, hide_emitters);
 }
 
