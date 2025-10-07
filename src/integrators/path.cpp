@@ -46,7 +46,7 @@ public:
             // ------------------------ BSDF sampling -------------------------
 
             auto [bsdf_sample, bsdf_value] = curr_isc.shape->bsdf->sample(worldToLocal(curr_isc.dirn, curr_isc.normal), sampler->get_1D(), sampler->get_2D());
-            if (bsdf_sample.pdf <= 0 || bsdf_value == Vec3f{0.0})
+            if (bsdf_sample.pdf <= 0 || bsdf_value.x <= 0.0 || bsdf_value.y <= 0.0 || bsdf_value.z <= 0.0)
                 break;
             
             Float mis_weight = get_mis_weight_bsdf(scene, curr_isc, bsdf_sample);

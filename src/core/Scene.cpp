@@ -17,14 +17,7 @@ void Scene::load_scene(const SceneDesc& scene_desc) {
 std::unordered_map<BSDFDesc*, BSDF*> Scene::load_bsdfs(const std::vector<BSDFDesc*>& bsdfs_desc) {
     std::unordered_map<BSDFDesc*, BSDF*> bsdfs{};
     for (const auto& bsdf_desc : bsdfs_desc) {
-        BSDF* bsdf = nullptr;
-        if (bsdf_desc->type == "diffuse") {
-            bsdf = BSDFRegistry::createBSDF("diffuse", bsdf_desc->properties);
-        } else if (bsdf_desc->type == "dielectric") {
-            bsdf = BSDFRegistry::createBSDF("dielectric", bsdf_desc->properties);
-        } else {
-            throw std::runtime_error("Unsupported BSDF type: " + bsdf_desc->type);
-        }
+        BSDF* bsdf = BSDFRegistry::createBSDF(bsdf_desc->type, bsdf_desc->properties);
 
         bsdfs[bsdf_desc] = bsdf;
     }
@@ -44,7 +37,7 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
             std::vector<Vec3f*> vertices;
             std::vector<Vec3f*> normals;
             std::vector<Vec2f*> texcoords;
-            bool success = MeshLoader::load_mesh_from_file((scene_file_path.parent_path() / shape_desc->properties["filename"]).string(), shape, shape->geometries, vertices, normals, texcoords);
+            bool success = load_mesh_from_file((scene_file_path.parent_path() / shape_desc->properties["filename"]).string(), shape, shape->geometries, vertices, normals, texcoords);
             if (!success)
                 throw std::runtime_error("Failed to load OBJ mesh: " + shape_desc->properties["filename"]);
 
