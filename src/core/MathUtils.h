@@ -93,3 +93,5 @@ inline Float sign(Float x) {
 // Remark: p must be in the same plane as the vertices
 Vec3f barycentric(const Vec3f& v0, const Vec3f& v1, const Vec3f& v2, const Vec3f& p);
 
+// angle is in degrees
+Mat4f get_rotation_matrix(const Vec3f &axis, Float angle);

@@ -135,7 +135,7 @@ struct FilmDesc : public SceneObjectDesc {
 struct SensorDesc : public SceneObjectDesc {
     FilmDesc* film;
     SamplerDesc* sampler;
-    Mat4f to_world = glm::mat<4, 4, Float>(1);
+    Mat4f to_world = Mat4f{1.0};
 
     std::string to_string() override {
         std::ostringstream oss;
@@ -251,9 +251,8 @@ private:
     /// @brief utility function for parsing a node containing a vector type(point, rgb, vector, etc.) `value` or `x`, `r`, etc.
     /// @param special_char the special character of that vector type. e.g. `point` and `vector` have "x", `rgb` has "r"
     std::string parseVectorType(const pugi::xml_node& node) {
-        std::string a, b, c;
         if (!node.attribute("value")) {
-            std::string a, b, c;
+            std::string a = "0", b = "0", c = "0";
             if (node.attribute("x"))
                 a = node.attribute("x").value();
             else if (node.attribute("r"))
@@ -344,7 +343,7 @@ private:
             } else if (child_name == "sampler") {
                 sensor->sampler = parseSampler(child);
             } else if (child_name == "transform") {
-                sensor->to_world = parseTransform(child);
+                sensor->to_world = parseTransform(child).first;
             }
         }
 
@@ -433,7 +432,8 @@ private:
             }
         }
 
-        parseProperties(node, film->properties, {"rfilter"});
+        // TODO
+        parseProperties(node, film->properties, {"pixel_format", "rfilter"});
         return film;
     }
 
@@ -486,48 +486,51 @@ private:
             } else if (child_name == "rgb") {
                 properties[name] = parseVectorType(child);
             } else if (child_name == "transform") {
-                properties[name] = mat4fToStr(parseTransform(child));
+                auto [transform, inv_transform] = parseTransform(child);
+                properties[name] = mat4fToStr(transform);
+                if (properties.contains("inv_" + name))
+                    throw std::runtime_error("Both " + name + " and inv_" + name + " are specified in the same transform block.");
+                properties["inv_" + name] = mat4fToStr(inv_transform);
             } else {
                 throw std::runtime_error(std::string("Unknown property type: ") + child_name);
             }
         }
     }
 
-    Mat4f parseTransform(const pugi::xml_node& node) {
-        Mat4f trafo = glm::mat<4, 4, Float>(1);
+    // Parses a <transform> node and returns the corresponding transformation and its inverse
+    std::pair<Mat4f, Mat4f> parseTransform(const pugi::xml_node& node) {
+        Mat4f trafo = Mat4f{1.0};
+        Mat4f inv_trafo = Mat4f{1.0};
 
-        // TODO: fix this
-        // Traverse children in reverse order
-        std::vector<pugi::xml_node> children;
-        for (pugi::xml_node child : node.children())
-            children.push_back(child);
-        for (auto it = children.rbegin(); it != children.rend(); ++it) {
-            // for (auto it = children.begin(); it != children.end(); ++it) {
-            pugi::xml_node child = *it;
+        for (const pugi::xml_node& child : node.children()) {
             std::string child_name = child.name();
 
             if (child_name == "translate") {
                 auto translate_value_str = parseVectorType(child);
-                trafo = glm::translate(trafo, strToVec3f(translate_value_str));
+                trafo = glm::translate(Mat4f{1.0}, strToVec3f(translate_value_str)) * trafo;
+                inv_trafo = inv_trafo * glm::translate(Mat4f{1.0}, -strToVec3f(translate_value_str));
             } else if (child_name == "rotate") {
-                // Handle rotation - simplified version
-                Float angle = child.attribute("angle")
-                                  ? child.attribute("angle").as_float()
-                                  : 0.0f;
+                Float angle = child.attribute("angle") ? child.attribute("angle").as_float() : 0.0;
                 auto axis_value_str = parseVectorType(child);
-                trafo = glm::rotate(trafo, glm::radians(angle), strToVec3f(axis_value_str));
+                Mat4f rot_mat = get_rotation_matrix(glm::normalize(strToVec3f(axis_value_str)), angle);
+                Mat4f inv_rot_mat = get_rotation_matrix(glm::normalize(strToVec3f(axis_value_str)), -angle);
+                trafo = rot_mat * trafo;
+                inv_trafo = inv_trafo * inv_rot_mat;
             } else if (child_name == "scale") {
                 auto scale_value_str = parseVectorType(child);
-                trafo = glm::scale(trafo, strToVec3f(scale_value_str));
+                trafo = glm::scale(Mat4f{1.0}, strToVec3f(scale_value_str)) * trafo;
+                inv_trafo = inv_trafo * glm::scale(Mat4f{1.0}, Vec3f{1.0} / strToVec3f(scale_value_str));
             } else if (child_name == "matrix") {
                 Mat4f matrix;
                 std::string value = child.attribute("value").value();
                 std::istringstream iss(value);
 
+                // matrix is column-major
                 for (int i = 0; i < 16; ++i)
                     iss >> matrix[i % 4][i / 4];
-
-                trafo = trafo * matrix;
+                    
+                trafo = matrix * trafo;
+                inv_trafo = inv_trafo * glm::inverse(matrix);
             } else if (child_name == "lookat") {
                 std::string origin_str = child.attribute("origin").value();
                 std::string target_str = child.attribute("target").value();
@@ -549,11 +552,12 @@ private:
 
                 Mat4f lookat_mat = glm::inverse(glm::lookAt(origin, target, up)) * flip;
 
-                trafo = trafo * lookat_mat;
+                trafo = lookat_mat * trafo;
+                inv_trafo = inv_trafo * glm::inverse(lookat_mat);
             }
         }
 
-        return trafo;
+        return {trafo, inv_trafo};
     }
 
     void add_default(const pugi::xml_node& node) {

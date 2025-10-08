@@ -19,22 +19,23 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
 
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    // for (int row = 0; row < height; row++) {
-    //     for (int col = 0; col < width; col++) {
-    //         // TODO: debug
-    //         // if (row <= -1 || row >= 60 || col <= -1 || col >= 60)
-    //         //     continue;
-    //         for (size_t i = 0; i < sensor->sampler.spp; i++) {
-    //             Float px, py;
-    //             Ray sensor_ray = sensor->sample_ray(row, col, sensor->sampler.get_2D(), px, py);
-    //             Vec3f returned_radiance = this->sample_radiance(scene, &sensor->sampler, sensor_ray);
-    //             sensor->film.commit_sample(returned_radiance, row, col, px, py);
-    //         }
-    //         if (show_progress)
-    //             if((row * height + col + 1) % 100 == 0 || (row == height - 1 && col == width - 1))
-    //                 std::cout << "\rProgress: " << std::format("{:.02f}", ((row * width + col + 1) / static_cast<double>(total_pixels)) * 100) << "%" << std::flush;
-    //     }
-    // }
+    for (int row = 0; row < height; row++) {
+        break;
+        for (int col = 0; col < width; col++) {
+            // TODO: debug
+            // if (row <= -1 || row >= 60 || col <= -1 || col >= 60)
+            //     continue;
+            for (size_t i = 0; i < sensor->sampler.spp; i++) {
+                Float px, py;
+                Ray sensor_ray = sensor->sample_ray(row, col, sensor->sampler.get_2D(), px, py);
+                Vec3f returned_radiance = this->sample_radiance(scene, &sensor->sampler, sensor_ray);
+                sensor->film.commit_sample(returned_radiance, row, col, px, py);
+            }
+            if (show_progress)
+                if((row * height + col + 1) % 100 == 0 || (row == height - 1 && col == width - 1))
+                    std::cout << "\rProgress: " << std::format("{:.02f}", ((row * width + col + 1) / static_cast<double>(total_pixels)) * 100) << "%" << std::flush;
+        }
+    }
 
     uint32_t block_size = 16;
     uint32_t n_row_blocks = (height - 1) / block_size + 1;
@@ -51,10 +52,11 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
                             uint32_t col = inblock_col + block_size * block_col;
 
                             // TODO: for debug purposes
-                            // if (row != 94 || col != 137)
+                            // if (row != 0 || col != 0)
                             //     continue;
                                 
                             for (size_t i = 0; i < sensor->sampler.spp; i++) {
+                                // sample position in sensor space ([0, 1])
                                 // sample position in sensor space ([0, 1])
                                 Float px, py;
                                 Ray sensor_ray = sensor->sample_ray(row, col, sampler.get_2D(), px, py);
@@ -63,11 +65,8 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
                                 // check for invalid values
                                 if (std::isnan(returned_radiance.x) || std::isnan(returned_radiance.y) || std::isnan(returned_radiance.z) ||
                                     std::isinf(returned_radiance.x) || std::isinf(returned_radiance.y) || std::isinf(returned_radiance.z) ||
-                                    returned_radiance.x < 0 || returned_radiance.y < 0 || returned_radiance.z < 0) {
-                                    std::lock_guard<std::mutex> lock(print_mutex);
-                                    std::cerr << "Warning: returned radiance is invalid at pixel (" << row << ", " << col << "): " << returned_radiance << "\n";
-                                    exit(EXIT_FAILURE);
-                                }
+                                    returned_radiance.x < 0 || returned_radiance.y < 0 || returned_radiance.z < 0)
+                                    throw std::runtime_error("Invalid radiance value: " + std::to_string(returned_radiance.x) + ", " + std::to_string(returned_radiance.y) + ", " + std::to_string(returned_radiance.z) + " at pixel (" + std::to_string(row) + ", " + std::to_string(col) + ")");
 
                                 sensor->film.commit_sample(returned_radiance, row, col, px, py);
                             }

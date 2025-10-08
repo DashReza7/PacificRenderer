@@ -37,7 +37,6 @@ public:
             // Create a unique RNG for this thread
             Float sample_val = master_sampler.get_1D();  // [0,1)
             // convert to uint64_t seed
-            // BUG: different threads may be correlated
             // FIXME: this gives poor randomness
             uint64_t seed = static_cast<uint64_t>(sample_val * 1e6);
             rngs.emplace_back(seed, master_sampler.spp);
@@ -66,12 +65,7 @@ public:
                     }
 
                     // Execute task with this thread's RNG
-                    try{
-                        task(rng);
-                    } catch(const std::exception& e) {
-                        std::cerr << "Error in thread pool task: " << e.what() << std::endl;
-                        exit(EXIT_FAILURE);
-                    }
+                    task(rng);
                 }
             });
         }

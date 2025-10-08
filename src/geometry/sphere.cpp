@@ -12,9 +12,9 @@ public:
     Float radius_world;  // radius in world space
     // the center and radius are in local space, `transform` is used to transform. used for intersection and bbox building
     Mat4f transform;
+    bool flip_normals;
 
-    Sphere(const Vec3f &center, Float radius, const Mat4f &transform, const Shape *parent_shape) : transform(transform), center(center), radius(radius) {
-        inv_transform = glm::inverse(transform);
+    Sphere(const Vec3f &center, Float radius, const Mat4f &transform, const Mat4f &inv_transform, const Shape *parent_shape, bool flip_normals) : transform(transform), inv_transform(inv_transform), center(center), radius(radius), flip_normals(flip_normals) {
         Vec3f scaled_x = Vec3f{transform * Vec4f{1, 0, 0, 0}};
         radius_world = radius * glm::length(scaled_x);
         this->parent_shape = parent_shape;
@@ -122,13 +122,13 @@ public:
         Vec3f scaled_x = transform * Vec4f{1, 0, 0, 0};
         Float R = radius * glm::length(scaled_x);
         Float pdf = 1.0 / (4.0 * Pi * Sqr(R));
-        
+
         return {position, get_normal(position), pdf};
     }
 
     std::string to_string() const override {
         std::ostringstream oss;
-        oss << "Geometry(Sphere): [ center=" << center << ", radius=" << radius << " ]";
+        oss << "Geometry(Sphere): [ local_center=" << center << ", local_radius=" << radius << " ]";
         return oss.str();
     }
 };
@@ -138,19 +138,30 @@ Geometry *createSphere(const std::unordered_map<std::string, std::string> &prope
     Vec3f center{0.0, 0.0, 0.0};
     Float radius = 1.0;
     Mat4f transform{1.0};
+    Mat4f inv_transform{1.0};
+    bool flip_normals = false;
+    
     for (const auto &[key, value] : properties) {
         if (key == "center") {
             center = strToVec3f(value);
         } else if (key == "radius") {
             radius = std::stod(value);
         } else if (key == "to_world") {
+            if (!properties.contains("inv_to_world"))
+                throw std::runtime_error("Sphere geometry requires 'inv_to_world' property when 'to_world' is provided");
             transform = strToMat4f(value);
+        } else if (key == "inv_to_world") {
+            if (!properties.contains("to_world"))
+                throw std::runtime_error("Sphere geometry requires 'to_world' property when 'inv_to_world' is provided");
+            inv_transform = strToMat4f(value);
+        } else if (key == "flip_normals") {
+            flip_normals = (value == "true" || value == "1");
         } else {
             throw std::runtime_error("Unknown property '" + key + "' for sphere geometry");
         }
     }
 
-    return new Sphere{center, radius, transform, parent_shape};
+    return new Sphere{center, radius, transform, inv_transform, parent_shape, flip_normals};
 }
 
 namespace {

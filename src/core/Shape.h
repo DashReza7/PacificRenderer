@@ -14,6 +14,7 @@ public:
     enum class Type {
         Mesh,
         Sphere,
+        Disk
     };
 
     std::vector<Geometry *> geometries{};

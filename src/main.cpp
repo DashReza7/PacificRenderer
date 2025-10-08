@@ -43,6 +43,9 @@ int main(int argc, char **argv) {
     } catch(const std::exception& e) {
         std::cerr << e.what() << '\n';
         exit(EXIT_FAILURE);
+    } catch(...) {
+        std::cerr << "Unknown exception occurred\n";
+        exit(EXIT_FAILURE);
     }
     
     std::cout << "\nThe end" << std::endl;

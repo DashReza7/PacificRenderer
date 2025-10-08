@@ -1,6 +1,7 @@
 #include "core/BSDF.h"
 #include "core/MathUtils.h"
 #include "core/Registry.h"
+#include "core/Constants.h"
 
 class SmoothDielectricBSDF final : public BSDF {
 public:
@@ -54,9 +55,22 @@ BSDF *createSmoothDielectricBSDF(const std::unordered_map<std::string, std::stri
 
     for (const auto &[key, value] : properties) {
         if (key == "int_ior") {
-            int_ior = std::stod(value);
+            try {
+                int_ior = std::stod(value);
+            } catch (const std::invalid_argument &) {
+                if (!IOR_TABLE.contains(value))
+                    throw std::runtime_error("Unknown material '" + value + "' for SmoothDielectric BSDF");
+                int_ior = IOR_TABLE.at(value);
+            }
         } else if (key == "ext_ior") {
-            ext_ior = std::stod(value);
+            try {
+                ext_ior = std::stod(value);
+            } catch (const std::invalid_argument &) {
+                if (!IOR_TABLE.contains(value))
+                    throw std::runtime_error("Unknown material '" + value + "' for SmoothDielectric BSDF");
+                ext_ior = IOR_TABLE.at(value);
+            }
+
         } else {
             throw std::runtime_error("Unknown property '" + key + "' for SmoothDielectric BSDF");
         }

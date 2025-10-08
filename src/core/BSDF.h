@@ -2,11 +2,13 @@
 
 #include <array>
 #include <cmath>
+#include <complex>
 #include <stdexcept>
 
 #include "core/Geometry.h"
 #include "core/MathUtils.h"
 #include "core/Pacific.h"
+
 
 // TODO: add an `is_valid` to BSDFSample, so that when the sample is invalid,
 // like when the pdf is too small, we can just ignore it in the integrator.
@@ -33,7 +35,6 @@ class BSDF {
 private:
     BSDFFlags flags;
 
-
 public:
     BSDF(BSDFFlags flags) : flags(flags) {}
 
@@ -51,6 +52,22 @@ public:
         Float r_parl = (inv_eta * cos_theta_i - cos_theta_t) / (inv_eta * cos_theta_i + cos_theta_t);
         Float r_perp = (cos_theta_i - inv_eta * cos_theta_t) / (cos_theta_i + inv_eta * cos_theta_t);
         return (Sqr(r_parl) + Sqr(r_perp)) * 0.5;
+    }
+
+    // TODO: cos_theta_i must be positive
+    // Remark: eta is eta_t/eta_i
+    static Float fresnelComplex(Float cos_theta_i, Float eta, Float k) {
+        Float sin2Theta_i = 1.0 - Sqr(cos_theta_i);
+        std::complex<Float> sin2_theta_t = sin2Theta_i / Sqr(eta);
+        std::complex<Float> cos_theta_t = std::sqrt(Float(1.0) - sin2_theta_t);
+
+        std::complex<Float> r_parl = (eta * cos_theta_i - cos_theta_t) / (eta * cos_theta_i + cos_theta_t);
+        std::complex<Float> r_perp = (cos_theta_i - eta * cos_theta_t) / (cos_theta_i + eta * cos_theta_t);
+        return (std::norm(r_parl) + std::norm(r_perp)) / 2;
+    }
+
+    static Vec3f fresnelComplex(Float cos_theta_i, const Vec3f &eta, const Vec3f &k) {
+        return Vec3f(fresnelComplex(cos_theta_i, eta.x, k.x), fresnelComplex(cos_theta_i, eta.y, k.y), fresnelComplex(cos_theta_i, eta.z, k.z));
     }
     
     /// @brief Sample the BSDF
@@ -74,6 +91,6 @@ public:
     bool has_flag(BSDFFlags flag) const {
         return (static_cast<uint32_t>(flags) & static_cast<uint32_t>(flag)) != 0;
     }
-    
+
     virtual std::string to_string() const = 0;
 };

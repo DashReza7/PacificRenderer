@@ -55,21 +55,24 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
         } else if (shape_desc->type == "sphere") {
             shape->type = Shape::Type::Sphere;
             shape->geometries.push_back(GeometryRegistry::createGeometry("sphere", shape_desc->properties, shape, nullptr));
+        } else if (shape_desc->type == "disk") {
+            shape->type = Shape::Type::Disk;
+            shape->geometries.push_back(GeometryRegistry::createGeometry("disk", shape_desc->properties, shape, nullptr));
         } else if (shape_desc->type == "cube") {
             // BUG: texture coordinates are not correct
             shape->type = Shape::Type::Mesh;
             auto properties = shape_desc->properties;
             properties["face_normals"] = "true";
-            
+
             std::vector<Vec3f*> vertices;
             vertices.push_back(new Vec3f{-1.0, -1.0, -1.0});
-            vertices.push_back(new Vec3f{-1.0, -1.0,  1.0});
-            vertices.push_back(new Vec3f{-1.0,  1.0, -1.0});
-            vertices.push_back(new Vec3f{-1.0,  1.0,  1.0});
-            vertices.push_back(new Vec3f{ 1.0, -1.0, -1.0});
-            vertices.push_back(new Vec3f{ 1.0, -1.0,  1.0});
-            vertices.push_back(new Vec3f{ 1.0,  1.0, -1.0});
-            vertices.push_back(new Vec3f{ 1.0,  1.0,  1.0});
+            vertices.push_back(new Vec3f{-1.0, -1.0, 1.0});
+            vertices.push_back(new Vec3f{-1.0, 1.0, -1.0});
+            vertices.push_back(new Vec3f{-1.0, 1.0, 1.0});
+            vertices.push_back(new Vec3f{1.0, -1.0, -1.0});
+            vertices.push_back(new Vec3f{1.0, -1.0, 1.0});
+            vertices.push_back(new Vec3f{1.0, 1.0, -1.0});
+            vertices.push_back(new Vec3f{1.0, 1.0, 1.0});
             auto it = shape_desc->properties.find("to_world");
             if (it != shape_desc->properties.end()) {
                 auto to_world = strToMat4f(it->second);
@@ -89,6 +92,25 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
             shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[2], vertices[6], vertices[4]}));
             shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[1], vertices[5], vertices[3]}));
             shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[3], vertices[5], vertices[7]}));
+        } else if (shape_desc->type == "rectangle") {
+            shape->type = Shape::Type::Mesh;
+            auto properties = shape_desc->properties;
+            properties["face_normals"] = "true";
+
+            std::vector<Vec3f*> vertices;
+            vertices.push_back(new Vec3f{-1.0, -1.0, 0.0});
+            vertices.push_back(new Vec3f{-1.0,  1.0, 0.0});
+            vertices.push_back(new Vec3f{ 1.0, -1.0, 0.0});
+            vertices.push_back(new Vec3f{ 1.0,  1.0, 0.0});
+            auto it = shape_desc->properties.find("to_world");
+            if (it != shape_desc->properties.end()) {
+                auto to_world = strToMat4f(it->second);
+                for (auto& vertex : vertices)
+                    *vertex = Vec3f{to_world * Vec4f{*vertex, 1.0}};
+            }
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[0], vertices[2], vertices[1]}));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[3], vertices[1], vertices[2]}));
+        
         } else {
             throw std::runtime_error("Unsupported shape type: " + shape_desc->type);
         }
@@ -119,9 +141,9 @@ void Scene::load_sensor(const SensorDesc* sensor_desc) {
     Float near_clip = 1e-2, far_clip = 1e4;
     uint32_t width = 800, height = 600;
     uint32_t spp = 4;
-    RFilter *rfilter;
+    RFilter* rfilter;
     uint32_t seed = 0;
-    
+
     if (sensor_desc->properties.find("fov") != sensor_desc->properties.end())
         fov = static_cast<Float>(std::stod(sensor_desc->properties.at("fov")));
     if (sensor_desc->properties.find("near_clip") != sensor_desc->properties.end())
@@ -255,8 +277,7 @@ std::string Scene::get_bvh_statistics() const {
         } else {
             // non-leaf node
             if (!node->geoms.empty()) {
-                std::cerr << "Non-leaf node with geometries found." << std::endl;
-                exit(EXIT_FAILURE);
+                throw std::runtime_error("Non-leaf node with geometries found.");
             }
         }
         traverse(node->left, depth + 1);
@@ -318,7 +339,7 @@ EmitterSample Scene::sample_emitter(const Intersection& isc, Float sample1, cons
 
     EmitterSample emitter_sample = emitter->sampleLi(this, isc, sample2);
     emitter_sample.pdf *= emitter_index_pmf;
-    
+
     return emitter_sample;
 }
 

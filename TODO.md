@@ -6,10 +6,10 @@
 **TODO:**
 
 Urgent:
- - BUG in twosided BSDFs in dragon scene (or intersection)
+ - implement textures
  - Implement a logger with several log-levels
- - implement shading normals instead of just the geometric normal
  - possible bug in BVH build (AABB of flat surfaces might be too thin)
+ - implement a Transform class, and apply all transformations with it.
 
 Others:
  - create a UI for setting up the scene and changing parameters (maybe with nanogui)

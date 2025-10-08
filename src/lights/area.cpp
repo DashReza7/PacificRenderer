@@ -30,7 +30,7 @@ public:
         Vec3f dirn = position - isc.position;
         Float distance = glm::length(dirn);
         dirn = glm::normalize(dirn);
-        // BUG
+        
         bool is_valid = glm::dot(normal, dirn) < 0.0;
         if (is_valid) {
             // check for occlusion
@@ -43,7 +43,7 @@ public:
                     is_valid = false;
             }
         }
-        pdf *= Sqr(distance) / std::abs(glm::dot(normal, -dirn));
+        pdf *= Sqr(distance) / std::abs(glm::dot(normal, dirn));
         return EmitterSample{pdf, -dirn, is_valid, radiance, EmitterFlags::AREA};
     }
 

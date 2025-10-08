@@ -25,12 +25,11 @@ public:
 
             // ----------------------- Visible emitters -----------------------
 
-            if (depth == 0 && curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_ray.d) < 0.0)
+            if (depth == 0 && curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_isc.dirn) > 0.0)
                 radiance += throughput * curr_isc.shape->emitter->eval(curr_isc.position);
 
             // ----------------------- Emitter sampling -----------------------
 
-            // only if the BSDF is not of Delta type(e.g. perfectly specular)
             if (!curr_isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
                 if (curr_isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) || glm::dot(curr_isc.normal, curr_isc.dirn) > 0.0) {
                     EmitterSample emitter_sample = scene->sample_emitter(curr_isc, sampler->get_1D(), sampler->get_3D());

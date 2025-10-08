@@ -76,3 +76,17 @@ Vec3f barycentric(const Vec3f& v0, const Vec3f& v1, const Vec3f& v2, const Vec3f
     
     return Vec3f{w0, w1, w2};
 }
+
+Mat4f get_rotation_matrix(const Vec3f &axis, Float angle) {
+    Float cos_phi = std::cos(glm::radians(angle));
+    Float one_minus_cos_phi = 1.0 - cos_phi;
+    Float sin_phi = std::sin(glm::radians(angle));
+    Mat4f rot_mat = {
+        {cos_phi + one_minus_cos_phi * Sqr(axis.x), one_minus_cos_phi * axis.x * axis.y + axis.z * sin_phi, one_minus_cos_phi * axis.x * axis.z - axis.y * sin_phi, 0.0},
+        {one_minus_cos_phi * axis.x * axis.y - axis.z * sin_phi, cos_phi + one_minus_cos_phi * Sqr(axis.y), one_minus_cos_phi * axis.y * axis.z + axis.x * sin_phi, 0.0},
+        {one_minus_cos_phi * axis.x * axis.z + axis.y * sin_phi, one_minus_cos_phi * axis.y * axis.z - axis.x * sin_phi, cos_phi + one_minus_cos_phi * Sqr(axis.z), 0.0},
+        {0.0, 0.0, 0.0, 1.0}
+    };
+
+    return rot_mat;
+}

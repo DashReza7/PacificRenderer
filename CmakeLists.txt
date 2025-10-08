@@ -32,6 +32,8 @@ add_executable(${PROJECT_NAME}
     "src/geometry/triangle.cpp"
     "src/geometry/sphere.cpp"
     "src/bsdf/thindielectric.cpp"
+    "src/geometry/disk.cpp"
+    "src/bsdf/conductor.cpp"
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 
