@@ -33,7 +33,7 @@ public:
             if (!curr_isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
                 if (curr_isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) || glm::dot(curr_isc.normal, curr_isc.dirn) > 0.0) {
                     EmitterSample emitter_sample = scene->sample_emitter(curr_isc, sampler->get_1D(), sampler->get_3D());
-                    if (emitter_sample.is_valid) {
+                    if (emitter_sample.is_occluded) {
                         Vec3f wo_local = worldToLocal(-emitter_sample.direction, curr_isc.normal);
                         Vec3f wi_local = worldToLocal(curr_isc.dirn, curr_isc.normal);
                         Vec3f bsdf_value = curr_isc.shape->bsdf->eval(wi_local, wo_local);

@@ -12,20 +12,24 @@ enum class EmitterFlags {
     AREA = 1 << 1,
     DELTA_DIRECTION = 1 << 2
 };
+EmitterFlags operator|(EmitterFlags a, EmitterFlags b);
+EmitterFlags operator&(EmitterFlags a, EmitterFlags b);
+EmitterFlags& operator|=(EmitterFlags& a, EmitterFlags b);
+EmitterFlags& operator&=(EmitterFlags& a, EmitterFlags b);
 
-// TODO: change the position member to dirn
+
 struct EmitterSample {
     Float pdf;
     // direction towards the shading point
     Vec3f direction;
     // Whether there's an occlusion between the isc and the emitter sample point
     // Remark: This does not handle whether the isc.normal is in the correct side
-    bool is_valid;
+    bool is_occluded;
     Vec3f radiance;
     EmitterFlags emitter_flags;
 
-    EmitterSample(Float pdf, const Vec3f &direction, bool is_valid, const Vec3f &radiance, EmitterFlags emitter_flags)
-        : pdf(pdf), direction(direction), is_valid(is_valid), radiance(radiance), emitter_flags(emitter_flags) {}
+    EmitterSample(Float pdf, const Vec3f &direction, bool is_occluded, const Vec3f &radiance, EmitterFlags emitter_flags)
+        : pdf(pdf), direction(direction), is_occluded(is_occluded), radiance(radiance), emitter_flags(emitter_flags) {}
 };
 
 class Emitter {

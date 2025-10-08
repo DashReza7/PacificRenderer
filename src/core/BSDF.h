@@ -10,9 +10,6 @@
 #include "core/Pacific.h"
 
 
-// TODO: add an `is_valid` to BSDFSample, so that when the sample is invalid,
-// like when the pdf is too small, we can just ignore it in the integrator.
-
 /// @brief BSDFSample object.
 struct BSDFSample {
     /// Outgoing direction in world space
@@ -30,6 +27,10 @@ enum class BSDFFlags {
     Delta = 1 << 0,  // delta distribution, i.e. perfect specular reflection/refraction
     TwoSided = 1 << 1
 };
+BSDFFlags operator|(BSDFFlags a, BSDFFlags b);
+BSDFFlags operator&(BSDFFlags a, BSDFFlags b);
+BSDFFlags& operator|=(BSDFFlags& a, BSDFFlags b);
+BSDFFlags& operator&=(BSDFFlags& a, BSDFFlags b);
 
 class BSDF {
 private:
@@ -39,36 +40,16 @@ public:
     BSDF(BSDFFlags flags) : flags(flags) {}
 
     /// @brief Compute the Fresnel reflection coefficient
-    /// @param cos_theta_i Cosine of the angle between the incident direction and the (effective)normal. Should be positive.
+    /// @param cos_theta_i Incoming angle cosine. Should be positive.
     /// @param eta Relative ior (eta_i over eta_t)
-    static Float fresnelReflection(Float cos_theta_i, Float eta) {
-        // Snell's law
-        Float sin2_theta_t = Sqr(eta) * (1 - Sqr(cos_theta_i));
-        if (sin2_theta_t >= 1)  // total internal reflection
-            return 1.0;
-        Float cos_theta_t = std::sqrt(std::abs(1.0 - sin2_theta_t));
+    static Float fresnelReflection(Float cos_theta_i, Float eta);
 
-        Float inv_eta = 1.0 / eta;
-        Float r_parl = (inv_eta * cos_theta_i - cos_theta_t) / (inv_eta * cos_theta_i + cos_theta_t);
-        Float r_perp = (cos_theta_i - inv_eta * cos_theta_t) / (cos_theta_i + inv_eta * cos_theta_t);
-        return (Sqr(r_parl) + Sqr(r_perp)) * 0.5;
-    }
+    /// @brief Compute the Fresnel reflection coefficient
+    /// @param cos_theta_i Incoming angle cosine, should be positive
+    /// @param eta Relative ior (eta_t over eta_i)
+    static Float fresnelComplex(Float cos_theta_i, std::complex<Float> eta);
 
-    // TODO: cos_theta_i must be positive
-    // Remark: eta is eta_t/eta_i
-    static Float fresnelComplex(Float cos_theta_i, Float eta, Float k) {
-        Float sin2Theta_i = 1.0 - Sqr(cos_theta_i);
-        std::complex<Float> sin2_theta_t = sin2Theta_i / Sqr(eta);
-        std::complex<Float> cos_theta_t = std::sqrt(Float(1.0) - sin2_theta_t);
-
-        std::complex<Float> r_parl = (eta * cos_theta_i - cos_theta_t) / (eta * cos_theta_i + cos_theta_t);
-        std::complex<Float> r_perp = (cos_theta_i - eta * cos_theta_t) / (cos_theta_i + eta * cos_theta_t);
-        return (std::norm(r_parl) + std::norm(r_perp)) / 2;
-    }
-
-    static Vec3f fresnelComplex(Float cos_theta_i, const Vec3f &eta, const Vec3f &k) {
-        return Vec3f(fresnelComplex(cos_theta_i, eta.x, k.x), fresnelComplex(cos_theta_i, eta.y, k.y), fresnelComplex(cos_theta_i, eta.z, k.z));
-    }
+    static Vec3f fresnelComplex(Float cos_theta_i, const Vec3f &eta, const Vec3f &k);
     
     /// @brief Sample the BSDF
     /// @param wi Incoming direction in local space (z is the normal direction). Facing the normal direction
@@ -89,7 +70,7 @@ public:
     virtual Float pdf(const Vec3f &wi, const Vec3f &wo) const = 0;
 
     bool has_flag(BSDFFlags flag) const {
-        return (static_cast<uint32_t>(flags) & static_cast<uint32_t>(flag)) != 0;
+        return (flags & flag) != BSDFFlags::None;
     }
 
     virtual std::string to_string() const = 0;

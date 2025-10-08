@@ -98,10 +98,9 @@ public:
     }
 
     Vec3f get_normal(const Vec3f &position) const override {
-        Vec3f local_position = Vec3f{inv_transform * Vec4f{position, 1.0}};
-        Vec3f local_normal = local_position - center;
-        Vec3f normal = Vec3f{glm::transpose(inv_transform) * Vec4f{local_normal, 0.0}};
-        return glm::normalize(normal);
+        Vec3f world_center = Vec3f{transform * Vec4f{center, 1.0}};
+        Vec3f normal = glm::normalize(position - world_center);
+        return flip_normals ? -normal : normal;
     }
 
     Float area() const override {

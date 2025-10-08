@@ -97,7 +97,7 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
 }
 
 Float SamplingIntegrator::get_mis_weight_nee(const Intersection &isc, const EmitterSample &emitter_sample) const {
-    if (emitter_sample.emitter_flags == EmitterFlags::DELTA_DIRECTION)
+    if ((emitter_sample.emitter_flags & EmitterFlags::DELTA_DIRECTION) != EmitterFlags::NONE)
         return 1.0;
     if (!isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
         Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);

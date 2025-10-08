@@ -523,6 +523,8 @@ private:
             } else if (child_name == "matrix") {
                 Mat4f matrix;
                 std::string value = child.attribute("value").value();
+                // replace commas if any
+                value = std::regex_replace(value, std::regex(","), " ");
                 std::istringstream iss(value);
 
                 // matrix is column-major
