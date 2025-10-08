@@ -27,16 +27,16 @@ Vec3f reflect(const Vec3f &wi, const Vec3f &n) {
     return -wi + Float(2.0 * dot(wi, n)) * n;
 }
 
-// eta: eta_i/eta_t
+// eta: eta_t / eta_i
 bool refract(const Vec3f &wi, const Vec3f &n, Float eta, Vec3f &wo) {
     Float cos_theta_i = dot(n, wi);
     Float sin2_theta_i = std::max(Float(0), Float(1) - Sqr(cos_theta_i));
-    Float sin2_theta_t = Sqr(eta) * sin2_theta_i;
+    Float sin2_theta_t = sin2_theta_i / Sqr(eta);
     // total internal reflection
     if (sin2_theta_t >= 1.0)
         return false;
     Float cos_theta_t = glm::max(std::sqrt(1.0 - sin2_theta_t), 0.0);
-    wo = eta * -wi + (eta * cos_theta_i - cos_theta_t) * n;
+    wo = -wi / eta + (cos_theta_i / eta - cos_theta_t) * n;
     return true;
 }
 

@@ -41,7 +41,7 @@ public:
 
     /// @brief Compute the Fresnel reflection coefficient
     /// @param cos_theta_i Incoming angle cosine. Should be positive.
-    /// @param eta Relative ior (eta_i over eta_t)
+    /// @param eta Relative ior (eta_t over eta_i)
     static Float fresnelReflection(Float cos_theta_i, Float eta);
 
     /// @brief Compute the Fresnel reflection coefficient

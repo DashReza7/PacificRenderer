@@ -20,7 +20,8 @@ public:
     std::pair<BSDFSample, Vec3f> sample(const Vec3f &wi, Float sample1, const Vec2f &sample2) const override {
         Float cos_theta_i = wi.z;
         Vec3f effective_normal = cos_theta_i >= 0 ? Vec3f{0, 0, 1} : Vec3f{0, 0, -1};
-        Float effective_eta = cos_theta_i >= 0 ? eta : 1.0 / eta;
+        // eta_t / eta_i
+        Float effective_eta = cos_theta_i >= 0 ? 1.0 / eta : eta;
 
         Vec3f refracted_dirn;
         bool is_refracted = refract(wi, effective_normal, effective_eta, refracted_dirn);
@@ -36,8 +37,8 @@ public:
                     Vec3f{fr}};
         } else {  // refraction
             // FIXME: should be changed when transferring importance instead of radiance
-            return {BSDFSample{refracted_dirn, Float(1.0) - fr, effective_eta},
-                    Vec3f{Sqr(effective_eta) * (Float(1.0) - fr)}};
+            return {BSDFSample{refracted_dirn, Float(1.0) - fr, Float(1.0) / effective_eta},
+                    Vec3f{(Float(1.0) - fr) / effective_eta}};
         }
     }
 

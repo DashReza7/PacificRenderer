@@ -16,14 +16,13 @@ BSDFFlags& operator&=(BSDFFlags& a, BSDFFlags b) {
 
 Float BSDF::fresnelReflection(Float cos_theta_i, Float eta) {
     // Snell's law
-    Float sin2_theta_t = Sqr(eta) * (1 - Sqr(cos_theta_i));
+    Float sin2_theta_t = (1 - Sqr(cos_theta_i)) / Sqr(eta);
     if (sin2_theta_t >= 1)  // total internal reflection
         return 1.0;
     Float cos_theta_t = std::sqrt(std::abs(1.0 - sin2_theta_t));
 
-    Float inv_eta = 1.0 / eta;
-    Float r_parl = (inv_eta * cos_theta_i - cos_theta_t) / (inv_eta * cos_theta_i + cos_theta_t);
-    Float r_perp = (cos_theta_i - inv_eta * cos_theta_t) / (cos_theta_i + inv_eta * cos_theta_t);
+    Float r_parl = (eta * cos_theta_i - cos_theta_t) / (eta * cos_theta_i + cos_theta_t);
+    Float r_perp = (cos_theta_i - eta * cos_theta_t) / (cos_theta_i + eta * cos_theta_t);
     return (Sqr(r_parl) + Sqr(r_perp)) * 0.5;
 }
 

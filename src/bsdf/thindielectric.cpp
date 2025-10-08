@@ -21,7 +21,7 @@ public:
         Vec3f effective_normal = cos_theta_i >= 0 ? Vec3f{0, 0, 1} : Vec3f{0, 0, -1};
 
 
-        Float fr = BSDF::fresnelReflection(std::abs(cos_theta_i), eta);
+        Float fr = BSDF::fresnelReflection(std::abs(cos_theta_i), 1.0 / eta);
         if (fr >= 1.0) {
             // total internal reflection
             return {BSDFSample{reflect(wi, effective_normal), 1.0, 1.0},
