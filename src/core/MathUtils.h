@@ -73,7 +73,7 @@ Vec3f worldToLocal(const Vec3f &world, const Vec3f &world_z);
 /// @return Reflected direction (pointing outward from the surface)
 Vec3f reflect(const Vec3f &wi, const Vec3f &n);
 
-/// @brief Refract the incident direction `wi` through the surface with normal `n`
+/// @brief Refract the incident direction `wi` through the surface with normal `n`. wi & n must be on the same hemisphere
 /// @param wi Incident direction (pointing outward from the surface)
 /// @param n Normal direction (pointing outward from the surface)
 /// @param eta Relative index of refraction (eta_t / eta_i)

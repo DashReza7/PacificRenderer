@@ -24,7 +24,8 @@ struct BSDFSample {
 enum class BSDFFlags {
     None = 0,
     Delta = 1 << 0,  // delta distribution, i.e. perfect specular reflection/refraction
-    TwoSided = 1 << 1
+    TwoSided = 1 << 1,
+    PassThrough = 1 << 2,
 };
 BSDFFlags operator|(BSDFFlags a, BSDFFlags b);
 BSDFFlags operator&(BSDFFlags a, BSDFFlags b);
@@ -72,16 +73,4 @@ public:
     }
 
     virtual std::string to_string() const = 0;
-};
-
-// implementations are based on PBRT
-class GGXDistribution {
-public:
-    static Float D(const Vec3f &wm, Float alpha_u, Float alpha_v);
-    static Float D(const Vec3f& w, const Vec3f &wm, Float alpha_u, Float alpha_v);
-    static Float G1(const Vec3f &w, Float alpha_u, Float alpha_v);
-    static Float Lambda(const Vec3f &w, Float alpha_u, Float alpha_v);
-    static Float G(const Vec3f &wi, const Vec3f &wo, Float alpha_u, Float alpha_v);
-    static Vec3f sample_wm(const Vec3f &w, Float alpha_u, Float alpha_v, const Vec2f &sample);
-    static Float pdf(const Vec3f &w, const Vec3f &wm, Float alpha_u, Float alpha_v);
 };

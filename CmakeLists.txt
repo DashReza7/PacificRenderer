@@ -38,6 +38,8 @@ add_executable(${PROJECT_NAME}
     "src/core/Emitter.cpp"
     "src/bsdf/roughconductor.cpp"
     "src/bsdf/roughdielectric.cpp"
+    "src/microfacet/ggx.cpp"
+    "src/microfacet/beckmann.cpp"
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 

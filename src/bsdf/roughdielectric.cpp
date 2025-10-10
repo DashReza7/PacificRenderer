@@ -2,17 +2,20 @@
 #include "core/Constants.h"
 #include "core/MathUtils.h"
 #include "core/Registry.h"
+#include "core/Microfacet.h"
 
-// Implementation partially based on PBRT
 class RoughDielectricBSDF final : public BSDF {
 public:
     Float eta;  // ext_ior over int_ior
     Float alpha_u, alpha_v;
     std::string distribution;
+    const Microfacet *mf_dist;
 
     RoughDielectricBSDF(BSDFFlags flags, Float eta, Float alpha_u, Float alpha_v, const std::string &distribution) : BSDF(flags), eta(eta), alpha_u(alpha_u), alpha_v(alpha_v), distribution(distribution) {
-        if (distribution != "ggx")
-            throw std::runtime_error("RoughDielectricBSDF: Only ggx distribution is supported");
+        mf_dist = MicrofacetRegistry::createMicrofacet(distribution, {{"alpha_u", std::to_string(alpha_u)}, {"alpha_v", std::to_string(alpha_v)}});
+    }
+    ~RoughDielectricBSDF() {
+        delete mf_dist;
     }
 
     Vec3f eval(const Vec3f &wi, const Vec3f &wo) const override {
@@ -33,20 +36,20 @@ public:
             bool is_refracted = refract(wi, face_forward(wm, wi), 1.0 / eta, tmp);
             if (!is_refracted) {
                 // TIR
-                Float g = GGXDistribution::G(wi, wo, alpha_u, alpha_v);
-                Float d = GGXDistribution::D(wm, alpha_u, alpha_v);
+                Float g = mf_dist->G(wi, wo);
+                Float d = mf_dist->D(wm);
                 Float bsdf_val = g * d / std::abs(4.0 * wi.z * wo.z) * std::abs(wo.z);
                 return Vec3f(bsdf_val);
             } else {
-                Float g = GGXDistribution::G(wi, wo, alpha_u, alpha_v);
-                Float d = GGXDistribution::D(wm, alpha_u, alpha_v);
+                Float g = mf_dist->G(wi, wo);
+                Float d = mf_dist->D(wm);
                 Float bsdf_val = g * d / std::abs(4.0 * wi.z * wo.z) * fr * std::abs(wo.z);
                 return Vec3f(bsdf_val);
             }
         } else {
             // refraction
-            Float g = GGXDistribution::G(wi, wo, alpha_u, alpha_v);
-            Float d = GGXDistribution::D(wm, alpha_u, alpha_v);
+            Float g = mf_dist->G(wi, wo);
+            Float d = mf_dist->D(wm);
             Float bsdf_val = g * d * Sqr(etap) / Sqr(glm::dot(wi, wm) + etap * glm::dot(wo, wm)) * std::abs(glm::dot(wi, wm) * glm::dot(wo, wm) / wi.z / wo.z) * std::abs(wo.z) * (1.0 - fr);
             // XXX: account for non-symmetry. must be remove when transporting importance
             bsdf_val /= Sqr(etap);
@@ -72,20 +75,19 @@ public:
             bool is_refracted = refract(wi, face_forward(wm, wi), 1.0 / eta, tmp);
             if (!is_refracted) {
                 // TIR
-                Float g = GGXDistribution::G(wi, wo, alpha_u, alpha_v);
-                Float d = GGXDistribution::D(wm, alpha_u, alpha_v);
-                return GGXDistribution::pdf(wi, wm, alpha_u, alpha_v) / (4.0 * std::abs(glm::dot(wi, wm)));
+                Float g =  mf_dist->G(wi, wo);
+                Float d = mf_dist->D(wm);
+                return mf_dist->pdf(wi, wm) / (4.0 * std::abs(glm::dot(wi, wm)));
             } else {
-                Float g = GGXDistribution::G(wi, wo, alpha_u, alpha_v);
-                Float d = GGXDistribution::D(wm, alpha_u, alpha_v);
-                return GGXDistribution::pdf(wi, wm, alpha_u, alpha_v) / (4.0 * std::abs(glm::dot(wi, wm))) * fr;
+                Float g = mf_dist->G(wi, wo);
+                Float d = mf_dist->D(wm);
+                return mf_dist->pdf(wi, wm) / (4.0 * std::abs(glm::dot(wi, wm))) * fr;
             }
-
         } else {
             // refraction
             Float denom = Sqr(glm::dot(wo, wm) + glm::dot(wi, wm) / etap);
             Float dwm_dwo = std::abs(glm::dot(wo, wm)) / denom;
-            return GGXDistribution::pdf(wi, wm, alpha_u, alpha_v) * dwm_dwo * (1.0 - fr);
+            return mf_dist->pdf(wi, wm) * dwm_dwo * (1.0 - fr);
         }
     }
 
@@ -93,7 +95,7 @@ public:
         if (std::abs(wi.z) <= Epsilon)
             return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
 
-        Vec3f wm = GGXDistribution::sample_wm(wi, alpha_u, alpha_v, sample2);
+        Vec3f wm = mf_dist->sample_wm(wi, sample2);
         Float etap = wi.z >= 0.0 ? 1.0 / eta : eta;
 
         Vec3f wo;
@@ -105,10 +107,10 @@ public:
             if (wi.z * wo.z <= Epsilon)
                 return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
 
-            Float g = GGXDistribution::G(wi, wo, alpha_u, alpha_v);
-            Float d = GGXDistribution::D(wm, alpha_u, alpha_v);
+            Float g = mf_dist->G(wi, wo);
+            Float d = mf_dist->D(wm);
             Float bsdf_val = g * d / (4.0 * wi.z * wo.z) * std::abs(wo.z);
-            Float pdf = GGXDistribution::pdf(wi, wm, alpha_u, alpha_v) / (4.0 * std::abs(glm::dot(wi, wm)));
+            Float pdf = mf_dist->pdf(wi, wm) / (4.0 * std::abs(glm::dot(wi, wm)));
             return {BSDFSample{wo, pdf, 1.0}, Vec3f{bsdf_val}};
         } else {
             Float fr = fresnelReflection(std::abs(glm::dot(wi, wm)), etap);
@@ -118,25 +120,25 @@ public:
                 if (std::abs(wo.z) <= Epsilon || wi.z * wo.z <= Epsilon)
                     return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
 
-                Float g = GGXDistribution::G(wi, wo, alpha_u, alpha_v);
-                Float d = GGXDistribution::D(wm, alpha_u, alpha_v);
+                Float g = mf_dist->G(wi, wo);
+                Float d = mf_dist->D(wm);
                 Float bsdf_val = g * d / (4.0 * wi.z * wo.z) * std::abs(wo.z) * fr;
-                Float pdf = GGXDistribution::pdf(wi, wm, alpha_u, alpha_v) / (4.0 * std::abs(glm::dot(wi, wm))) * fr;
+                Float pdf = mf_dist->pdf(wi, wm) / (4.0 * std::abs(glm::dot(wi, wm))) * fr;
                 return {BSDFSample{wo, pdf, 1.0}, Vec3f{bsdf_val}};
             } else {
                 // refraction
                 if (std::abs(wo.z) <= Epsilon || wi.z * wo.z >= -Epsilon)
                     return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
 
-                Float g = GGXDistribution::G(wi, wo, alpha_u, alpha_v);
-                Float d = GGXDistribution::D(wm, alpha_u, alpha_v);
+                Float g = mf_dist->G(wi, wo);
+                Float d = mf_dist->D(wm);
                 Float bsdf_val = g * d * Sqr(etap) / Sqr(glm::dot(wi, wm) + etap * glm::dot(wo, wm)) * std::abs(glm::dot(wi, wm) * glm::dot(wo, wm) / wi.z / wo.z) * std::abs(wo.z) * (1.0 - fr);
                 // XXX: account for non-symmetry. must be removed when transporting importance
                 bsdf_val /= Sqr(etap);
 
                 Float denom = Sqr(glm::dot(wo, wm) + glm::dot(wi, wm) / etap);
                 Float dwm_dwo = std::abs(glm::dot(wo, wm)) / denom;
-                Float pdf = GGXDistribution::pdf(wi, wm, alpha_u, alpha_v) * dwm_dwo * (1.0 - fr);
+                Float pdf = mf_dist->pdf(wi, wm) * dwm_dwo * (1.0 - fr);
                 return {BSDFSample{wo, pdf, Float(1.0) / etap}, Vec3f{bsdf_val}};
             }
         }
@@ -187,7 +189,7 @@ BSDF *createRoughDielectricBSDF(const std::unordered_map<std::string, std::strin
         }
     }
 
-    return new RoughDielectricBSDF(BSDFFlags::None, ext_ior / int_ior, alpha_u, alpha_v, distribution);
+    return new RoughDielectricBSDF(BSDFFlags::PassThrough, ext_ior / int_ior, alpha_u, alpha_v, distribution);
 }
 
 namespace {

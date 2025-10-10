@@ -1,6 +1,7 @@
 #include "core/BSDF.h"
 #include "core/Registry.h"
 #include "utils/Misc.h"
+#include "core/Microfacet.h"
 
 // Texture reflectance not supported
 class RoughConductorBSDF final : public BSDF {
@@ -8,10 +9,13 @@ public:
     Vec3f eta, k;              // real and imaginary parts of IOR
     std::string distribution;  // ggx or beckmann
     Float alpha_u, alpha_v;
+    Microfacet *mf_dist;
 
     RoughConductorBSDF(BSDFFlags flags, const Vec3f &eta, const Vec3f &k, std::string distribution, Float alpha_u, Float alpha_v) : BSDF(flags), eta(eta), k(k), distribution(distribution), alpha_u(alpha_u), alpha_v(alpha_v) {
-        if (distribution == "beckmann")
-            throw std::runtime_error("RoughConductorBSDF: Beckmann distribution not implemented yet");
+        mf_dist = MicrofacetRegistry::createMicrofacet(distribution, {{"alpha_u", std::to_string(alpha_u)}, {"alpha_v", std::to_string(alpha_v)}});
+    }
+    ~RoughConductorBSDF() {
+        delete mf_dist;
     }
 
     Vec3f eval(const Vec3f &wi, const Vec3f &wo) const override {
@@ -25,9 +29,9 @@ public:
         if (wm_len <= Epsilon)
             return Vec3f{0.0};
         wm /= wm_len;
-        
-        return GGXDistribution::D(wm, alpha_u, alpha_v) * fresnelComplex(std::abs(glm::dot(wi, wm)), eta, k)
-            * GGXDistribution::G(wi, wo, alpha_u, alpha_v) / (Float(4.0) * std::abs(cos_theta(wi)) * std::abs(cos_theta(wo)))
+
+        return mf_dist->D(wm) * fresnelComplex(std::abs(glm::dot(wi, wm)), eta, k)
+            * mf_dist->G(wi, wo) / (Float(4.0) * std::abs(cos_theta(wi)) * std::abs(cos_theta(wo)))
             * std::abs(cos_theta(wo));
     }
 
@@ -43,14 +47,14 @@ public:
             return 0.0;
         wm /= wm_len;
 
-        return GGXDistribution::pdf(wi, wm, alpha_u, alpha_v) / (4.0 * glm::dot(wo, wm));
+        return mf_dist->pdf(wi, wm) / (4.0 * glm::dot(wo, wm));
     }
 
     std::pair<BSDFSample, Vec3f> sample(const Vec3f &wi, Float sample1, const Vec2f &sample2) const override {
         if (wi.z <= 0.0 && !has_flag(BSDFFlags::TwoSided))
             return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
-        
-        Vec3f wm = GGXDistribution::sample_wm(wi, alpha_u, alpha_v, sample2);
+
+        Vec3f wm = mf_dist->sample_wm(wi, sample2);
         wm = wm * glm::sign(wi.z);
         Vec3f wo = reflect(wi, wm);
 

@@ -24,12 +24,12 @@ struct EmitterSample {
     Vec3f direction;
     // Whether there's an occlusion between the isc and the emitter sample point
     // Remark: This does not handle whether the isc.normal is in the correct side
-    bool is_occluded;
+    bool is_visible;
     Vec3f radiance;
     EmitterFlags emitter_flags;
 
     EmitterSample(Float pdf, const Vec3f &direction, bool is_occluded, const Vec3f &radiance, EmitterFlags emitter_flags)
-        : pdf(pdf), direction(direction), is_occluded(is_occluded), radiance(radiance), emitter_flags(emitter_flags) {}
+        : pdf(pdf), direction(direction), is_visible(is_occluded), radiance(radiance), emitter_flags(emitter_flags) {}
 };
 
 class Emitter {

@@ -60,7 +60,7 @@ BSDF *createThinDielectricBSDF(const std::unordered_map<std::string, std::string
         }
     }
 
-    return new ThinDielectricBSDF(BSDFFlags::Delta, ext_ior / int_ior);
+    return new ThinDielectricBSDF(BSDFFlags::Delta | BSDFFlags::PassThrough, ext_ior / int_ior);
 }
 
 namespace {

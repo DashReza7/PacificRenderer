@@ -7,7 +7,6 @@
 void BSDFRegistry::registerBSDF(const std::string& type, BSDFCreator creator) {
     BSDFRegistry::getCreators()[type] = creator;
 }
-
 BSDF* BSDFRegistry::createBSDF(const std::string& type, const std::unordered_map<std::string, std::string>& properties) {
     auto it = BSDFRegistry::getCreators().find(type);
     if (it == BSDFRegistry::getCreators().end()) {
@@ -15,7 +14,6 @@ BSDF* BSDFRegistry::createBSDF(const std::string& type, const std::unordered_map
     }
     return it->second(properties);
 }
-
 std::vector<std::string> BSDFRegistry::getRegisteredTypes() {
     std::vector<std::string> types;
     for (const auto& pair : BSDFRegistry::getCreators()) {
@@ -28,7 +26,6 @@ std::vector<std::string> BSDFRegistry::getRegisteredTypes() {
 void IntegratorRegistry::registerIntegrator(const std::string& type, IntegratorRegistry::IntegratorCreator creator) {
     IntegratorRegistry::getCreators()[type] = creator;
 }
-
 Integrator* IntegratorRegistry::createIntegrator(const std::string& type, const std::unordered_map<std::string, std::string>& properties) {
     auto it = IntegratorRegistry::getCreators().find(type);
     if (it == IntegratorRegistry::getCreators().end()) {
@@ -36,7 +33,6 @@ Integrator* IntegratorRegistry::createIntegrator(const std::string& type, const 
     }
     return it->second(properties);
 }
-
 std::vector<std::string> IntegratorRegistry::getRegisteredTypes() {
     std::vector<std::string> types;
     for (const auto& pair : IntegratorRegistry::getCreators()) {
@@ -49,7 +45,6 @@ std::vector<std::string> IntegratorRegistry::getRegisteredTypes() {
 void EmitterRegistry::registerEmitter(const std::string& type, EmitterRegistry::EmitterCreator creator) {
     EmitterRegistry::getCreators()[type] = creator;
 }
-
 Emitter* EmitterRegistry::createEmitter(const std::string& type, const std::unordered_map<std::string, std::string>& properties) {
     auto it = EmitterRegistry::getCreators().find(type);
     if (it == EmitterRegistry::getCreators().end()) {
@@ -57,7 +52,6 @@ Emitter* EmitterRegistry::createEmitter(const std::string& type, const std::unor
     }
     return it->second(properties);
 }
-
 std::vector<std::string> EmitterRegistry::getRegisteredTypes() {
     std::vector<std::string> types;
     for (const auto& pair : EmitterRegistry::getCreators()) {
@@ -70,7 +64,6 @@ std::vector<std::string> EmitterRegistry::getRegisteredTypes() {
 void RFilterRegistry::registerRFilter(const std::string& type, RFilterRegistry::RFilterCreator creator) {
     RFilterRegistry::getCreators()[type] = creator;
 }
-
 RFilter* RFilterRegistry::createRFilter(const std::string& type, const std::unordered_map<std::string, std::string>& properties) {
     auto it = RFilterRegistry::getCreators().find(type);
     if (it == RFilterRegistry::getCreators().end()) {
@@ -78,7 +71,6 @@ RFilter* RFilterRegistry::createRFilter(const std::string& type, const std::unor
     }
     return it->second(properties);
 }
-
 std::vector<std::string> RFilterRegistry::getRegisteredTypes() {
     std::vector<std::string> types;
     for (const auto& pair : RFilterRegistry::getCreators()) {
@@ -91,7 +83,6 @@ std::vector<std::string> RFilterRegistry::getRegisteredTypes() {
 void GeometryRegistry::registerGeometry(const std::string& type, GeometryRegistry::GeometryCreator creator) {
     GeometryRegistry::getCreators()[type] = creator;
 }
-
 Geometry* GeometryRegistry::createGeometry(const std::string& type, const std::unordered_map<std::string, std::string>& properties, const Shape *parent_shape, const GeometryCreationContext* ctx) {
     auto it = GeometryRegistry::getCreators().find(type);
     if (it == GeometryRegistry::getCreators().end()) {
@@ -99,10 +90,28 @@ Geometry* GeometryRegistry::createGeometry(const std::string& type, const std::u
     }
     return it->second(properties, parent_shape, ctx);
 }
-
 std::vector<std::string> GeometryRegistry::getRegisteredTypes() {
     std::vector<std::string> types;
     for (const auto& pair : GeometryRegistry::getCreators()) {
+        types.push_back(pair.first);
+    }
+    return types;
+}
+
+// --------------------------- MicrofacetRegistry Implementation -----------------------
+void MicrofacetRegistry::registerMicrofacet(const std::string& type, MicrofacetCreator creator) {
+    MicrofacetRegistry::getCreators()[type] = creator;
+}
+Microfacet* MicrofacetRegistry::createMicrofacet(const std::string& type, const std::unordered_map<std::string, std::string>& properties) {
+    auto it = MicrofacetRegistry::getCreators().find(type);
+    if (it == MicrofacetRegistry::getCreators().end()) {
+        throw std::runtime_error("Unknown Microfacet type: " + type);
+    }
+    return it->second(properties);
+}
+std::vector<std::string> MicrofacetRegistry::getRegisteredTypes() {
+    std::vector<std::string> types;
+    for (const auto& pair : MicrofacetRegistry::getCreators()) {
         types.push_back(pair.first);
     }
     return types;

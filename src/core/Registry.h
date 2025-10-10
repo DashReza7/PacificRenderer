@@ -15,6 +15,7 @@ class RFilter;
 class Geometry;
 class Shape;
 struct GeometryCreationContext;
+class Microfacet;
 
 
 class BSDFRegistry {
@@ -118,6 +119,27 @@ public:
 private:
     static std::unordered_map<std::string, GeometryCreator>& getCreators() {
         static std::unordered_map<std::string, GeometryCreator> creators;
+        return creators;
+    }
+};
+
+class MicrofacetRegistry {
+public:
+    // Function signature for Microfacet creators
+    using MicrofacetCreator = std::function<Microfacet*(const std::unordered_map<std::string, std::string>&)>;
+    
+    // Register a Microfacet type with its creator function
+    static void registerMicrofacet(const std::string& type, MicrofacetCreator creator);
+    
+    // Create a Microfacet by type name
+    static Microfacet* createMicrofacet(const std::string& type, const std::unordered_map<std::string, std::string>& properties);
+    
+    // List all registered types
+    static std::vector<std::string> getRegisteredTypes();
+
+private:
+    static std::unordered_map<std::string, MicrofacetCreator>& getCreators() {
+        static std::unordered_map<std::string, MicrofacetCreator> creators;
         return creators;
     }
 };

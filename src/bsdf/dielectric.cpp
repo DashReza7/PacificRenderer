@@ -77,7 +77,7 @@ BSDF *createSmoothDielectricBSDF(const std::unordered_map<std::string, std::stri
         }
     }
 
-    return new SmoothDielectricBSDF(BSDFFlags::Delta, ext_ior / int_ior);
+    return new SmoothDielectricBSDF(BSDFFlags::Delta | BSDFFlags::PassThrough, ext_ior / int_ior);
 }
 
 namespace {

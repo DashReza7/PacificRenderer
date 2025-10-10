@@ -30,10 +30,10 @@ public:
         // ----------------------- Emitter sampling -----------------------
         
         Float nee_weight = 1.0 / Float(emitter_samples);
-        if (isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) || glm::dot(isc.normal, isc.dirn) > 0.0)
+        if (isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) || glm::dot(isc.normal, isc.dirn) > 0.0 || isc.shape->bsdf->has_flag(BSDFFlags::PassThrough))
             for (size_t i = 0; i < emitter_samples; i++) {
                 EmitterSample emitter_sample = scene->sample_emitter(isc, sampler->get_1D(), sampler->get_3D());
-                if (emitter_sample.is_occluded) {
+                if (emitter_sample.is_visible) {
                     // TODO: check for correct orientation of isc
                     
                     Vec3f wo_local = worldToLocal(-emitter_sample.direction, isc.normal);
