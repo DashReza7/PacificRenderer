@@ -27,6 +27,9 @@ public:
     }
 
     std::pair<BSDFSample, Vec3f> sample(const Vec3f &wi, Float sample1, const Vec2f &sample2) const override {
+        if (wi.z <= 0.0 && !this->has_flag(BSDFFlags::TwoSided))
+            return {BSDFSample{Vec3f{0.0}, 0.0, 1}, Vec3f{0.0}};
+        
         if (cosine_sampling) {
             Vec3f wo = cosineHemisphereSample(sample2);
             if (wi.z < 0.0 && this->has_flag(BSDFFlags::TwoSided))

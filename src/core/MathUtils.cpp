@@ -20,14 +20,13 @@ Vec3f localToWorld(const Vec3f &local, const Vec3f &world_z) {
 
 Vec3f worldToLocal(const Vec3f &world, const Vec3f &world_z) {
     Mat3f trafo = localToWorldMat(world_z);
-    return glm::inverse(trafo) * world;
+    return glm::transpose(trafo) * world;
 }
 
 Vec3f reflect(const Vec3f &wi, const Vec3f &n) {
     return -wi + Float(2.0 * dot(wi, n)) * n;
 }
 
-// eta: eta_t / eta_i
 bool refract(const Vec3f &wi, const Vec3f &n, Float eta, Vec3f &wo) {
     Float cos_theta_i = dot(n, wi);
     Float sin2_theta_i = std::max(Float(0), Float(1) - Sqr(cos_theta_i));
@@ -42,6 +41,12 @@ bool refract(const Vec3f &wi, const Vec3f &n, Float eta, Vec3f &wo) {
 
 Float triangle_area(const Vec3f &a, const Vec3f &b, const Vec3f &c) {
     return Float(0.5) * length(cross(b - a, c - a));
+}
+
+Vec2f uniformDiskSample(const Vec2f &sample) {
+    Float r = std::sqrt(sample.x);
+    Float theta = 2.0 * Pi * sample.y;
+    return Vec2f{r * std::cos(theta), r * std::sin(theta)};
 }
 
 Vec3f uniformHemisphereSample(const Vec2f &sample) {
@@ -75,6 +80,10 @@ Vec3f barycentric(const Vec3f& v0, const Vec3f& v1, const Vec3f& v2, const Vec3f
     Float w0 = 1.0f - w1 - w2;
     
     return Vec3f{w0, w1, w2};
+}
+
+Float lerp(Float t, Float a, Float b) {
+    return (1.0 - t) * a + t * b;
 }
 
 Mat4f get_rotation_matrix(const Vec3f &axis, Float angle) {

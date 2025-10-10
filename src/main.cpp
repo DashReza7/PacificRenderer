@@ -3,15 +3,17 @@
 #include "core/Integrator.h"
 #include "core/Pacific.h"
 #include "core/Registry.h"
+#include "core/Sampler.h"
 #include "core/Scene.h"
 #include "utils/ArgParser.h"
 #include "utils/SceneParser.h"
 
-#include "core/Sampler.h"
 
 // #include "utils/Logger.h"
 
-int run(int argc, char **argv) {
+bool g_DEBUG = false;
+
+int run(int argc, char** argv) {
     // TODO: create the global Logger
     // Logger g_logger{LogLevel::INFO, true, ""};
 
@@ -34,20 +36,28 @@ int run(int argc, char **argv) {
     return 0;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
     std::cout << "Starting..." << std::endl;
-    
+
+#ifdef NDEBUG
+    // Release mode
+    g_DEBUG = false;
+#else
+    // Debug mode
+    g_DEBUG = true;
+#endif
+
     int result = 0;
     try {
         result = run(argc, argv);
-    } catch(const std::exception& e) {
+    } catch (const std::exception& e) {
         std::cerr << e.what() << '\n';
         exit(EXIT_FAILURE);
-    } catch(...) {
+    } catch (...) {
         std::cerr << "Unknown exception occurred\n";
         exit(EXIT_FAILURE);
     }
-    
+
     std::cout << "\nThe end" << std::endl;
     return result;
 }

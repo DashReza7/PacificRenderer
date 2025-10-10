@@ -76,11 +76,13 @@ Vec3f reflect(const Vec3f &wi, const Vec3f &n);
 /// @brief Refract the incident direction `wi` through the surface with normal `n`
 /// @param wi Incident direction (pointing outward from the surface)
 /// @param n Normal direction (pointing outward from the surface)
-/// @param eta Relative index of refraction (eta_i / eta_t)
+/// @param eta Relative index of refraction (eta_t / eta_i)
 /// @return Refracted direction (pointing outward from the surface)
 bool refract(const Vec3f &wi, const Vec3f &n, Float eta, Vec3f &wo);
 
 Float triangle_area(const Vec3f &a, const Vec3f &b, const Vec3f &c);
+
+Vec2f uniformDiskSample(const Vec2f &sample);
 
 Vec3f uniformHemisphereSample(const Vec2f &sample);
 
@@ -93,5 +95,38 @@ inline Float sign(Float x) {
 // Remark: p must be in the same plane as the vertices
 Vec3f barycentric(const Vec3f& v0, const Vec3f& v1, const Vec3f& v2, const Vec3f& p);
 
+Float lerp(Float t, Float a, Float b);
+
 // angle is in degrees
 Mat4f get_rotation_matrix(const Vec3f &axis, Float angle);
+
+inline Float cos_theta(const Vec3f &w) {
+    return w.z;
+}
+inline Float cos2_theta(const Vec3f &w) {
+    return w.z * w.z;
+}
+inline Float sin2_theta(const Vec3f &w) {
+    return glm::max(Float(0), Float(1) - cos2_theta(w));
+}
+inline Float sin_theta(const Vec3f &w) {
+    return std::sqrt(sin2_theta(w)) * (w.z >= 0 ? 1.0 : -1.0);
+}
+inline Float tan2_theta(const Vec3f &w) {
+    return 1.0 / cos2_theta(w) - 1.0;
+}
+inline Float tan_theta(const Vec3f &w) {
+    return std::sqrt(tan2_theta(w)) * (w.z >= 0 ? 1.0 : -1.0);
+}
+inline Float cos_phi(const Vec3f &w) {
+    Float sinTheta = sin_theta(w);
+    return sinTheta <= Epsilon ? 1.0 : glm::clamp(w.x / sinTheta, Float(-1.0), Float(1.0));
+}
+inline Float sin_phi(const Vec3f &w) {
+    Float sinTheta = sin_theta(w);
+    return sinTheta <= Epsilon ? 0.0 : glm::clamp(w.y / sinTheta, Float(-1.0), Float(1.0));
+}
+
+inline Vec3f face_forward(const Vec3f &v, const Vec3f &n) {
+    return glm::dot(v, n) >= 0.0 ? v : -v;
+}

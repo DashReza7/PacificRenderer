@@ -15,12 +15,11 @@ public:
     bool flip_normals;
 
     Sphere(const Vec3f &center, Float radius, const Mat4f &transform, const Mat4f &inv_transform, const Shape *parent_shape, bool flip_normals) : transform(transform), inv_transform(inv_transform), center(center), radius(radius), flip_normals(flip_normals) {
-        Vec3f scaled_x = Vec3f{transform * Vec4f{1, 0, 0, 0}};
+        Vec3f scaled_x = Vec3f{transform[0]};
         radius_world = radius * glm::length(scaled_x);
         this->parent_shape = parent_shape;
     }
 
-    // TODO: check for validity
     bool intersect(const Ray &ray, Intersection &isc) const override {
         // transform ray to local space
         Vec3f o_local = Vec3f{inv_transform * Vec4f{ray.o, 1.0}};
@@ -32,7 +31,7 @@ public:
         Float delta_prime = Sqr(b_prime) - o_minus_c_length2 + Sqr(radius);
 
         // no intersection (in any direction)
-        if (delta_prime <= 0)
+        if (delta_prime <= 0.0)
             return false;
 
         // tangent to the sphere
@@ -54,22 +53,25 @@ public:
             if (t1_local >= 0.0) {
                 Vec3f local_hit_pos = o_local + t1_local * d_local;
                 isc.position = Vec3f{transform * Vec4f{local_hit_pos, 1.0}};
+                isc.distance = glm::length(isc.position - ray.o);
+                if (isc.distance < ray.tmin || isc.distance > ray.tmax)
+                    goto lbl1;
                 isc.normal = get_normal(isc.position);
             } else {  // if (t2_local >= 0.0)
+                lbl1:
                 Vec3f local_hit_pos = o_local + t2_local * d_local;
                 isc.position = Vec3f{transform * Vec4f{o_local + t2_local * d_local, 1.0}};
+                isc.distance = glm::length(isc.position - ray.o);
+                if (isc.distance > ray.tmax || isc.distance < ray.tmin)
+                    return false;
                 isc.normal = get_normal(isc.position);
             }
         }
 
-        isc.dirn = ray.o - isc.position;
-        isc.distance = glm::length(isc.dirn);
-        isc.dirn = glm::normalize(isc.dirn);
+        isc.dirn = glm::normalize(ray.o - isc.position);
         isc.shape = parent_shape;
         isc.geom = this;
-
-        // FIXME: there's a bug here. suppose the ray hits the sphere twice. the first hit is really close. then isc.distance may be smaller than ray.tmin
-        return (isc.distance >= ray.tmin && isc.distance <= ray.tmax);
+        return true;
     }
 
     AABB get_bbox() const override {

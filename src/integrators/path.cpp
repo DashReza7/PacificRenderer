@@ -12,7 +12,7 @@ private:
 public:
     PathTracerIntegrator(int max_depth, int rr_depth, bool hide_emitters) : MonteCarloIntegrator(max_depth, rr_depth), hide_emitters(hide_emitters) {}
 
-    Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray) const override {
+    Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const override {
         Vec3f throughput{1.0};
         Vec3f radiance{0.0};
 
@@ -29,7 +29,7 @@ public:
                 radiance += throughput * curr_isc.shape->emitter->eval(curr_isc.position);
 
             // ----------------------- Emitter sampling -----------------------
-
+            
             if (!curr_isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
                 if (curr_isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) || glm::dot(curr_isc.normal, curr_isc.dirn) > 0.0) {
                     EmitterSample emitter_sample = scene->sample_emitter(curr_isc, sampler->get_1D(), sampler->get_3D());
@@ -47,7 +47,9 @@ public:
             // ------------------------ BSDF sampling -------------------------
 
             auto [bsdf_sample, bsdf_value] = curr_isc.shape->bsdf->sample(worldToLocal(curr_isc.dirn, curr_isc.normal), sampler->get_1D(), sampler->get_2D());
-            if (bsdf_sample.pdf <= 0 || bsdf_value.x <= 0.0 || bsdf_value.y <= 0.0 || bsdf_value.z <= 0.0)
+            if (bsdf_sample.pdf < 0.0 || bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
+                throw std::runtime_error("damn. pdf: " + std::to_string(bsdf_sample.pdf) + ", bsdf_value: " + std::to_string(bsdf_value.x) + ", " + std::to_string(bsdf_value.y) + ", " + std::to_string(bsdf_value.z));
+            if (bsdf_sample.pdf <= Epsilon || glm::length(bsdf_value) <= Epsilon)
                 break;
 
             Float mis_weight = get_mis_weight_bsdf(scene, curr_isc, bsdf_sample);

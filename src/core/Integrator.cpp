@@ -7,6 +7,8 @@
 #include "core/Thread.h"
 
 void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_threads, bool show_progress) {
+    extern bool g_DEBUG;
+
     uint32_t width = sensor->film.width;
     uint32_t height = sensor->film.height;
     uint32_t total_pixels = width * height;
@@ -20,19 +22,20 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
     auto start_time = std::chrono::high_resolution_clock::now();
 
     for (int row = 0; row < height; row++) {
-        break;
+        if (!g_DEBUG)
+            break;
         for (int col = 0; col < width; col++) {
             // TODO: debug
-            // if (row <= -1 || row >= 60 || col <= -1 || col >= 60)
-            //     continue;
+            if (row != 109 || col != 62)
+                continue;
             for (size_t i = 0; i < sensor->sampler.spp; i++) {
                 Float px, py;
                 Ray sensor_ray = sensor->sample_ray(row, col, sensor->sampler.get_2D(), px, py);
-                Vec3f returned_radiance = this->sample_radiance(scene, &sensor->sampler, sensor_ray);
+                Vec3f returned_radiance = this->sample_radiance(scene, &sensor->sampler, sensor_ray, row, col);
                 sensor->film.commit_sample(returned_radiance, row, col, px, py);
             }
             if (show_progress)
-                if((row * height + col + 1) % 100 == 0 || (row == height - 1 && col == width - 1))
+                if ((row * height + col + 1) % 100 == 0 || (row == height - 1 && col == width - 1))
                     std::cout << "\rProgress: " << std::format("{:.02f}", ((row * width + col + 1) / static_cast<double>(total_pixels)) * 100) << "%" << std::flush;
         }
     }
@@ -41,6 +44,8 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
     uint32_t n_row_blocks = (height - 1) / block_size + 1;
     uint32_t n_col_blocks = (width - 1) / block_size + 1;
     for (uint32_t block_row = 0; block_row < n_row_blocks; block_row++) {
+        if (g_DEBUG)
+            break;
         for (uint32_t block_col = 0; block_col < n_col_blocks; block_col++) {
             results.emplace_back(
                 tpool.enqueue([this, block_row, block_col, scene, sensor, &print_mutex, &n_rendered_pixels, total_pixels, block_size, width, height, show_progress](Sampler &sampler) {
@@ -54,13 +59,13 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
                             // TODO: for debug purposes
                             // if (row != 0 || col != 0)
                             //     continue;
-                                
+
                             for (size_t i = 0; i < sensor->sampler.spp; i++) {
                                 // sample position in sensor space ([0, 1])
                                 // sample position in sensor space ([0, 1])
                                 Float px, py;
                                 Ray sensor_ray = sensor->sample_ray(row, col, sampler.get_2D(), px, py);
-                                Vec3f returned_radiance = this->sample_radiance(scene, &sampler, sensor_ray);
+                                Vec3f returned_radiance = this->sample_radiance(scene, &sampler, sensor_ray, row, col);
 
                                 // check for invalid values
                                 if (std::isnan(returned_radiance.x) || std::isnan(returned_radiance.y) || std::isnan(returned_radiance.z) ||
@@ -103,6 +108,9 @@ Float SamplingIntegrator::get_mis_weight_nee(const Intersection &isc, const Emit
         Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);
         Vec3f wo_local = worldToLocal(-emitter_sample.direction, isc.normal);
         Float bsdf_sampling_pdf = isc.shape->bsdf->pdf(wi_local, wo_local);
+        if (bsdf_sampling_pdf < 0.0)
+            throw std::runtime_error("Negative BSDF pdf in MIS weight computation");
+
         return Sqr(emitter_sample.pdf) / (Sqr(emitter_sample.pdf) + Sqr(bsdf_sampling_pdf));
     }
 
@@ -113,5 +121,8 @@ Float SamplingIntegrator::get_mis_weight_bsdf(const Scene *scene, const Intersec
     if (isc.shape->bsdf->has_flag(BSDFFlags::Delta))
         return 1.0;
     Float nee_pdf = scene->pdf_nee(isc, localToWorld(bsdf_sample.wo, isc.normal));
+    if (nee_pdf < 0.0)
+        throw std::runtime_error("Negative NEE pdf in MIS weight computation");
+
     return Sqr(bsdf_sample.pdf) / (Sqr(bsdf_sample.pdf) + Sqr(nee_pdf));
 }

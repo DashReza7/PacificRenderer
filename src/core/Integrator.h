@@ -15,7 +15,7 @@ class SamplingIntegrator : public Integrator {
 public:
     virtual void render(const Scene *scene, Sensor *sensor, uint32_t n_threads, bool show_progress) override;
     /// @brief Sample the Radiance along the given ray
-    virtual Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray) const = 0;
+    virtual Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const = 0;
 
     /// @brief finds the MIS weight for the NEE
     virtual Float get_mis_weight_nee(const Intersection &isc, const EmitterSample &emitter_sample) const;

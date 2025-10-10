@@ -9,7 +9,6 @@
 #include "core/MathUtils.h"
 #include "core/Pacific.h"
 
-
 /// @brief BSDFSample object.
 struct BSDFSample {
     /// Outgoing direction in world space
@@ -29,8 +28,19 @@ enum class BSDFFlags {
 };
 BSDFFlags operator|(BSDFFlags a, BSDFFlags b);
 BSDFFlags operator&(BSDFFlags a, BSDFFlags b);
-BSDFFlags& operator|=(BSDFFlags& a, BSDFFlags b);
-BSDFFlags& operator&=(BSDFFlags& a, BSDFFlags b);
+BSDFFlags &operator|=(BSDFFlags &a, BSDFFlags b);
+BSDFFlags &operator&=(BSDFFlags &a, BSDFFlags b);
+
+/// @brief Compute the Fresnel reflection coefficient
+/// @param cos_theta_i Incoming angle cosine.
+/// @param eta Relative ior (eta_t over eta_i)
+Float fresnelReflection(Float cos_theta_i, Float eta);
+/// @brief Compute the Fresnel reflection coefficient
+/// @param cos_theta_i Incoming angle cosine, should be positive
+/// @param eta Relative ior (eta_t over eta_i)
+Float fresnelComplex(Float cos_theta_i, std::complex<Float> eta);
+Vec3f fresnelComplex(Float cos_theta_i, const Vec3f &eta, const Vec3f &k);
+
 
 class BSDF {
 private:
@@ -39,18 +49,6 @@ private:
 public:
     BSDF(BSDFFlags flags) : flags(flags) {}
 
-    /// @brief Compute the Fresnel reflection coefficient
-    /// @param cos_theta_i Incoming angle cosine. Should be positive.
-    /// @param eta Relative ior (eta_t over eta_i)
-    static Float fresnelReflection(Float cos_theta_i, Float eta);
-
-    /// @brief Compute the Fresnel reflection coefficient
-    /// @param cos_theta_i Incoming angle cosine, should be positive
-    /// @param eta Relative ior (eta_t over eta_i)
-    static Float fresnelComplex(Float cos_theta_i, std::complex<Float> eta);
-
-    static Vec3f fresnelComplex(Float cos_theta_i, const Vec3f &eta, const Vec3f &k);
-    
     /// @brief Sample the BSDF
     /// @param wi Incoming direction in local space (z is the normal direction). Facing the normal direction
     /// @param sample1 1D random sample in [0,1). Used for selecting multiple lobes in mixture BSDFs
@@ -74,4 +72,16 @@ public:
     }
 
     virtual std::string to_string() const = 0;
+};
+
+// implementations are based on PBRT
+class GGXDistribution {
+public:
+    static Float D(const Vec3f &wm, Float alpha_u, Float alpha_v);
+    static Float D(const Vec3f& w, const Vec3f &wm, Float alpha_u, Float alpha_v);
+    static Float G1(const Vec3f &w, Float alpha_u, Float alpha_v);
+    static Float Lambda(const Vec3f &w, Float alpha_u, Float alpha_v);
+    static Float G(const Vec3f &wi, const Vec3f &wo, Float alpha_u, Float alpha_v);
+    static Vec3f sample_wm(const Vec3f &w, Float alpha_u, Float alpha_v, const Vec2f &sample);
+    static Float pdf(const Vec3f &w, const Vec3f &wm, Float alpha_u, Float alpha_v);
 };

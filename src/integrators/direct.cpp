@@ -14,7 +14,7 @@ private:
 public:
     DirectLightingIntegrator(int emitter_samples, int bsdf_samples, bool hide_emitters) : emitter_samples(emitter_samples), bsdf_samples(bsdf_samples), hide_emitters(hide_emitters) {}
 
-    Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray) const override {
+    Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const override {
         Intersection isc;
         bool is_hit = scene->ray_intersect(ray, isc);
         // TODO: maybe use and environment map???
@@ -39,6 +39,8 @@ public:
                     Vec3f wo_local = worldToLocal(-emitter_sample.direction, isc.normal);
                     Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);
                     Vec3f bsdf_value = isc.shape->bsdf->eval(wi_local, wo_local);
+                    if (bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
+                        throw std::runtime_error("BSDF eval returned non-positive value in DirectLightingIntegrator");
                 
                     Float mis_weight = get_mis_weight_nee(isc, emitter_sample);
                     radiance += mis_weight * nee_weight * emitter_sample.radiance * bsdf_value / emitter_sample.pdf;
@@ -50,7 +52,11 @@ public:
         Float bsdf_weight = 1.0 / Float(bsdf_samples);
         for (size_t i = 0; i < bsdf_samples; i++) {
             auto [bsdf_sample, bsdf_value] = isc.shape->bsdf->sample(worldToLocal(isc.dirn, isc.normal), sampler->get_1D(), sampler->get_2D());
-
+            if (bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
+                throw std::runtime_error("BSDF sample returned non-positive value in DirectLightingIntegrator");
+            if (bsdf_sample.pdf < 0.0)
+                throw std::runtime_error("BSDF sample returned negative pdf in DirectLightingIntegrator");
+            
             // check if the sample intersects any light
             Intersection tmp_isc{};
             bool is_occluded = scene->ray_intersect(Ray{isc.position + sign(glm::dot(localToWorld(bsdf_sample.wo, isc.normal), isc.normal)) * isc.normal * Epsilon, localToWorld(bsdf_sample.wo, isc.normal), Epsilon, 1e4}, tmp_isc);

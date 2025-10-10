@@ -2,7 +2,6 @@
 #include "core/Registry.h"
 #include "utils/Misc.h"
 
-// TODO: implement two-sided diffuse
 // Texture reflectance not supported
 class SmoothConductorBSDF final : public BSDF {
 public:
@@ -19,12 +18,10 @@ public:
     }
 
     std::pair<BSDFSample, Vec3f> sample(const Vec3f &wi, Float sample1, const Vec2f &sample2) const override {
-        // TODO: handle two-sided BSDFs
         if (wi.z <= 0.0 && !this->has_flag(BSDFFlags::TwoSided))
             return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
         Vec3f bsdf_value = fresnelComplex(std::abs(wi.z), eta, k);
         
-        // TODO: is eta correct? should it be 1?
         return {BSDFSample{Vec3f{-wi.x, -wi.y, wi.z}, 1.0, 1.0}, bsdf_value};
     }
 
@@ -37,9 +34,8 @@ public:
 
 // --------------------------- Registry functions ---------------------------
 BSDF *createSmoothConductorBSDF(const std::unordered_map<std::string, std::string> &properties) {
-    // Cu(Copper)
-    Vec3f eta{0.271, 0.676, 1.316};
-    Vec3f k{3.609, 2.624, 2.292};
+    Vec3f eta{0.0, 0.0, 0.0};
+    Vec3f k{1.0, 1.0, 1.0};
     BSDFFlags flags = BSDFFlags::Delta;
     
     for (const auto &[key, value] : properties) {

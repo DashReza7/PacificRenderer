@@ -31,12 +31,12 @@ public:
                     Vec3f{1.0}};
         }
 
-        Float fr = BSDF::fresnelReflection(std::abs(cos_theta_i), effective_eta);
+        Float fr = fresnelReflection(std::abs(cos_theta_i), effective_eta);
         if (sample1 <= fr) {  // reflection
             return {BSDFSample{reflect(wi, effective_normal), fr, 1.0},
                     Vec3f{fr}};
         } else {  // refraction
-            // FIXME: should be changed when transferring importance instead of radiance
+            // XXX: account for non-symmetry. must be remove when transporting importance
             return {BSDFSample{refracted_dirn, Float(1.0) - fr, Float(1.0) / effective_eta},
                     Vec3f{(Float(1.0) - fr) / effective_eta}};
         }

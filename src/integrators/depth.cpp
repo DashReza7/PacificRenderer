@@ -8,7 +8,7 @@ class DepthIntegrator : public SamplingIntegrator {
 public:
     DepthIntegrator() = default;
 
-    Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray) const override {
+    Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const override {
         Intersection isc;
         bool is_hit = scene->ray_intersect(ray, isc);
         if (is_hit)
