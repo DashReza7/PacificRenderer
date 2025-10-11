@@ -23,55 +23,56 @@ public:
 
         Vec3f radiance{0.0};
         // ----------------------- Visible emitters -----------------------
-        
-        if (isc.shape->emitter != nullptr && glm::dot(isc.normal, ray.d) < 0.0)
+
+        if (isc.shape->emitter != nullptr && glm::dot(isc.normal, ray.d) < 0.0 && !hide_emitters)
             radiance += isc.shape->emitter->eval(isc.position);
-            
+
         // ----------------------- Emitter sampling -----------------------
-        
-        Float nee_weight = 1.0 / Float(emitter_samples);
-        if (isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) || glm::dot(isc.normal, isc.dirn) > 0.0 || isc.shape->bsdf->has_flag(BSDFFlags::PassThrough))
-            for (size_t i = 0; i < emitter_samples; i++) {
-                EmitterSample emitter_sample = scene->sample_emitter(isc, sampler->get_1D(), sampler->get_3D());
-                if (emitter_sample.is_visible) {
-                    // TODO: check for correct orientation of isc
-                    
-                    Vec3f wo_local = worldToLocal(-emitter_sample.direction, isc.normal);
-                    Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);
-                    Vec3f bsdf_value = isc.shape->bsdf->eval(wi_local, wo_local);
-                    if (bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
-                        throw std::runtime_error("BSDF eval returned non-positive value in DirectLightingIntegrator");
-                
-                    Float mis_weight = get_mis_weight_nee(isc, emitter_sample);
-                    radiance += mis_weight * nee_weight * emitter_sample.radiance * bsdf_value / emitter_sample.pdf;
+
+        Float nee_weight = emitter_samples > 0 ? 1.0 / Float(emitter_samples) : 0.0;
+        if (!isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
+            if (isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) || glm::dot(isc.normal, isc.dirn) > 0.0 || isc.shape->bsdf->has_flag(BSDFFlags::PassThrough))
+                for (size_t i = 0; i < emitter_samples; i++) {
+                    EmitterSample emitter_sample = scene->sample_emitter(isc, sampler->get_1D(), sampler->get_3D());
+                    if (emitter_sample.is_visible) {
+                        Vec3f wo_local = worldToLocal(-emitter_sample.direction, isc.normal);
+                        Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);
+                        Vec3f bsdf_value = isc.shape->bsdf->eval(wi_local, wo_local);
+                        if (bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
+                            throw std::runtime_error("BSDF eval returned non-positive value in DirectLightingIntegrator");
+
+                        Float mis_weight = get_mis_weight_nee(isc, emitter_sample, bsdf_samples);
+                        radiance += mis_weight * nee_weight * emitter_sample.radiance * bsdf_value / emitter_sample.pdf;
+                    }
                 }
-            }
+        }
 
         // ------------------------ BSDF sampling -------------------------
-        
-        Float bsdf_weight = 1.0 / Float(bsdf_samples);
-        for (size_t i = 0; i < bsdf_samples; i++) {
-            auto [bsdf_sample, bsdf_value] = isc.shape->bsdf->sample(worldToLocal(isc.dirn, isc.normal), sampler->get_1D(), sampler->get_2D());
-            if (bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
-                throw std::runtime_error("BSDF sample returned non-positive value in DirectLightingIntegrator");
-            if (bsdf_sample.pdf < 0.0)
-                throw std::runtime_error("BSDF sample returned negative pdf in DirectLightingIntegrator");
-            
-            // check if the sample intersects any light
-            Intersection tmp_isc{};
-            bool is_occluded = scene->ray_intersect(Ray{isc.position + sign(glm::dot(localToWorld(bsdf_sample.wo, isc.normal), isc.normal)) * isc.normal * Epsilon, localToWorld(bsdf_sample.wo, isc.normal), Epsilon, 1e4}, tmp_isc);
-            if (!is_occluded ||
-                tmp_isc.shape->emitter == nullptr ||
-                dot(isc.position - tmp_isc.position, tmp_isc.normal) < 0 ||
-                bsdf_sample.pdf <= 0)
-                continue;
 
-            Float mis_weight = get_mis_weight_bsdf(scene, isc, bsdf_sample);
-            radiance += mis_weight * bsdf_weight * tmp_isc.shape->emitter->eval(isc.position) * bsdf_value / bsdf_sample.pdf;
+        Float bsdf_weight = bsdf_samples > 0 ? 1.0 / Float(bsdf_samples) : 0.0;
+        if (isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) || glm::dot(isc.normal, isc.dirn) > 0.0 || isc.shape->bsdf->has_flag(BSDFFlags::PassThrough)) {
+            for (size_t i = 0; i < bsdf_samples; i++) {
+                auto [bsdf_sample, bsdf_value] = isc.shape->bsdf->sample(worldToLocal(isc.dirn, isc.normal), sampler->get_1D(), sampler->get_2D());
+                if (bsdf_sample.pdf < 0.0 || bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
+                    throw std::runtime_error("damn. pdf: " + std::to_string(bsdf_sample.pdf) + ", bsdf_value: " + std::to_string(bsdf_value.x) + ", " + std::to_string(bsdf_value.y) + ", " + std::to_string(bsdf_value.z));
+                if (bsdf_sample.pdf <= Epsilon || glm::length(bsdf_value) <= Epsilon)
+                    continue;
+
+                // check if the sample intersects any light
+                Intersection tmp_isc{};
+                bool is_occluded = scene->ray_intersect(Ray{isc.position + sign(glm::dot(localToWorld(bsdf_sample.wo, isc.normal), isc.normal)) * isc.normal * Epsilon, localToWorld(bsdf_sample.wo, isc.normal), Epsilon, 1e4}, tmp_isc);
+                if (!is_occluded ||
+                    tmp_isc.shape->emitter == nullptr ||
+                    dot(isc.position - tmp_isc.position, tmp_isc.normal) < 0)
+                    continue;
+
+                Float mis_weight = get_mis_weight_bsdf(scene, isc, bsdf_sample, emitter_samples);
+                radiance += mis_weight * bsdf_weight * tmp_isc.shape->emitter->eval(isc.position) * bsdf_value / bsdf_sample.pdf;
+            }
         }
 
         // ----------------------------------------------------------------
-        
+
         return radiance;
     }
 
@@ -102,7 +103,7 @@ Integrator *createDirectLightingIntegrator(const std::unordered_map<std::string,
             throw std::runtime_error("Unknown property '" + key + "' for Direct Lighting integrator");
         }
     }
-    
+
     return new DirectLightingIntegrator(emitter_samples, bsdf_samples, hide_emitters);
 }
 

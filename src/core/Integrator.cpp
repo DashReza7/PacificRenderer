@@ -26,7 +26,7 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
             break;
         for (int col = 0; col < width; col++) {
             // TODO: debug
-            if (row != 109 || col != 62)
+            if (row != 19 || col != 187)
                 continue;
             for (size_t i = 0; i < sensor->sampler.spp; i++) {
                 Float px, py;
@@ -98,11 +98,11 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
 
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end_time - start_time;
-    std::cout << "Rendering completed in " << elapsed.count() << " seconds.";
+    std::cout << "Rendering completed in " << std::format("{:.02f}", elapsed.count()) << " seconds.";
 }
 
-Float SamplingIntegrator::get_mis_weight_nee(const Intersection &isc, const EmitterSample &emitter_sample) const {
-    if ((emitter_sample.emitter_flags & EmitterFlags::DELTA_DIRECTION) != EmitterFlags::NONE)
+Float SamplingIntegrator::get_mis_weight_nee(const Intersection &isc, const EmitterSample &emitter_sample, uint32_t n_bsdf_samples) const {
+    if ((emitter_sample.emitter_flags & EmitterFlags::DELTA_DIRECTION) != EmitterFlags::NONE || n_bsdf_samples == 0)
         return 1.0;
     if (!isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
         Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);
@@ -117,10 +117,12 @@ Float SamplingIntegrator::get_mis_weight_nee(const Intersection &isc, const Emit
     return 0.0;
 }
 
-Float SamplingIntegrator::get_mis_weight_bsdf(const Scene *scene, const Intersection &isc, const BSDFSample &bsdf_sample) const {
-    if (isc.shape->bsdf->has_flag(BSDFFlags::Delta))
+Float SamplingIntegrator::get_mis_weight_bsdf(const Scene *scene, const Intersection &isc, const BSDFSample &bsdf_sample, uint32_t n_emitter_samples) const {
+    if (isc.shape->bsdf->has_flag(BSDFFlags::Delta) || n_emitter_samples == 0)
         return 1.0;
     Float nee_pdf = scene->pdf_nee(isc, localToWorld(bsdf_sample.wo, isc.normal));
+    if (nee_pdf <= Epsilon)
+        return 1.0;
     if (nee_pdf < 0.0)
         throw std::runtime_error("Negative NEE pdf in MIS weight computation");
 

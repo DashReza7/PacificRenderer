@@ -18,18 +18,18 @@ public:
     virtual Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const = 0;
 
     /// @brief finds the MIS weight for the NEE
-    virtual Float get_mis_weight_nee(const Intersection &isc, const EmitterSample &emitter_sample) const;
+    virtual Float get_mis_weight_nee(const Intersection &isc, const EmitterSample &emitter_sample, uint32_t n_bsdf_samples) const;
 
     /// @brief finds the MIS weight for the BSDF sampling
-    virtual Float get_mis_weight_bsdf(const Scene *scene, const Intersection &isc, const BSDFSample &bsdf_sample) const;
+    virtual Float get_mis_weight_bsdf(const Scene *scene, const Intersection &isc, const BSDFSample &bsdf_sample, uint32_t n_emitter_samples) const;
 };
 
 class MonteCarloIntegrator : public SamplingIntegrator {
 protected:
-    uint32_t max_depth;
+    int max_depth;
     // depth to start Russian roulette. refer to mitsuba3 documentation for more details.
-    uint32_t rr_depth;
+    int rr_depth;
 
 public:
-    MonteCarloIntegrator(uint32_t max_depth, uint32_t rr_depth) : max_depth(max_depth), rr_depth(rr_depth) {};
+    MonteCarloIntegrator(int max_depth, int rr_depth) : max_depth(max_depth), rr_depth(rr_depth) {};
 };

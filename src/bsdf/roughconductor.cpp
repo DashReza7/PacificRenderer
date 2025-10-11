@@ -75,7 +75,7 @@ BSDF *createRoughConductorBSDF(const std::unordered_map<std::string, std::string
 
     Vec3f eta{0.0, 0.0, 0.0};
     Vec3f k{1.0, 1.0, 1.0};
-    BSDFFlags flags = BSDFFlags::Delta;
+    BSDFFlags flags = BSDFFlags::None;
     std::string distribution = "beckmann";
     Float alpha_u = 0.1, alpha_v = 0.1;
 

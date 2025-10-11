@@ -163,6 +163,7 @@ struct ShapeDesc : public SceneObjectDesc {
 
     ShapeDesc() {
         properties["to_world"] = mat4fToStr(Mat4f{1.0});
+        properties["inv_to_world"] = mat4fToStr(Mat4f{1.0});
     }
 
     std::string to_string() override {
@@ -488,8 +489,7 @@ private:
             } else if (child_name == "transform") {
                 auto [transform, inv_transform] = parseTransform(child);
                 properties[name] = mat4fToStr(transform);
-                if (properties.contains("inv_" + name))
-                    throw std::runtime_error("Both " + name + " and inv_" + name + " are specified in the same transform block.");
+                // TODO: what if both name and inv_name are in the properties???
                 properties["inv_" + name] = mat4fToStr(inv_transform);
             } else {
                 throw std::runtime_error(std::string("Unknown property type: ") + child_name);

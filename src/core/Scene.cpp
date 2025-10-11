@@ -99,9 +99,9 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
 
             std::vector<Vec3f*> vertices;
             vertices.push_back(new Vec3f{-1.0, -1.0, 0.0});
-            vertices.push_back(new Vec3f{-1.0,  1.0, 0.0});
-            vertices.push_back(new Vec3f{ 1.0, -1.0, 0.0});
-            vertices.push_back(new Vec3f{ 1.0,  1.0, 0.0});
+            vertices.push_back(new Vec3f{-1.0, 1.0, 0.0});
+            vertices.push_back(new Vec3f{1.0, -1.0, 0.0});
+            vertices.push_back(new Vec3f{1.0, 1.0, 0.0});
             auto it = shape_desc->properties.find("to_world");
             if (it != shape_desc->properties.end()) {
                 auto to_world = strToMat4f(it->second);
@@ -110,7 +110,7 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
             }
             shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[0], vertices[2], vertices[1]}));
             shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[3], vertices[1], vertices[2]}));
-        
+
         } else {
             throw std::runtime_error("Unsupported shape type: " + shape_desc->type);
         }
@@ -353,6 +353,15 @@ Float Scene::pdf_nee(const Intersection& isc, const Vec3f& w) const {
     Float pdf = 1.0 / emitters.size();
     pdf /= traced_isc.shape->geometries.size();
     pdf /= traced_isc.geom->area();
+
+    // convert to solid angle measure
+    Float distance_sqrd = glm::length(traced_isc.position - isc.position);
+    distance_sqrd *= distance_sqrd;
+    Float abs_cos_theta = std::abs(glm::dot(traced_isc.normal, w));
+    if (abs_cos_theta <= Epsilon)
+        return 0.0;
+    pdf *= distance_sqrd / abs_cos_theta;
+    
     return pdf;
 }
 

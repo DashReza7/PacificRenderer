@@ -119,10 +119,7 @@ public:
             cos(theta)};
         Vec3f position = center + radius * normal;
         position = Vec3f{transform * Vec4f{position, 1.0}};
-        // calculate the true radius
-        Vec3f scaled_x = transform * Vec4f{1, 0, 0, 0};
-        Float R = radius * glm::length(scaled_x);
-        Float pdf = 1.0 / (4.0 * Pi * Sqr(R));
+        Float pdf = 1.0 / (4.0 * Pi * Sqr(radius_world));
 
         return {position, get_normal(position), pdf};
     }

@@ -6,6 +6,7 @@
 **TODO:**
 
 Urgent:
+ - add adaptive position based cosine weighted sampling
  - implement textures
  - Implement a logger with several log-levels
  - possible bug in BVH build (AABB of flat surfaces might be too thin)

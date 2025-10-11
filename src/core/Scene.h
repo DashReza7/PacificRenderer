@@ -13,7 +13,7 @@ class Scene {
 private:
     std::vector<Shape *> shapes{};
     BVHNode *bvh_root = nullptr;
-    AccelerationType accel_type = AccelerationType::NONE;
+    AccelerationType accel_type = AccelerationType::BVH;
     std::vector<Emitter *> emitters{};
 
     std::unordered_map<BSDFDesc *, BSDF *> load_bsdfs(const std::vector<BSDFDesc *> &bsdfs_desc);

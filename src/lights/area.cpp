@@ -39,7 +39,8 @@ public:
             bool is_hit = scene->ray_intersect(shadow_ray, tmp_isc);
             if (is_hit) {
                 // might be a false positive
-                if (tmp_isc.shape != shape || glm::length(tmp_isc.position - position) >= Epsilon)
+                // TODO: make this more robust
+                if (tmp_isc.shape != shape || glm::length(tmp_isc.position - position) >= 1e-2)
                     is_valid = false;
             }
         }
