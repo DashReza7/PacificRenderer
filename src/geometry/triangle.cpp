@@ -99,7 +99,9 @@ Geometry *createTriangle(const std::unordered_map<std::string, std::string> &pro
         } else if (key == "flip_normals") {
             flip_normals = (value == "true" || value == "1");
         } else if (key == "to_world" || key == "inv_to_world") {
-            // ignore. handled in Shape            
+            // ignore. handled in Shape
+        } else if (key == "filename") {
+            // ignore. handled in Shape
         } else {
             throw std::runtime_error("Unknown property '" + key + "' for triangle geometry.");
         }

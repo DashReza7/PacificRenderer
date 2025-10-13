@@ -18,7 +18,7 @@
 class Shape;
 class Geometry;
 
-bool load_mesh_from_file(const std::string &file_path, const Shape *parent_shape, std::vector<Geometry *> &output_mesh, std::vector<Vec3f *> &vertices, std::vector<Vec3f *> &normals, std::vector<Vec2f *> &texcoords);
+bool load_mesh_from_file(const std::string &file_path, const Shape *parent_shape, std::vector<Geometry *> &output_mesh, std::vector<Vec3f *> &vertices, std::vector<Vec3f *> &normals, std::vector<Vec2f *> &texcoords, const std::unordered_map<std::string, std::string> &properties);
 
 
 /// @brief A ray in 3D space, defined by an origin and a direction

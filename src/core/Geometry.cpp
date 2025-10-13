@@ -72,7 +72,7 @@ bool BVHNode::intersect(const Ray &ray, Intersection &isc) {
     }
 }
 
-bool load_mesh_from_file(const std::string &file_path, const Shape *parent_shape, std::vector<Geometry *> &output_mesh, std::vector<Vec3f *> &vertices, std::vector<Vec3f *> &normals, std::vector<Vec2f *> &texcoords) {
+bool load_mesh_from_file(const std::string &file_path, const Shape *parent_shape, std::vector<Geometry *> &output_mesh, std::vector<Vec3f *> &vertices, std::vector<Vec3f *> &normals, std::vector<Vec2f *> &texcoords, const std::unordered_map<std::string, std::string> &properties) {
     tinyobj::ObjReader obj_reader;
     if (!obj_reader.ParseFromFile(file_path)) {
         if (!obj_reader.Error().empty())
@@ -131,7 +131,7 @@ bool load_mesh_from_file(const std::string &file_path, const Shape *parent_shape
                 gctx.vn = {normals[normal_indices[0]], normals[normal_indices[1]], normals[normal_indices[2]]};
             if (texcoord_indices[0] != -1)
                 gctx.vt = {texcoords[texcoord_indices[0]], texcoords[texcoord_indices[1]], texcoords[texcoord_indices[2]]};
-            output_mesh.emplace_back(GeometryRegistry::createGeometry("triangle", {}, parent_shape, &gctx));
+            output_mesh.emplace_back(GeometryRegistry::createGeometry("triangle", properties, parent_shape, &gctx));
         } else {
             // Other polygons
             throw std::runtime_error("Quad not implemented");

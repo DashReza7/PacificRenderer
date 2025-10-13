@@ -1,7 +1,9 @@
 #include "core/Scene.h"
 
 #include "core/Registry.h"
+#include "happly.h"
 #include "utils/SceneParser.h"
+
 
 // BUG: memory leak for shapes, geometries, bsdfs, emitters, sensor
 
@@ -34,24 +36,99 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
             throw std::runtime_error("Shape missing BSDF");
         shape->bsdf = bsdfs_dict.at(shape_desc->bsdf);
 
-        if (shape_desc->type == "obj") {
+        if (shape_desc->type == "ply") {
+            // TODO: clear up memory
+            shape->type = Shape::Type::Mesh;
+            happly::PLYData mesh{(scene_file_path.parent_path() / shape_desc->properties["filename"]).string(), false};
+            auto element_names = mesh.getElementNames();
+            if (std::find(element_names.begin(), element_names.end(), "vertex") == element_names.end())
+                throw std::runtime_error("PLY mesh must have vertex elements");
+            if (std::find(element_names.begin(), element_names.end(), "face") == element_names.end())
+                throw std::runtime_error("PLY mesh must have face elements");
+            auto& vertex_element = mesh.getElement("vertex");
+            if (!mesh.getElement("vertex").hasProperty("x") || !mesh.getElement("vertex").hasProperty("y") || !mesh.getElement("vertex").hasProperty("z"))
+                throw std::runtime_error("PLY mesh vertex elements must have x, y, z properties");
+            auto vp_x = vertex_element.getProperty<Float>("x");
+            auto vp_y = vertex_element.getProperty<Float>("y");
+            auto vp_z = vertex_element.getProperty<Float>("z");
+            auto vn_x = vertex_element.hasProperty("nx") ? vertex_element.getProperty<Float>("nx") : std::vector<Float>{0};
+            auto vn_y = vertex_element.hasProperty("ny") ? vertex_element.getProperty<Float>("ny") : std::vector<Float>{0};
+            auto vn_z = vertex_element.hasProperty("nz") ? vertex_element.getProperty<Float>("nz") : std::vector<Float>{0};
+            auto vt_u = vertex_element.hasProperty("u") ? vertex_element.getProperty<Float>("u") : vertex_element.hasProperty("s") ? vertex_element.getProperty<Float>("s")
+                                                                                                                                   : std::vector<Float>{0};
+            auto vt_v = vertex_element.hasProperty("v") ? vertex_element.getProperty<Float>("v") : vertex_element.hasProperty("t") ? vertex_element.getProperty<Float>("t")
+                                                                                                                                   : std::vector<Float>{0};
+            std::vector<Vec3f*> vertices{};
+            std::vector<Vec3f*> normals{};
+            std::vector<Vec2f*> tex_coords{};
+
+            for (size_t i = 0; i < vp_x.size(); ++i)
+                vertices.push_back(new Vec3f{vp_x[i], vp_y[i], vp_z[i]});
+            for (size_t i = 0; i < vn_x.size(); ++i)
+                if (vn_x.size() != 0)
+                    normals.push_back(new Vec3f{vn_x[i], vn_y[i], vn_z[i]});
+            for (size_t i = 0; i < vt_u.size(); ++i)
+                if (vt_u.size() != 0)
+                    tex_coords.push_back(new Vec2f{vt_u[i], vt_v[i]});
+            // apply transform
+            Mat4f to_world = strToMat4f(shape_desc->properties["to_world"]);
+            Mat4f tsp_inv_to_world = glm::transpose(strToMat4f(shape_desc->properties["inv_to_world"]));
+            for (auto& vertex : vertices)
+                *vertex = Vec3f{to_world * Vec4f{*vertex, 1.0}};
+            for (auto& normal : normals)
+                *normal = glm::normalize(Vec3f{tsp_inv_to_world * Vec4f{*normal, 0.0}});
+            // process faces
+            auto &face_element = mesh.getElement("face");
+            if (!face_element.hasProperty("vertex_indices"))
+                throw std::runtime_error("PLY mesh face elements must have vertex_indices property");
+            auto face_vertex_indices = face_element.getListProperty<int>("vertex_indices");
+            for (const auto& face : face_vertex_indices) {
+                if (face.size() == 3) {
+                    GeometryCreationContext gctx{};
+                    gctx.vp = {vertices[face[0]], vertices[face[1]], vertices[face[2]]};
+                    if (normals.size() == vertices.size())
+                        gctx.vn = {normals[face[0]], normals[face[1]], normals[face[2]]};
+                    if (tex_coords.size() == vertices.size())
+                        gctx.vt = {tex_coords[face[0]], tex_coords[face[1]], tex_coords[face[2]]};
+                    shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", shape_desc->properties, shape, new GeometryCreationContext{gctx}));
+                } else if (face.size() == 4) {
+                    // quad -> 2 triangles
+                    GeometryCreationContext gctx1{};
+                    gctx1.vp = {vertices[face[0]], vertices[face[1]], vertices[face[2]]};
+                    GeometryCreationContext gctx2{};
+                    gctx2.vp = {vertices[face[0]], vertices[face[2]], vertices[face[3]]};
+                    if (normals.size() == vertices.size()) {
+                        gctx1.vn = {normals[face[0]], normals[face[1]], normals[face[2]]};
+                        gctx2.vn = {normals[face[0]], normals[face[2]], normals[face[3]]};
+                    }
+                    if (tex_coords.size() == vertices.size()) {
+                        gctx1.vt = {tex_coords[face[0]], tex_coords[face[1]], tex_coords[face[2]]};
+                        gctx2.vt = {tex_coords[face[0]], tex_coords[face[2]], tex_coords[face[3]]};
+                    }
+                    shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", shape_desc->properties, shape, &gctx1));
+                    shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", shape_desc->properties, shape, &gctx2));
+                } else {
+                    throw std::runtime_error("Only triangle and quad faces are supported in PLY mesh");
+                }
+            }
+        } else if (shape_desc->type == "obj") {
             // TODO: save vertices, normals, texcoords in the scene, and delete them at the end
             shape->type = Shape::Type::Mesh;
             std::vector<Vec3f*> vertices;
             std::vector<Vec3f*> normals;
             std::vector<Vec2f*> texcoords;
-            bool success = load_mesh_from_file((scene_file_path.parent_path() / shape_desc->properties["filename"]).string(), shape, shape->geometries, vertices, normals, texcoords);
+            bool success = load_mesh_from_file((scene_file_path.parent_path() / shape_desc->properties["filename"]).string(), shape, shape->geometries, vertices, normals, texcoords, shape_desc->properties);
             if (!success)
                 throw std::runtime_error("Failed to load OBJ mesh: " + shape_desc->properties["filename"]);
 
             // apply transform
             Mat4f to_world = strToMat4f(shape_desc->properties["to_world"]);
+            Mat4f tsp_inv_to_world = glm::transpose(strToMat4f(shape_desc->properties["inv_to_world"]));
             for (auto& vertex : vertices)
                 *vertex = Vec3f{to_world * Vec4f{*vertex, 1.0}};
             // use the inverse transpose of the upper-left 3x3 part of the matrix
-            // TODO: check for correctness
             for (auto& normal : normals)
-                *normal = glm::normalize(Vec3f{glm::transpose(glm::inverse(to_world)) * Vec4f{*normal, 0.0}});
+                *normal = glm::normalize(Vec3f{tsp_inv_to_world * Vec4f{*normal, 0.0}});
         } else if (shape_desc->type == "sphere") {
             shape->type = Shape::Type::Sphere;
             shape->geometries.push_back(GeometryRegistry::createGeometry("sphere", shape_desc->properties, shape, nullptr));
@@ -361,7 +438,7 @@ Float Scene::pdf_nee(const Intersection& isc, const Vec3f& w) const {
     if (abs_cos_theta <= Epsilon)
         return 0.0;
     pdf *= distance_sqrd / abs_cos_theta;
-    
+
     return pdf;
 }
 

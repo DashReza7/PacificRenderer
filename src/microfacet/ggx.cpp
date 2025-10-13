@@ -1,6 +1,7 @@
 #include "core/Microfacet.h"
 #include "core/Registry.h"
 
+// implementations partially based on PBRT
 class GGXDistribution : public Microfacet {
 private:
     Float alpha_u, alpha_v;
