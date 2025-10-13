@@ -18,7 +18,8 @@ public:
         delete mf_dist;
     }
 
-    Vec3f eval(const Vec3f &wi, const Vec3f &wo) const override {
+    Vec3f eval(const Intersection &isc, const Vec3f &wo) const override {
+        Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         bool is_reflect = wi.z * wo.z >= 0.0;
         Float etap = 1.0;  // eta_o / eta_i
         if (!is_reflect)
@@ -57,7 +58,8 @@ public:
         }
     }
 
-    Float pdf(const Vec3f &wi, const Vec3f &wo) const override {
+    Float pdf(const Intersection &isc, const Vec3f &wo) const override {
+        Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         bool is_reflect = wi.z * wo.z >= 0.0;
         Float etap = 1.0;  // eta_o / eta_i
         if (!is_reflect)
@@ -91,7 +93,8 @@ public:
         }
     }
 
-    std::pair<BSDFSample, Vec3f> sample(const Vec3f &wi, Float sample1, const Vec2f &sample2) const override {
+    std::pair<BSDFSample, Vec3f> sample(const Intersection &isc, Float sample1, const Vec2f &sample2) const override {
+        Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         if (std::abs(wi.z) <= Epsilon)
             return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
 
@@ -152,7 +155,7 @@ public:
 };
 
 // --------------------------- Registry functions ---------------------------
-BSDF *createRoughDielectricBSDF(const std::unordered_map<std::string, std::string> &properties) {
+BSDF *createRoughDielectricBSDF(const std::unordered_map<std::string, std::string> &properties, const std::unordered_map<std::string, const Texture*>& textures) {
     Float int_ior = 1.5046;    // bk27
     Float ext_ior = 1.000277;  // air
     Float alpha_u = 0.1, alpha_v = 0.1;

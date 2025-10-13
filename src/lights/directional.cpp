@@ -13,7 +13,7 @@ public:
     DirectionalLight(const Vec3f &irradiance, const Vec3f &direction) : irradiance(irradiance), direction(direction) {}
 
     
-    virtual Vec3f eval(const Vec3f &shading_posn) const override {
+    virtual Vec3f eval(const Intersection &isc) const override {
         return irradiance;
     }
 
@@ -32,7 +32,7 @@ public:
 };
 
 // --------------------------- Registry functions ---------------------------
-Emitter *createDirectionalLight(const std::unordered_map<std::string, std::string> &properties) {
+Emitter *createDirectionalLight(const std::unordered_map<std::string, std::string> &properties, const std::unordered_map<std::string, const Texture*>& textures) {
     Vec3f irradiance{1.0, 1.0, 1.0};
     Vec3f direction{0.0, 0.0, 1.0};
 

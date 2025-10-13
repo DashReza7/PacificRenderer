@@ -16,8 +16,9 @@ private:
     AccelerationType accel_type = AccelerationType::BVH;
     std::vector<Emitter *> emitters{};
 
-    std::unordered_map<BSDFDesc *, BSDF *> load_bsdfs(const std::vector<BSDFDesc *> &bsdfs_desc);
-    std::unordered_map<EmitterDesc *, Emitter *> load_emitters(const std::vector<EmitterDesc *> &emitters_desc);
+    std::unordered_map<const TextureDesc *, Texture *> load_textures(const std::vector<const TextureDesc*> &texs_desc);
+    std::unordered_map<BSDFDesc *, BSDF *> load_bsdfs(const std::vector<BSDFDesc *> &bsdfs_desc, const std::unordered_map<const TextureDesc *, Texture *> &texs_desc);
+    std::unordered_map<EmitterDesc *, Emitter *> load_emitters(const std::vector<EmitterDesc *> &emitters_desc, const std::unordered_map<const TextureDesc *, Texture *> &texs_desc);
     void load_shapes(const std::vector<ShapeDesc *> shapes_desc, const std::unordered_map<BSDFDesc *, BSDF *> &bsdfs_dict, const std::unordered_map<EmitterDesc *, Emitter *> &emitters_dict);
     // TODO: right now, only perspective pinhole camera
     void load_sensor(const SensorDesc *sensor_desc);

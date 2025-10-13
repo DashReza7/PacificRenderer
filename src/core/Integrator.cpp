@@ -105,9 +105,8 @@ Float SamplingIntegrator::get_mis_weight_nee(const Intersection &isc, const Emit
     if ((emitter_sample.emitter_flags & EmitterFlags::DELTA_DIRECTION) != EmitterFlags::NONE || n_bsdf_samples == 0)
         return 1.0;
     if (!isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
-        Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);
         Vec3f wo_local = worldToLocal(-emitter_sample.direction, isc.normal);
-        Float bsdf_sampling_pdf = isc.shape->bsdf->pdf(wi_local, wo_local);
+        Float bsdf_sampling_pdf = isc.shape->bsdf->pdf(isc, wo_local);
         if (bsdf_sampling_pdf < 0.0)
             throw std::runtime_error("Negative BSDF pdf in MIS weight computation");
 

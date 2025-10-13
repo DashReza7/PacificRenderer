@@ -26,7 +26,9 @@ public:
     // Remark: the returned wm is in the upper hemisphere (wm.z >= 0)
     // w will be inverted if it is in the lower hemisphere
     Vec3f sample_wm(const Vec3f &w, const Vec2f &sample) const override {
+        // TODO:
         throw std::runtime_error("BeckmannDistribution is not implemented yet");
+
         Vec3f omega{w};
         if (w.z < 0.0)
             omega = -omega;

@@ -44,4 +44,3 @@ struct GaussianFilterRegistrar {
 
 static GaussianFilterRegistrar registrar;
 }  // namespace
-

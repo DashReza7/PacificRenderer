@@ -16,18 +16,19 @@ class Geometry;
 class Shape;
 struct GeometryCreationContext;
 class Microfacet;
+class Texture;
 
 
 class BSDFRegistry {
 public:
     // Function signature for BSDF creators
-    using BSDFCreator = std::function<BSDF*(const std::unordered_map<std::string, std::string>&)>;
+    using BSDFCreator = std::function<BSDF*(const std::unordered_map<std::string, std::string>&, const std::unordered_map<std::string, const Texture*>&)>;
     
     // Register a BSDF type with its creator function
     static void registerBSDF(const std::string& type, BSDFCreator creator);
     
     // Create a BSDF by type name
-    static BSDF* createBSDF(const std::string& type, const std::unordered_map<std::string, std::string>& properties);
+    static BSDF* createBSDF(const std::string& type, const std::unordered_map<std::string, std::string>& properties, const std::unordered_map<std::string, const Texture*>& textures);
     
     // List all registered types
     static std::vector<std::string> getRegisteredTypes();
@@ -63,13 +64,13 @@ private:
 class EmitterRegistry {
 public:
     // Function signature for Emitter creators
-    using EmitterCreator = std::function<Emitter*(const std::unordered_map<std::string, std::string>&)>;
+    using EmitterCreator = std::function<Emitter*(const std::unordered_map<std::string, std::string>&, const std::unordered_map<std::string, const Texture*>&)>;
     
     // Register a Emitter type with its creator function
     static void registerEmitter(const std::string& type, EmitterCreator creator);
     
     // Create a Emitter by type name
-    static Emitter* createEmitter(const std::string& type, const std::unordered_map<std::string, std::string>& properties);
+    static Emitter* createEmitter(const std::string& type, const std::unordered_map<std::string, std::string>& properties, const std::unordered_map<std::string, const Texture*>& textures);
     
     // List all registered types
     static std::vector<std::string> getRegisteredTypes();
@@ -140,6 +141,27 @@ public:
 private:
     static std::unordered_map<std::string, MicrofacetCreator>& getCreators() {
         static std::unordered_map<std::string, MicrofacetCreator> creators;
+        return creators;
+    }
+};
+
+class TextureRegistry {
+public:
+    // Function signature for Texture creators
+    using TextureCreator = std::function<Texture*(const std::unordered_map<std::string, std::string>&)>;
+    
+    // Register a Texture type with its creator function
+    static void registerTexture(const std::string& type, TextureCreator creator);
+
+    // Create a Texture by type name
+    static Texture* createTexture(const std::string& type, const std::unordered_map<std::string, std::string>& properties);
+
+    // List all registered types
+    static std::vector<std::string> getRegisteredTypes();
+
+private:
+    static std::unordered_map<std::string, TextureCreator>& getCreators() {
+        static std::unordered_map<std::string, TextureCreator> creators;
         return creators;
     }
 };

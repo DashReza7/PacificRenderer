@@ -40,6 +40,9 @@ add_executable(${PROJECT_NAME}
     "src/bsdf/roughdielectric.cpp"
     "src/microfacet/ggx.cpp"
     "src/microfacet/beckmann.cpp"
+    "src/texture/bitmap.cpp"
+    "src/texture/checkerboard.cpp"
+    "src/texture/constant.cpp"
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE 

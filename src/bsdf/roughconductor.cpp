@@ -18,7 +18,8 @@ public:
         delete mf_dist;
     }
 
-    Vec3f eval(const Vec3f &wi, const Vec3f &wo) const override {
+    Vec3f eval(const Intersection &isc, const Vec3f &wo) const override {
+        Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         if (wi.z <= 0.0 && !has_flag(BSDFFlags::TwoSided))
             return Vec3f{0.0};
         if (wi.z * wo.z <= 0.0)
@@ -35,7 +36,8 @@ public:
             * std::abs(cos_theta(wo));
     }
 
-    Float pdf(const Vec3f &wi, const Vec3f &wo) const override {
+    Float pdf(const Intersection &isc, const Vec3f &wo) const override {
+        Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         if (wi.z <= 0.0 && !has_flag(BSDFFlags::TwoSided))
             return 0.0;
         if (wi.z * wo.z <= 0.0)
@@ -50,7 +52,8 @@ public:
         return mf_dist->pdf(wi, wm) / (4.0 * glm::dot(wo, wm));
     }
 
-    std::pair<BSDFSample, Vec3f> sample(const Vec3f &wi, Float sample1, const Vec2f &sample2) const override {
+    std::pair<BSDFSample, Vec3f> sample(const Intersection &isc, Float sample1, const Vec2f &sample2) const override {
+        Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         if (wi.z <= 0.0 && !has_flag(BSDFFlags::TwoSided))
             return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
 
@@ -58,8 +61,8 @@ public:
         wm = wm * glm::sign(wi.z);
         Vec3f wo = reflect(wi, wm);
 
-        Float pdf_val = pdf(wi, wo);
-        Vec3f bsdf_val = eval(wi, wo);
+        Float pdf_val = pdf(isc, wo);
+        Vec3f bsdf_val = eval(isc, wo);
         return {BSDFSample{wo, pdf_val, 1.0}, bsdf_val};
     }
 
@@ -71,7 +74,7 @@ public:
 };
 
 // --------------------------- Registry functions ---------------------------
-BSDF *createRoughConductorBSDF(const std::unordered_map<std::string, std::string> &properties) {
+BSDF *createRoughConductorBSDF(const std::unordered_map<std::string, std::string> &properties, const std::unordered_map<std::string, const Texture*>& textures) {
 
     Vec3f eta{0.0, 0.0, 0.0};
     Vec3f k{1.0, 1.0, 1.0};

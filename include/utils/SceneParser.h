@@ -52,8 +52,27 @@ struct IntegratorDesc : public SceneObjectDesc {
     }
 };
 
+struct TextureDesc : public SceneObjectDesc {
+    std::string id;
+
+    std::string to_string() override {
+        std::ostringstream oss;
+        oss << "(TextureDesc)\n";
+        oss << "type: " << type << "\n";
+        if (properties.size() > 0) {
+            oss << "properties: {\n";
+            for (const auto [name, value] : properties)
+                oss << "    name: " << name << ", value: " << value << "\n";
+            oss << "}\n";
+        }
+        if (id.length() != 0) oss << "id: " << id;
+        return oss.str();
+    }
+};
+
 struct BSDFDesc : public SceneObjectDesc {
     std::string id;
+    std::unordered_map<std::string, const TextureDesc*> textures;
 
     std::string to_string() override {
         std::ostringstream oss;
@@ -71,6 +90,8 @@ struct BSDFDesc : public SceneObjectDesc {
 };
 
 struct EmitterDesc : public SceneObjectDesc {
+    std::unordered_map<std::string, const TextureDesc*> textures;
+
     std::string to_string() override {
         std::ostringstream oss;
         oss << "(EmitterDesc)\n";
@@ -157,6 +178,7 @@ struct SensorDesc : public SceneObjectDesc {
         delete sampler;
     }
 };
+
 struct ShapeDesc : public SceneObjectDesc {
     BSDFDesc* bsdf = nullptr;
     EmitterDesc* emitter = nullptr;
@@ -187,6 +209,7 @@ struct SceneDesc {
     SensorDesc* sensor;
     std::vector<ShapeDesc*> shapes;
     std::vector<BSDFDesc*> bsdfs;
+    std::vector<const TextureDesc*> textures;
     std::vector<EmitterDesc*> emitters;
 
     std::string to_string() {
@@ -248,6 +271,7 @@ public:
 private:
     std::unordered_map<std::string, std::string> defaults;
     std::unordered_map<std::string, BSDFDesc*> shared_bsdfs;
+    std::unordered_map<std::string, TextureDesc*> shared_textures;
 
     /// @brief utility function for parsing a node containing a vector type(point, rgb, vector, etc.) `value` or `x`, `r`, etc.
     /// @param special_char the special character of that vector type. e.g. `point` and `vector` have "x", `rgb` has "r"
@@ -296,26 +320,36 @@ private:
         for (pugi::xml_node child : scene_node.children()) {
             std::string node_name = child.name();
 
-            if (node_name == "integrator")
+            if (node_name == "integrator") {
                 scene.integrator = parseIntegrator(child);
-            else if (node_name == "sensor")
+            } else if (node_name == "sensor") {
                 scene.sensor = parseSensor(child);
-            else if (node_name == "shape") {
+            } else if (node_name == "shape") {
                 ShapeDesc* shape_desc = parseShape(child);
                 scene.shapes.push_back(shape_desc);
                 if (shape_desc->emitter != nullptr)
                     scene.emitters.push_back(shape_desc->emitter);
                 if (shape_desc->bsdf != nullptr && std::find(scene.bsdfs.begin(), scene.bsdfs.end(), shape_desc->bsdf) == scene.bsdfs.end())
                     scene.bsdfs.push_back(shape_desc->bsdf);
-            } else if (node_name == "bsdf")
-                scene.bsdfs.push_back(parseBSDF(child));
-            else if (node_name == "emitter")
-                scene.emitters.push_back(parseEmitter(child));
-            else if (node_name == "default")
+            } else if (node_name == "bsdf") {
+                BSDFDesc* bsdf_desc = parseBSDF(child);
+                scene.bsdfs.push_back(bsdf_desc);
+                for (const auto& [name, texture] : bsdf_desc->textures)
+                    if (std::find(scene.textures.begin(), scene.textures.end(), texture) == scene.textures.end())
+                        scene.textures.push_back(texture);
+            } else if (node_name == "texture") {
+                scene.textures.push_back(parseTexture(child));
+            } else if (node_name == "emitter") {
+                EmitterDesc* emitter_desc = parseEmitter(child);
+                scene.emitters.push_back(emitter_desc);
+                for (const auto& [name, texture] : emitter_desc->textures)
+                    if (std::find(scene.textures.begin(), scene.textures.end(), texture) == scene.textures.end())
+                        scene.textures.push_back(texture);
+            } else if (node_name == "default") {
                 this->add_default(child);
-            else
-                throw std::runtime_error(std::string("Unknown scene object: ") +
-                                         node_name);
+            } else {
+                throw std::runtime_error(std::string("Unknown scene object: ") + node_name);
+            }
         }
 
         return scene;
@@ -376,15 +410,30 @@ private:
         return shape;
     }
 
+    TextureDesc* parseTexture(const pugi::xml_node& node) {
+        auto texture = new TextureDesc{};
+        texture->type = get_default(node.attribute("type").value());
+
+        parseProperties(node, texture->properties);
+
+        if (node.attribute("id")) {
+            texture->id = node.attribute("id").value();
+            if (shared_textures.contains(texture->id))
+                throw std::runtime_error("Duplicate texture id: " + texture->id);
+            shared_textures[texture->id] = texture;
+        }
+
+        return texture;
+    }
+
     BSDFDesc* parseBSDF(const pugi::xml_node& node, bool allow_twosided = true) {
         auto bsdf = new BSDFDesc{};
         bsdf->type = get_default(node.attribute("type").value());
 
         // TODO: handle resource deallocation on errors
-        // TODO: Right now only same BSDF is supported for twosided
         if (bsdf->type == "twosided") {
             if (std::distance(node.children().begin(), node.children().end()) != 1)
-                throw std::runtime_error(
+                throw std::runtime_error(  // TODO
                     "A twosided BSDF must have exactly one child BSDF. Two separate BSDFs are not yet supported.");
 
             if (!allow_twosided)
@@ -396,13 +445,32 @@ private:
             bsdf->properties["twosided"] = "true";
             if (node.attribute("id")) {
                 bsdf->id = node.attribute("id").value();
+                if (shared_bsdfs.contains(bsdf->id))
+                    throw std::runtime_error("Duplicate BSDF id: " + bsdf->id);
                 shared_bsdfs[bsdf->id] = bsdf;
             }
         } else {
-            parseProperties(node, bsdf->properties, {"id"});
+            parseProperties(node, bsdf->properties, {"id", "texture", "ref"});
             if (node.attribute("id")) {
                 bsdf->id = node.attribute("id").value();
+                if (shared_bsdfs.contains(bsdf->id))
+                    throw std::runtime_error("Duplicate BSDF id: " + bsdf->id);
                 shared_bsdfs[bsdf->id] = bsdf;
+            }
+            // parse textures
+            for (pugi::xml_node child : node.children()) {
+                std::string child_name = child.name();
+                if (child_name == "texture") {
+                    if (!child.attribute("name"))
+                        throw std::runtime_error("Texture inside BSDF doesn't have a name.");
+                    bsdf->textures[child.attribute("name").value()] = parseTexture(child);
+                } else if (child_name == "ref") {
+                    if (!child.attribute("name"))
+                        throw std::runtime_error("Ref inside BSDF doesn't have a name.");
+                    if (!shared_textures.contains(child.attribute("id").value()))
+                        throw std::runtime_error("Referenced texture does not exist.");
+                    bsdf->textures[child.attribute("name").value()] = shared_textures[child.attribute("id").value()];
+                }
             }
         }
 
@@ -413,7 +481,24 @@ private:
         auto emitter = new EmitterDesc{};
         emitter->type = get_default(node.attribute("type").value());
 
-        parseProperties(node, emitter->properties);
+        parseProperties(node, emitter->properties, {"texture"});
+
+        // parse textures
+        for (pugi::xml_node child : node.children()) {
+            std::string child_name = child.name();
+            if (child_name == "texture") {
+                if (!child.attribute("name"))
+                    throw std::runtime_error("Texture inside BSDF doesn't have a name.");
+                emitter->textures[child.attribute("name").value()] = parseTexture(child);
+            } else if (child_name == "ref") {
+                if (!child.attribute("name"))
+                    throw std::runtime_error("Ref inside BSDF doesn't have a name.");
+                if (!shared_textures.contains(child.attribute("id").value()))
+                    throw std::runtime_error("Referenced texture does not exist.");
+                emitter->textures[child.attribute("name").value()] = shared_textures[child.attribute("id").value()];
+            }
+        }
+
         return emitter;
     }
 
@@ -451,7 +536,7 @@ private:
         sampler->type = get_default(node.attribute("type").value());
 
         sampler->properties["seed"] = "0";
-        
+
         parseProperties(node, sampler->properties);
         return sampler;
     }
@@ -530,7 +615,7 @@ private:
                 // matrix is column-major
                 for (int i = 0; i < 16; ++i)
                     iss >> matrix[i % 4][i / 4];
-                    
+
                 trafo = matrix * trafo;
                 inv_trafo = inv_trafo * glm::inverse(matrix);
             } else if (child_name == "lookat") {

@@ -4,12 +4,12 @@
 #include "happly.h"
 #include "utils/SceneParser.h"
 
-
 // BUG: memory leak for shapes, geometries, bsdfs, emitters, sensor
 
 void Scene::load_scene(const SceneDesc& scene_desc) {
-    auto bsdfs_dict = load_bsdfs(scene_desc.bsdfs);
-    auto emitters_dict = load_emitters(scene_desc.emitters);
+    auto texs_dict = load_textures(scene_desc.textures);
+    auto bsdfs_dict = load_bsdfs(scene_desc.bsdfs, texs_dict);
+    auto emitters_dict = load_emitters(scene_desc.emitters, texs_dict);
 
     load_shapes(scene_desc.shapes, bsdfs_dict, emitters_dict);
     bvh_root = new BVHNode{};
@@ -18,15 +18,42 @@ void Scene::load_scene(const SceneDesc& scene_desc) {
     load_sensor(scene_desc.sensor);
 }
 
-std::unordered_map<BSDFDesc*, BSDF*> Scene::load_bsdfs(const std::vector<BSDFDesc*>& bsdfs_desc) {
+std::unordered_map<const TextureDesc*, Texture*> Scene::load_textures(const std::vector<const TextureDesc*>& texs_desc) {
+    std::unordered_map<const TextureDesc*, Texture*> textures{};
+    for (const auto& tex_desc : texs_desc) {
+        textures[tex_desc] = TextureRegistry::createTexture(tex_desc->type, tex_desc->properties);
+    }
+
+    return textures;
+}
+
+std::unordered_map<BSDFDesc*, BSDF*> Scene::load_bsdfs(const std::vector<BSDFDesc*>& bsdfs_desc, const std::unordered_map<const TextureDesc*, Texture*>& texs_desc) {
     std::unordered_map<BSDFDesc*, BSDF*> bsdfs{};
     for (const auto& bsdf_desc : bsdfs_desc) {
-        BSDF* bsdf = BSDFRegistry::createBSDF(bsdf_desc->type, bsdf_desc->properties);
+        std::unordered_map<std::string, const Texture*> textures{};
+        for (const auto& [name, tex_desc] : bsdf_desc->textures)
+            textures[name] = texs_desc.at(tex_desc);
 
+        BSDF* bsdf = BSDFRegistry::createBSDF(bsdf_desc->type, bsdf_desc->properties, textures);
         bsdfs[bsdf_desc] = bsdf;
     }
 
     return bsdfs;
+}
+
+std::unordered_map<EmitterDesc*, Emitter*> Scene::load_emitters(const std::vector<EmitterDesc*>& emitters_desc, const std::unordered_map<const TextureDesc*, Texture*>& texs_desc) {
+    std::unordered_map<EmitterDesc*, Emitter*> emitters_dict{};
+    for (const auto& emitter_desc : emitters_desc) {
+        std::unordered_map<std::string, const Texture*> textures{};
+        for (const auto& [name, tex_desc] : emitter_desc->textures)
+            textures[name] = texs_desc.at(tex_desc);
+
+        Emitter* emitter = EmitterRegistry::createEmitter(emitter_desc->type, emitter_desc->properties, textures);
+        emitters.push_back(emitter);
+        emitters_dict[emitter_desc] = emitter;
+    }
+
+    return emitters_dict;
 }
 
 void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::unordered_map<BSDFDesc*, BSDF*>& bsdfs_dict, const std::unordered_map<EmitterDesc*, Emitter*>& emitters_dict) {
@@ -78,7 +105,7 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
             for (auto& normal : normals)
                 *normal = glm::normalize(Vec3f{tsp_inv_to_world * Vec4f{*normal, 0.0}});
             // process faces
-            auto &face_element = mesh.getElement("face");
+            auto& face_element = mesh.getElement("face");
             if (!face_element.hasProperty("vertex_indices"))
                 throw std::runtime_error("PLY mesh face elements must have vertex_indices property");
             auto face_vertex_indices = face_element.getListProperty<int>("vertex_indices");
@@ -200,17 +227,6 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
 
         shapes.push_back(shape);
     }
-}
-
-std::unordered_map<EmitterDesc*, Emitter*> Scene::load_emitters(const std::vector<EmitterDesc*>& emitters_desc) {
-    std::unordered_map<EmitterDesc*, Emitter*> emitters_dict{};
-    for (const auto& emitter_desc : emitters_desc) {
-        Emitter* emitter = EmitterRegistry::createEmitter(emitter_desc->type, emitter_desc->properties);
-        emitters.push_back(emitter);
-        emitters_dict[emitter_desc] = emitter;
-    }
-
-    return emitters_dict;
 }
 
 void Scene::load_sensor(const SensorDesc* sensor_desc) {

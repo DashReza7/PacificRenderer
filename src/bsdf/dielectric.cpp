@@ -9,15 +9,16 @@ public:
 
     SmoothDielectricBSDF(BSDFFlags flags, Float eta) : BSDF(flags), eta(eta) {}
 
-    Vec3f eval(const Vec3f &wi, const Vec3f &wo) const override {
+    Vec3f eval(const Intersection &isc, const Vec3f &wo) const override {
         return Vec3f{0.0};
     }
 
-    Float pdf(const Vec3f &wi, const Vec3f &wo) const override {
+    Float pdf(const Intersection &isc, const Vec3f &wo) const override {
         return 0.0;
     }
 
-    std::pair<BSDFSample, Vec3f> sample(const Vec3f &wi, Float sample1, const Vec2f &sample2) const override {
+    std::pair<BSDFSample, Vec3f> sample(const Intersection &isc, Float sample1, const Vec2f &sample2) const override {
+        Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         Float cos_theta_i = wi.z;
         Vec3f effective_normal = cos_theta_i >= 0 ? Vec3f{0, 0, 1} : Vec3f{0, 0, -1};
         // eta_t / eta_i
@@ -50,7 +51,7 @@ public:
 };
 
 // --------------------------- Registry functions ---------------------------
-BSDF *createSmoothDielectricBSDF(const std::unordered_map<std::string, std::string> &properties) {
+BSDF *createSmoothDielectricBSDF(const std::unordered_map<std::string, std::string> &properties, const std::unordered_map<std::string, const Texture*>& textures) {
     Float int_ior = 1.5046;    // bk27
     Float ext_ior = 1.000277;  // air
 

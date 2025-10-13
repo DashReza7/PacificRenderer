@@ -33,11 +33,11 @@ BSDFFlags &operator|=(BSDFFlags &a, BSDFFlags b);
 BSDFFlags &operator&=(BSDFFlags &a, BSDFFlags b);
 
 /// @brief Compute the Fresnel reflection coefficient
-/// @param cos_theta_i Incoming angle cosine.
+/// @param cos_theta_i Incoming angle cosine. (the angle between the intersection direction(wi) and the surface normal pointing towards the incoming medium)
 /// @param eta Relative ior (eta_t over eta_i)
 Float fresnelReflection(Float cos_theta_i, Float eta);
 /// @brief Compute the Fresnel reflection coefficient
-/// @param cos_theta_i Incoming angle cosine, should be positive
+/// @param cos_theta_i Incoming angle cosine. MUST be positive
 /// @param eta Relative ior (eta_t over eta_i)
 Float fresnelComplex(Float cos_theta_i, std::complex<Float> eta);
 Vec3f fresnelComplex(Float cos_theta_i, const Vec3f &eta, const Vec3f &k);
@@ -55,18 +55,18 @@ public:
     /// @param sample1 1D random sample in [0,1). Used for selecting multiple lobes in mixture BSDFs
     /// @param sample2 2D random sample in [0,1)^2
     /// @return BSDFSample and the BSDF value(RGB). the sample_eval accounts for the cosine foreshortening term if needed. (i.e. not in delta BSDFs)
-    virtual std::pair<BSDFSample, Vec3f> sample(const Vec3f &wi, Float sample1, const Vec2f &sample2) const = 0;
+    virtual std::pair<BSDFSample, Vec3f> sample(const Intersection &isc, Float sample1, const Vec2f &sample2) const = 0;
 
     /// @brief Evaluate the BSDF
     /// @param wi Incoming direction in local space (z is the normal direction)
     /// @param wo Outgoing direction in local space (z is the normal direction)
     /// @return BSDF value. the return value accounts for the cosine foreshortening term if needed. (i.e. not in delta BSDFs)
-    virtual Vec3f eval(const Vec3f &wi, const Vec3f &wo) const = 0;
+    virtual Vec3f eval(const Intersection &isc, const Vec3f &wo) const = 0;
 
     /// @brief Evaluate the PDF of the BSDF sample
     /// @param wi Incoming direction in local space (z is the normal direction)
     /// @param wo Outgoing direction in local space (z is the normal direction)
-    virtual Float pdf(const Vec3f &wi, const Vec3f &wo) const = 0;
+    virtual Float pdf(const Intersection &isc, const Vec3f &wo) const = 0;
 
     bool has_flag(BSDFFlags flag) const {
         return (flags & flag) != BSDFFlags::None;

@@ -39,7 +39,7 @@ public:
 
     /// Returns the radiance to the shading point.
     /// Remark: this function does not account for occlusions
-    virtual Vec3f eval(const Vec3f &shading_posn) const = 0;
+    virtual Vec3f eval(const Intersection &isc) const = 0;
 
     /// Used for NEE. Returned pdf is in solid angle measure(or 1 for Delta light sources)
     virtual EmitterSample sampleLi(const Scene *scene, const Intersection &isc, const Vec3f &sample) const = 0;

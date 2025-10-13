@@ -25,7 +25,7 @@ public:
         // ----------------------- Visible emitters -----------------------
 
         if (isc.shape->emitter != nullptr && glm::dot(isc.normal, ray.d) < 0.0 && !hide_emitters)
-            radiance += isc.shape->emitter->eval(isc.position);
+            radiance += isc.shape->emitter->eval(isc);
 
         // ----------------------- Emitter sampling -----------------------
 
@@ -36,8 +36,7 @@ public:
                     EmitterSample emitter_sample = scene->sample_emitter(isc, sampler->get_1D(), sampler->get_3D());
                     if (emitter_sample.is_visible) {
                         Vec3f wo_local = worldToLocal(-emitter_sample.direction, isc.normal);
-                        Vec3f wi_local = worldToLocal(isc.dirn, isc.normal);
-                        Vec3f bsdf_value = isc.shape->bsdf->eval(wi_local, wo_local);
+                        Vec3f bsdf_value = isc.shape->bsdf->eval(isc, wo_local);
                         if (bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
                             throw std::runtime_error("BSDF eval returned non-positive value in DirectLightingIntegrator");
 
@@ -52,7 +51,7 @@ public:
         Float bsdf_weight = bsdf_samples > 0 ? 1.0 / Float(bsdf_samples) : 0.0;
         if (isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) || glm::dot(isc.normal, isc.dirn) > 0.0 || isc.shape->bsdf->has_flag(BSDFFlags::PassThrough)) {
             for (size_t i = 0; i < bsdf_samples; i++) {
-                auto [bsdf_sample, bsdf_value] = isc.shape->bsdf->sample(worldToLocal(isc.dirn, isc.normal), sampler->get_1D(), sampler->get_2D());
+                auto [bsdf_sample, bsdf_value] = isc.shape->bsdf->sample(isc, sampler->get_1D(), sampler->get_2D());
                 if (bsdf_sample.pdf < 0.0 || bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
                     throw std::runtime_error("damn. pdf: " + std::to_string(bsdf_sample.pdf) + ", bsdf_value: " + std::to_string(bsdf_value.x) + ", " + std::to_string(bsdf_value.y) + ", " + std::to_string(bsdf_value.z));
                 if (bsdf_sample.pdf <= Epsilon || glm::length(bsdf_value) <= Epsilon)
@@ -67,7 +66,7 @@ public:
                     continue;
 
                 Float mis_weight = get_mis_weight_bsdf(scene, isc, bsdf_sample, emitter_samples);
-                radiance += mis_weight * bsdf_weight * tmp_isc.shape->emitter->eval(isc.position) * bsdf_value / bsdf_sample.pdf;
+                radiance += mis_weight * bsdf_weight * tmp_isc.shape->emitter->eval(isc) * bsdf_value / bsdf_sample.pdf;
             }
         }
 

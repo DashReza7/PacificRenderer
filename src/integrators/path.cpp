@@ -29,7 +29,7 @@ public:
         if (!is_hit)
             return Vec3f{0.0};  // TODO: implement environment light sampling
         if (curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_isc.dirn) > 0.0)
-            radiance += throughput * curr_isc.shape->emitter->eval(curr_isc.position);
+            radiance += throughput * curr_isc.shape->emitter->eval(curr_isc);
 
         for (int depth = 1; depth < max_depth || max_depth == -1; depth++) {
             if (!is_hit)  // TODO: implement environment light sampling
@@ -42,8 +42,7 @@ public:
                     EmitterSample emitter_sample = scene->sample_emitter(curr_isc, sampler->get_1D(), sampler->get_3D());
                     if (emitter_sample.is_visible) {
                         Vec3f wo_local = worldToLocal(-emitter_sample.direction, curr_isc.normal);
-                        Vec3f wi_local = worldToLocal(curr_isc.dirn, curr_isc.normal);
-                        Vec3f bsdf_value = curr_isc.shape->bsdf->eval(wi_local, wo_local);
+                        Vec3f bsdf_value = curr_isc.shape->bsdf->eval(curr_isc, wo_local);
                         if (bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
                             throw std::runtime_error("BSDF eval returned non-positive value in DirectLightingIntegrator");
 
@@ -55,7 +54,7 @@ public:
 
             // ------------------------ BSDF sampling -------------------------
 
-            auto [bsdf_sample, bsdf_value] = curr_isc.shape->bsdf->sample(worldToLocal(curr_isc.dirn, curr_isc.normal), sampler->get_1D(), sampler->get_2D());
+            auto [bsdf_sample, bsdf_value] = curr_isc.shape->bsdf->sample(curr_isc, sampler->get_1D(), sampler->get_2D());
             if (bsdf_sample.pdf < 0.0 || bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
                 throw std::runtime_error("damn. pdf: " + std::to_string(bsdf_sample.pdf) + ", bsdf_value: " + std::to_string(bsdf_value.x) + ", " + std::to_string(bsdf_value.y) + ", " + std::to_string(bsdf_value.z));
             if (bsdf_sample.pdf <= Epsilon || glm::length(bsdf_value) <= Epsilon)
@@ -67,7 +66,7 @@ public:
             curr_ray = Ray{curr_isc.position + sign(glm::dot(localToWorld(bsdf_sample.wo, curr_isc.normal), curr_isc.normal)) * curr_isc.normal * Epsilon, localToWorld(bsdf_sample.wo, curr_isc.normal), Epsilon, 1e4};
             is_hit = scene->ray_intersect(curr_ray, curr_isc);
             if (is_hit && curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_ray.d) < 0.0)
-                radiance += throughput * curr_isc.shape->emitter->eval(curr_isc.position);
+                radiance += throughput * curr_isc.shape->emitter->eval(curr_isc);
 
             // do RussianRoulette
             if (depth + 1 >= rr_depth) {

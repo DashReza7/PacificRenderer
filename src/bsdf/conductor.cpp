@@ -9,15 +9,16 @@ public:
 
     SmoothConductorBSDF(BSDFFlags flags, const Vec3f &eta, const Vec3f &k) : BSDF(flags), eta(eta), k(k) {}
 
-    Vec3f eval(const Vec3f &wi, const Vec3f &wo) const override {
+    Vec3f eval(const Intersection &isc, const Vec3f &wo) const override {
         return Vec3f{0.0};
     }
 
-    Float pdf(const Vec3f &wi, const Vec3f &wo) const override {
+    Float pdf(const Intersection &isc, const Vec3f &wo) const override {
         return 0.0;
     }
 
-    std::pair<BSDFSample, Vec3f> sample(const Vec3f &wi, Float sample1, const Vec2f &sample2) const override {
+    std::pair<BSDFSample, Vec3f> sample(const Intersection &isc, Float sample1, const Vec2f &sample2) const override {
+        Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         if (wi.z <= 0.0 && !this->has_flag(BSDFFlags::TwoSided))
             return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
         Vec3f bsdf_value = fresnelComplex(std::abs(wi.z), eta, k);
@@ -33,7 +34,7 @@ public:
 };
 
 // --------------------------- Registry functions ---------------------------
-BSDF *createSmoothConductorBSDF(const std::unordered_map<std::string, std::string> &properties) {
+BSDF *createSmoothConductorBSDF(const std::unordered_map<std::string, std::string> &properties, const std::unordered_map<std::string, const Texture*>& textures) {
     Vec3f eta{0.0, 0.0, 0.0};
     Vec3f k{1.0, 1.0, 1.0};
     BSDFFlags flags = BSDFFlags::Delta;

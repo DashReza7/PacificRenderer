@@ -2,17 +2,18 @@
 
 #include "core/Registry.h"
 #include "core/Scene.h"
+#include "core/Texture.h"
 
 // --------------------------- BSDFRegistry Implementation -----------------------
 void BSDFRegistry::registerBSDF(const std::string& type, BSDFCreator creator) {
     BSDFRegistry::getCreators()[type] = creator;
 }
-BSDF* BSDFRegistry::createBSDF(const std::string& type, const std::unordered_map<std::string, std::string>& properties) {
+BSDF* BSDFRegistry::createBSDF(const std::string& type, const std::unordered_map<std::string, std::string>& properties, const std::unordered_map<std::string, const Texture*>& textures) {
     auto it = BSDFRegistry::getCreators().find(type);
     if (it == BSDFRegistry::getCreators().end()) {
         throw std::runtime_error("Unknown BSDF type: " + type);
     }
-    return it->second(properties);
+    return it->second(properties, textures);
 }
 std::vector<std::string> BSDFRegistry::getRegisteredTypes() {
     std::vector<std::string> types;
@@ -45,12 +46,12 @@ std::vector<std::string> IntegratorRegistry::getRegisteredTypes() {
 void EmitterRegistry::registerEmitter(const std::string& type, EmitterRegistry::EmitterCreator creator) {
     EmitterRegistry::getCreators()[type] = creator;
 }
-Emitter* EmitterRegistry::createEmitter(const std::string& type, const std::unordered_map<std::string, std::string>& properties) {
+Emitter* EmitterRegistry::createEmitter(const std::string& type, const std::unordered_map<std::string, std::string>& properties, const std::unordered_map<std::string, const Texture*>& textures) {
     auto it = EmitterRegistry::getCreators().find(type);
     if (it == EmitterRegistry::getCreators().end()) {
         throw std::runtime_error("Unknown Emitter type: " + type);
     }
-    return it->second(properties);
+    return it->second(properties, textures);
 }
 std::vector<std::string> EmitterRegistry::getRegisteredTypes() {
     std::vector<std::string> types;
@@ -112,6 +113,25 @@ Microfacet* MicrofacetRegistry::createMicrofacet(const std::string& type, const 
 std::vector<std::string> MicrofacetRegistry::getRegisteredTypes() {
     std::vector<std::string> types;
     for (const auto& pair : MicrofacetRegistry::getCreators()) {
+        types.push_back(pair.first);
+    }
+    return types;
+}
+
+// --------------------------- TextureRegistry Implementation -----------------------
+void TextureRegistry::registerTexture(const std::string& type, TextureCreator creator) {
+    TextureRegistry::getCreators()[type] = creator;
+}
+Texture* TextureRegistry::createTexture(const std::string& type, const std::unordered_map<std::string, std::string>& properties) {
+    auto it = TextureRegistry::getCreators().find(type);
+    if (it == TextureRegistry::getCreators().end()) {
+        throw std::runtime_error("Unknown Texture type: " + type);
+    }
+    return it->second(properties);
+}
+std::vector<std::string> TextureRegistry::getRegisteredTypes() {
+    std::vector<std::string> types;
+    for (const auto& pair : TextureRegistry::getCreators()) {
         types.push_back(pair.first);
     }
     return types;

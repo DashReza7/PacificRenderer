@@ -12,8 +12,8 @@ public:
     PointLight(const Vec3f &intensity, const Vec3f &position) : intensity(intensity), position(position) {}
 
     
-    virtual Vec3f eval(const Vec3f &shading_posn) const override {
-        return intensity / glm::dot(position - shading_posn, position - shading_posn);
+    virtual Vec3f eval(const Intersection &isc) const override {
+        return intensity / glm::dot(position - isc.position, position - isc.position);
     }
 
     EmitterSample sampleLi(const Scene *scene, const Intersection &isc, const Vec3f &sample) const override {
@@ -39,7 +39,7 @@ public:
 };
 
 // --------------------------- Registry functions ---------------------------
-Emitter *createPointLight(const std::unordered_map<std::string, std::string> &properties) {
+Emitter *createPointLight(const std::unordered_map<std::string, std::string> &properties, const std::unordered_map<std::string, const Texture*>& textures) {
     Vec3f intensity{1.0, 1.0, 1.0};
     Vec3f position{0.0, 0.0, 0.0};
 

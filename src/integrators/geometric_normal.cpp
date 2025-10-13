@@ -13,14 +13,10 @@ public:
         Intersection isc;
         bool is_hit = scene->ray_intersect(ray, isc);
         if (is_hit) {
-            // map the normal to [0, 1]^3
             Vec3f radiance = glm::clamp(isc.normal, Float(0.0), Float(1.0));
-            // radiance = radiance + Vec3f{1.0};
-            // radiance /= 2.0;
             return radiance;
         }
         return Vec3f{0.0};
-
     }
 
     std::string to_string() const override {
