@@ -75,6 +75,13 @@ public:
         return {rnd_pt, normal, pdf};
     }
 
+    Vec2f get_uv(const Vec3f &posn) const override {
+        if (tex_coords[0] == nullptr || tex_coords[1] == nullptr || tex_coords[2] == nullptr)
+            return Vec2f{0.0, 0.0};
+        Vec3f bary_coords = barycentric(*positions[0], *positions[1], *positions[2], posn);
+        return bary_coords.x * (*tex_coords[0]) + bary_coords.y * (*tex_coords[1]) + bary_coords.z * (*tex_coords[2]);
+    }
+
     std::string to_string() const override {
         std::ostringstream oss;
         oss << "Geometry(Triangle): [";
@@ -112,7 +119,6 @@ Geometry *createTriangle(const std::unordered_map<std::string, std::string> &pro
         face_normals = true;
     }
 
-    
     auto triangle = new Triangle{ctx->vp, ctx->vn, ctx->vt, parent_shape, face_normals, flip_normals};
     return triangle;
 }

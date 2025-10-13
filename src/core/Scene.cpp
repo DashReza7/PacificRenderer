@@ -183,25 +183,36 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
                 for (auto& vertex : vertices)
                     *vertex = Vec3f{to_world * Vec4f{*vertex, 1.0}};
             }
-
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[0], vertices[1], vertices[2]}));
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[1], vertices[3], vertices[2]}));
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[4], vertices[6], vertices[5]}));
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[5], vertices[6], vertices[7]}));
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[0], vertices[4], vertices[1]}));
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[1], vertices[4], vertices[5]}));
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[2], vertices[3], vertices[6]}));
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[3], vertices[7], vertices[6]}));
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[0], vertices[2], vertices[4]}));
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[2], vertices[6], vertices[4]}));
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[1], vertices[5], vertices[3]}));
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[3], vertices[5], vertices[7]}));
+            GeometryCreationContext gctx01{vertices[0], vertices[1], vertices[2]};
+            GeometryCreationContext gctx02{vertices[1], vertices[3], vertices[2]};
+            GeometryCreationContext gctx03{vertices[4], vertices[6], vertices[5]};
+            GeometryCreationContext gctx04{vertices[5], vertices[6], vertices[7]};
+            GeometryCreationContext gctx05{vertices[0], vertices[4], vertices[1]};
+            GeometryCreationContext gctx06{vertices[1], vertices[4], vertices[5]};
+            GeometryCreationContext gctx07{vertices[2], vertices[3], vertices[6]};
+            GeometryCreationContext gctx08{vertices[3], vertices[7], vertices[6]};
+            GeometryCreationContext gctx09{vertices[0], vertices[2], vertices[4]};
+            GeometryCreationContext gctx10{vertices[2], vertices[6], vertices[4]};
+            GeometryCreationContext gctx11{vertices[1], vertices[5], vertices[3]};
+            GeometryCreationContext gctx12{vertices[3], vertices[5], vertices[7]};
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx01));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx02));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx03));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx04));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx05));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx06));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx07));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx08));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx09));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx10));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx11));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx12));
         } else if (shape_desc->type == "rectangle") {
             shape->type = Shape::Type::Mesh;
             auto properties = shape_desc->properties;
             properties["face_normals"] = "true";
 
-            std::vector<Vec3f*> vertices;
+            std::vector<Vec3f*> vertices{};
             vertices.push_back(new Vec3f{-1.0, -1.0, 0.0});
             vertices.push_back(new Vec3f{-1.0, 1.0, 0.0});
             vertices.push_back(new Vec3f{1.0, -1.0, 0.0});
@@ -212,9 +223,16 @@ void Scene::load_shapes(const std::vector<ShapeDesc*> shapes_desc, const std::un
                 for (auto& vertex : vertices)
                     *vertex = Vec3f{to_world * Vec4f{*vertex, 1.0}};
             }
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[0], vertices[2], vertices[1]}));
-            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, new GeometryCreationContext{vertices[3], vertices[1], vertices[2]}));
+            std::vector<Vec2f*> tex_coords{};
+            tex_coords.push_back(new Vec2f{0.0, 0.0});
+            tex_coords.push_back(new Vec2f{0.0, 1.0});
+            tex_coords.push_back(new Vec2f{1.0, 0.0});
+            tex_coords.push_back(new Vec2f{1.0, 1.0});
 
+            GeometryCreationContext gctx1{vertices[0], vertices[2], vertices[1], nullptr, nullptr, nullptr, tex_coords[0], tex_coords[2], tex_coords[1]};
+            GeometryCreationContext gctx2{vertices[3], vertices[1], vertices[2], nullptr, nullptr, nullptr, tex_coords[3], tex_coords[1], tex_coords[2]};
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx1));
+            shape->geometries.push_back(GeometryRegistry::createGeometry("triangle", properties, shape, &gctx2));
         } else {
             throw std::runtime_error("Unsupported shape type: " + shape_desc->type);
         }

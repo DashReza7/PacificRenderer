@@ -87,6 +87,9 @@ public:
     /// @param sample a 2D sample point in [0, 1]^2.
     /// @return A tuple containing the position, normal, and PDF of the sampled point.
     virtual std::tuple<Vec3f, Vec3f, Float> sample_point_on_surface(const Vec2f &sample) const = 0;
+    /// @brief get the uv coordinate of the provided point
+    /// @param posn the position in world_space we want to find its uv coordinates
+    virtual Vec2f get_uv(const Vec3f &posn) const = 0;
     virtual std::string to_string() const = 0;
 };
 

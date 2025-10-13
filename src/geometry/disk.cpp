@@ -40,7 +40,7 @@ public:
         Float distance = glm::length(world_posn - ray.o);
         if (distance < ray.tmin || distance > ray.tmax)
             return false;
-        
+
         isc.dirn = glm::normalize(ray.o - world_posn);
         isc.distance = distance;
         isc.position = world_posn;
@@ -53,13 +53,13 @@ public:
     AABB get_bbox() const override {
         std::vector<Vec3f> vertices = {
             Vec3f{-1.0, -1.0, -0.01},
-            Vec3f{-1.0,  1.0, -0.01},
-            Vec3f{ 1.0, -1.0, -0.01},
-            Vec3f{ 1.0,  1.0, -0.01},
-            Vec3f{-1.0, -1.0,  0.01},
-            Vec3f{-1.0,  1.0,  0.01},
-            Vec3f{ 1.0, -1.0,  0.01},
-            Vec3f{ 1.0,  1.0,  0.01},
+            Vec3f{-1.0, 1.0, -0.01},
+            Vec3f{1.0, -1.0, -0.01},
+            Vec3f{1.0, 1.0, -0.01},
+            Vec3f{-1.0, -1.0, 0.01},
+            Vec3f{-1.0, 1.0, 0.01},
+            Vec3f{1.0, -1.0, 0.01},
+            Vec3f{1.0, 1.0, 0.01},
         };
         for (auto &vertex : vertices)
             vertex = Vec3f{transform * Vec4f{vertex, 1.0}};
@@ -89,6 +89,10 @@ public:
         Float pdf = 1.0 / (Pi * Sqr(world_radius));
 
         return {posn, get_normal(posn), pdf};
+    }
+
+    Vec2f get_uv(const Vec3f &posn) const override {
+        throw std::runtime_error("disk get_uv not implemented");
     }
 
     std::string to_string() const override {

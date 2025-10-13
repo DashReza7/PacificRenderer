@@ -1,6 +1,9 @@
+#include <algorithm>
+
 #include "core/Geometry.h"
 #include "core/Registry.h"
 #include "utils/Misc.h"
+
 
 class Sphere : public Geometry {
 private:
@@ -58,7 +61,7 @@ public:
                     goto lbl1;
                 isc.normal = get_normal(isc.position);
             } else {  // if (t2_local >= 0.0)
-                lbl1:
+            lbl1:
                 Vec3f local_hit_pos = o_local + t2_local * d_local;
                 isc.position = Vec3f{transform * Vec4f{o_local + t2_local * d_local, 1.0}};
                 isc.distance = glm::length(isc.position - ray.o);
@@ -124,6 +127,16 @@ public:
         return {position, get_normal(position), pdf};
     }
 
+    Vec2f get_uv(const Vec3f &posn) const override {
+        Vec3f posn_local = Vec3f{inv_transform * Vec4f{posn, 1.0}};
+        posn_local -= center;
+        posn_local /= radius;
+        Float cosTheta = std::clamp(posn_local.z, Float(-1.0), Float(1.0));
+        Float theta = std::acos(cosTheta);
+        Float phi = std::atan2(posn_local.y, posn_local.x);  // phi ∈ [-pi, pi]
+        return Vec2f{phi / (2.0 * Pi) + 0.5, theta / Pi};
+    }
+
     std::string to_string() const override {
         std::ostringstream oss;
         oss << "Geometry(Sphere): [ local_center=" << center << ", local_radius=" << radius << " ]";
@@ -138,7 +151,7 @@ Geometry *createSphere(const std::unordered_map<std::string, std::string> &prope
     Mat4f transform{1.0};
     Mat4f inv_transform{1.0};
     bool flip_normals = false;
-    
+
     for (const auto &[key, value] : properties) {
         if (key == "center") {
             center = strToVec3f(value);

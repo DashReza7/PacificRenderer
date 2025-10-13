@@ -414,6 +414,9 @@ private:
         auto texture = new TextureDesc{};
         texture->type = get_default(node.attribute("type").value());
 
+        if (std::any_of(node.children().begin(), node.children().end(), [](const pugi::xml_node& child) { return std::string(child.name()) == "texture"; }))
+            throw std::runtime_error("Nested textures are not supported.");
+        
         parseProperties(node, texture->properties);
 
         if (node.attribute("id")) {
