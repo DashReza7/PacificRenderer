@@ -10,7 +10,6 @@
 #include "core/RFilter.h"
 #include "stb_image_write.h"
 
-// TODO: right now, no reconstruction filter, just store raw pixel values
 class Film {
 private:
     std::vector<Float> pixels_weights_sum;
@@ -29,7 +28,6 @@ public:
     void commit_sample(const Vec3f& value, uint32_t row, uint32_t col, Float px, Float py) {
         Float x = px * width - (col + 0.5);
         Float y = py * height - (row + 0.5);
-        // TODO: compute the sample weight for all affected pixels
         for (int r = row - rfilter->bound; r <= row + rfilter->bound; r++) {
             if (r < 0 || r >= height)
                 continue;
@@ -40,12 +38,6 @@ public:
                 std::lock_guard<std::mutex> lock(pixels_mutex[r * width + c]);
                 pixels[r * width + c] += filter_weight * value;
                 pixels_weights_sum[r * width + c] += filter_weight;
-
-                // TODO: for debug. No filter
-                // if (r == row && c == col) {
-                //     pixels[r * width + c] += value;
-                //     pixels_weights_sum[r * width + c] += 1.0;
-                // }
             }
         }
     }
@@ -61,9 +53,9 @@ public:
     }
 
     /// Output the image to a file (PNG format)
-    void output_image(const std::string& filename, bool tone_mapping = true) const {
+    void output_image(const std::string& filename, bool raw = false) const {
         std::vector<Vec3f> mapped_pixels = pixels;
-        if (tone_mapping) {
+        if (!raw) {
             for (auto& color : mapped_pixels) {
                 // tonemapping
                 color = color / (color + Vec3f{1.0});
@@ -78,15 +70,29 @@ public:
             }
         }
 
-        if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".png")
-            save_png(filename, mapped_pixels);
-        else if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".ppm")
+        if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".ppm")
             save_ppm(filename, mapped_pixels);
+        else if (filename.size() >= 4 && filename.substr(filename.size() - 4) == ".hdr")
+            save_hdr(filename, pixels);
         else
-            throw std::invalid_argument("Unsupported file format. Use .png or .ppm");
+            save_image(filename, mapped_pixels);
     }
 
-    void save_png(const std::string& filename, const std::vector<Vec3f>& pixels) const {
+    void save_hdr(const std::string& filename, const std::vector<Vec3f>& pixels) const {
+        std::vector<float> img_data(width * height * 3);
+        for (uint32_t row = 0; row < height; row++) {
+            for (uint32_t col = 0; col < width; col++) {
+                // Flip y-coordinate: bottom-up -> top-down
+                Vec3f color = pixels[(height - 1 - row) * width + col];
+                img_data[(row * width + col) * 3 + 0] = color.r;
+                img_data[(row * width + col) * 3 + 1] = color.g;
+                img_data[(row * width + col) * 3 + 2] = color.b;
+            }
+        }
+        stbi_write_hdr(filename.c_str(), width, height, 3, img_data.data());
+    }
+    
+    void save_image(const std::string& filename, const std::vector<Vec3f>& pixels) const {
         std::vector<uint8_t> img_data(width * height * 3);
         for (uint32_t row = 0; row < height; row++) {
             for (uint32_t col = 0; col < width; col++) {
@@ -98,7 +104,17 @@ public:
                 img_data[(row * width + col) * 3 + 2] = static_cast<uint8_t>(std::clamp(color.b, Float(0.0), Float(1.0)) * 255.0 + 0.5);
             }
         }
-        stbi_write_png(filename.c_str(), width, height, 3, img_data.data(), width * 3);
+        if (filename.ends_with(".png")) {
+            stbi_write_png(filename.c_str(), width, height, 3, img_data.data(), width * 3);
+        } else if (filename.ends_with(".jpg") || filename.ends_with(".jpeg")) {
+            stbi_write_jpg(filename.c_str(), width, height, 3, img_data.data(), 95);  // quality = 95
+        } else if (filename.ends_with(".bmp")) {
+            stbi_write_bmp(filename.c_str(), width, height, 3, img_data.data());
+        } else if (filename.ends_with(".tga")) {
+            stbi_write_tga(filename.c_str(), width, height, 3, img_data.data());
+        } else {
+            throw std::invalid_argument("Unsupported file format.");
+        }
     }
 
     void save_ppm(const std::string& filename, const std::vector<Vec3f>& pixels) const {

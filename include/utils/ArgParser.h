@@ -16,15 +16,15 @@ public:
         CLI::App cli_app;
         // add options
         cli_app.add_option("input", input_file, "Input file path (*.xml)")->required()->check(CLI::ExistingFile);
-        cli_app.add_option("-o, --output", output_file, "Output file (*.jpg, *.jpeg, *.png, *.ppm)")
+        cli_app.add_option("-o, --output", output_file, "Output file (*.jpg, *.jpeg, *.png, *.ppm, *.bmp, *.tga, *.hdr)")
             ->check(CLI::Validator(
                 [](const std::string& str) -> std::string {
                     std::string lower = str;
                     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-                    if (lower.ends_with(".jpg") || lower.ends_with(".jpeg") || lower.ends_with(".png") || lower.ends_with(".ppm")) {
+                    if (lower.ends_with(".jpg") || lower.ends_with(".jpeg") || lower.ends_with(".png") || lower.ends_with(".ppm") || lower.ends_with(".bmp") || lower.ends_with(".tga") || lower.ends_with(".hdr")) {
                         return "";
                     }
-                    return "File must have .jpg, .jpeg, .png, or .ppm extension";
+                    return "File must have .jpg, .jpeg, .png, .ppm, .bmp, .tga, or .hdr extension";
                 },
                 "IMAGE_EXT"));
         cli_app.add_flag("-z, --zip", zip, "Zip the output file");

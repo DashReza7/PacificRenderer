@@ -16,3 +16,6 @@
 [submodule "ext/happly"]
 	path = ext/happly
 	url = https://github.com/nmwsharp/happly.git
+[submodule "ext/openexr"]
+	path = ext/openexr
+	url = https://github.com/AcademySoftwareFoundation/openexr.git

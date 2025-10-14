@@ -9,6 +9,7 @@
 #include "utils/SceneParser.h"
 #include "utils/Logger.h"
 
+
 bool g_DEBUG = false;
 Logger g_logger = createLogger();
 
@@ -27,7 +28,7 @@ int run(int argc, char** argv) {
 
     integrator->render(&scene, scene.sensor, std::stoi(props["n_threads"]), props["show_progress"] == "true");
 
-    scene.sensor->film.output_image(props["output_file"], true);
+    scene.sensor->film.output_image(props["output_file"], false);
 
     return 0;
 }
