@@ -29,4 +29,4 @@ Others:
  - Add using a config file to set up small grained details, like the MIS strategy, etc.
  - check to delete all allocated memory
  - Review the to_string functions
- 
+ - Checkerboard texture doesn't match with mitsuba when scaled 

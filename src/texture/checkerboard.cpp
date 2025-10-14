@@ -14,8 +14,8 @@ public:
     Vec3f eval(const Intersection &isc) const override {
         Vec2f uv = isc.geom->get_uv(isc.position);
         uv = Vec2f{to_uv * Vec4f{uv, 0.0, 1.0}};
-        bool u_mask = uv.x - std::floor(uv.x) < 0.5;
-        bool v_mask = uv.y - std::floor(uv.y) < 0.5;
+        bool u_mask = uv.x - std::floor(uv.x) > 0.5;
+        bool v_mask = uv.y - std::floor(uv.y) > 0.5;
 
         if (u_mask != v_mask)
             return color0;

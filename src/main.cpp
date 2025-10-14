@@ -7,16 +7,12 @@
 #include "core/Scene.h"
 #include "utils/ArgParser.h"
 #include "utils/SceneParser.h"
-
-
-// #include "utils/Logger.h"
+#include "utils/Logger.h"
 
 bool g_DEBUG = false;
+Logger g_logger = createLogger();
 
 int run(int argc, char** argv) {
-    // TODO: create the global Logger
-    // Logger g_logger{LogLevel::INFO, true, ""};
-
     auto props = ArgParser::parseArgs(argc, argv);
 
     // parse scene description file
