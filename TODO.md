@@ -36,3 +36,4 @@
 - add IMath and OpenJPH as submodules
 - fix ray triangle(or BVH) bug having problem with large or small Epsilon(in the dragon scene)
 - implement a Transform class, and apply all transformations with it.
+- compute per-vertex normals when not provided

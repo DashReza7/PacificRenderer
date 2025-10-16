@@ -109,6 +109,8 @@ Geometry *createTriangle(const std::unordered_map<std::string, std::string> &pro
             // ignore. handled in Shape
         } else if (key == "filename") {
             // ignore. handled in Shape
+        } else if (key == "shape_index") {
+            // ignore. handled in Shape
         } else {
             throw std::runtime_error("Unknown property '" + key + "' for triangle geometry.");
         }

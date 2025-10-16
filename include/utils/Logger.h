@@ -99,7 +99,7 @@ extern Logger g_logger;
 #define LOG_WARNING(...) g_logger.log(LogLevel::WARNING, __VA_ARGS__)
 #define LOG_ERROR(...) g_logger.log(LogLevel::ERROR, __VA_ARGS__)
 
-Logger createLogger() {
+inline Logger createLogger() {
     std::string curr_time = Logger::getCurrentTime();
     std::string log_dir = "logs";
     std::string log_file = log_dir + "/log_" + curr_time + ".txt";
