@@ -25,12 +25,11 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
         if (!g_DEBUG)
             break;
         for (int col = 0; col < width; col++) {
-            
             // debug
             // if (row != 157 || col != 69)
             // if (row != 0 || col != 0)
             //     continue;
-                
+
             for (size_t i = 0; i < sensor->sampler.spp; i++) {
                 Float px, py;
                 Ray sensor_ray = sensor->sample_ray(row, col, sensor->sampler.get_2D(), px, py);
@@ -59,12 +58,7 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
                             uint32_t row = inblock_row + block_size * block_row;
                             uint32_t col = inblock_col + block_size * block_col;
 
-                            // TODO: for debug purposes
-                            // if (row != 0 || col != 0)
-                            //     continue;
-
                             for (size_t i = 0; i < sensor->sampler.spp; i++) {
-                                // sample position in sensor space ([0, 1])
                                 // sample position in sensor space ([0, 1])
                                 Float px, py;
                                 Ray sensor_ray = sensor->sample_ray(row, col, sampler.get_2D(), px, py);
@@ -123,10 +117,10 @@ Float SamplingIntegrator::get_mis_weight_bsdf(const Scene *scene, const Intersec
     if (isc.shape->bsdf->has_flag(BSDFFlags::Delta) || n_emitter_samples == 0)
         return 1.0;
     Float nee_pdf = scene->pdf_nee(isc, localToWorld(bsdf_sample.wo, isc.normal));
-    if (nee_pdf <= Epsilon)
-        return 1.0;
     if (nee_pdf < 0.0)
         throw std::runtime_error("Negative NEE pdf in MIS weight computation");
+    if (nee_pdf <= Epsilon)
+        return 1.0;
 
     return Sqr(bsdf_sample.pdf) / (Sqr(bsdf_sample.pdf) + Sqr(nee_pdf));
 }

@@ -17,7 +17,7 @@ public:
         bool u_mask = uv.x - std::floor(uv.x) > 0.5;
         bool v_mask = uv.y - std::floor(uv.y) > 0.5;
 
-        if (u_mask != v_mask)
+        if (u_mask == v_mask)
             return color0;
         else
             return color1;
