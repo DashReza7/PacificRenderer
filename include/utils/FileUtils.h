@@ -21,6 +21,20 @@ uint32_t read_u32_le(std::istream &stream) {
            (static_cast<uint32_t>(bytes[2]) << 16) |
            (static_cast<uint32_t>(bytes[3]) << 24);
 }
+uint64_t read_u64_le(std::istream &stream) {
+    unsigned char bytes[8];
+    stream.read(reinterpret_cast<char *>(bytes), 8);
+    if (stream.gcount() != 8)
+        throw std::runtime_error("Unexpected EOF or read error\n");
+    return static_cast<uint64_t>(bytes[0]) |
+           (static_cast<uint64_t>(bytes[1]) << 8) |
+           (static_cast<uint64_t>(bytes[2]) << 16) |
+           (static_cast<uint64_t>(bytes[3]) << 24) |
+           (static_cast<uint64_t>(bytes[4]) << 32) |
+           (static_cast<uint64_t>(bytes[5]) << 40) |
+           (static_cast<uint64_t>(bytes[6]) << 48) |
+           (static_cast<uint64_t>(bytes[7]) << 56);
+}
 uint32_t read_u32_le_buffer(const uint8_t *buf, size_t &offset) {
     uint32_t result = static_cast<uint32_t>(buf[offset]) |
                       (static_cast<uint32_t>(buf[offset+1]) << 8) |

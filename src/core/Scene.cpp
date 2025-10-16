@@ -3,8 +3,8 @@
 #include "core/Registry.h"
 #include "happly.h"
 #include "utils/FileUtils.h"
-#include "utils/SceneParser.h"
 #include "utils/Logger.h"
+#include "utils/SceneParser.h"
 
 // BUG: memory leak for shapes, geometries, bsdfs, emitters, sensor
 
@@ -48,7 +48,6 @@ bool load_mesh_from_file(const std::string& file_path, const Shape* parent_shape
     tinyobj::ObjReader obj_reader;
     if (!obj_reader.ParseFromFile(file_path)) {
         if (!obj_reader.Error().empty())
-            // LOG_ERROR("TinyObjReader error reading file: {}; {}", file_path, obj_reader.Error());
             std::cerr << "TinyObjReader error reading file: " << file_path << "; " << obj_reader.Error() << "\n";
         return false;
     }
@@ -265,11 +264,12 @@ void load_ply(const ShapeDesc* shape_desc, Shape* shape) {
 }
 
 void load_serialized(const ShapeDesc* shape_desc, Shape* shape) {
-    // TODO
+    int shape_index = 0;
     if (shape_desc->properties.find("shape_index") != shape_desc->properties.end())
-        if (std::stoi(shape_desc->properties.at("shape_index")) != 1)
-            throw std::runtime_error("Only support shape_index = 1 for serialized mesh");
-    
+        shape_index = std::stoi(shape_desc->properties.find("shape_index")->second);
+    if (shape_index < 0)
+        throw std::runtime_error("shape_index must be non-negative");
+
     std::string filepath = (scene_file_path.parent_path() / shape_desc->properties.at("filename")).string();
     std::ifstream file(filepath, std::ios::binary);
     if (!file)
@@ -278,7 +278,34 @@ void load_serialized(const ShapeDesc* shape_desc, Shape* shape) {
     uint16_t id = read_u16_le(file);
     uint16_t version = read_u16_le(file);
 
-    std::vector<uint8_t> compressed = std::vector<uint8_t>(std::istreambuf_iterator<char>(file), {});
+    // read the last 4 bytes as a uint32_t
+    file.seekg(-4, std::ios::end);
+    uint32_t n_shapes = read_u32_le(file);
+    if (shape_index >= n_shapes)
+        throw std::runtime_error("shape_index out of range");
+    file.seekg(0, std::ios::end);
+    std::streamoff file_size = file.tellg();
+    std::vector<uint64_t> offsets(n_shapes);
+    uint64_t last_offset;
+    if (version == 4) {
+        last_offset = file_size - (4 + n_shapes * 8);
+        for (size_t i = 0; i < n_shapes; i++) {
+            file.seekg(-4 - (n_shapes - i) * 8, std::ios::end);
+            offsets[i] = read_u64_le(file);
+        }
+    } else if (version == 3) {
+        last_offset = file_size - 4 * (n_shapes + 1);
+        for (size_t i = 0; i < n_shapes; i++) {
+            file.seekg(-(n_shapes - i + 1) * 4, std::ios::end);
+            offsets[i] = read_u32_le(file);
+        }
+    } else {
+        throw std::runtime_error("unsupported version");
+    }
+
+    file.seekg(offsets[shape_index] + 4, std::ios::beg);
+    std::vector<uint8_t> compressed((shape_index == n_shapes - 1 ? last_offset : offsets[shape_index + 1]) - offsets[shape_index] - 4);
+    file.read(reinterpret_cast<char*>(compressed.data()), compressed.size());
     uLongf decompressed_size = compressed.size() * 4;  // rough guess; will expand if needed
     std::vector<uint8_t> decompressed(decompressed_size);
     int status = uncompress(decompressed.data(), &decompressed_size, compressed.data(), compressed.size());
@@ -312,10 +339,9 @@ void load_serialized(const ShapeDesc* shape_desc, Shape* shape) {
     bool has_normals = (flags & 0x1) != 0;
     bool has_texcoords = (flags & 0x2) != 0;
     bool has_colors = (flags & 0x8) != 0;
-    LOG_INFO("Loading serialized mesh: {}, vertices: {}, triangles: {}, double precision: {}, has normals: {}, has texcoords: {}, has colors: {}", name, num_vertices, num_triangles, double_precision, has_normals, has_texcoords, has_colors);
     if (has_colors)  // TODO
         throw std::runtime_error("Serialized mesh with vertex colors not supported");
-        
+
     if (double_precision) {
         for (uint64_t i = 0; i < num_vertices; ++i) {
             Float x = read_double_le_buffer(decompressed.data(), offset);
@@ -363,7 +389,7 @@ void load_serialized(const ShapeDesc* shape_desc, Shape* shape) {
         }
         // TODO: colors
     }
-    
+
     // apply transform
     Mat4f to_world = strToMat4f(shape_desc->properties.at("to_world"));
     Mat4f tsp_inv_to_world = glm::transpose(strToMat4f(shape_desc->properties.at("inv_to_world")));
