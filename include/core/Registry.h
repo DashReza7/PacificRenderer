@@ -5,7 +5,7 @@
 #include <functional>
 #include <unordered_map>
 #include <string>
-// #include "core/Geometry.h"
+#include <filesystem>
 
 class BSDF;
 class Integrator;

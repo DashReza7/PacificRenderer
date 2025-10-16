@@ -17,7 +17,7 @@ public:
             return Vec3f{0.0};
         if (max_depth < -1)
             throw std::runtime_error("max_depth must be -1 (infinite) or a non-negative integer");
-        
+
         Vec3f throughput{1.0};
         Vec3f radiance{0.0};
 
@@ -26,13 +26,17 @@ public:
         bool is_hit = scene->ray_intersect(curr_ray, curr_isc);
 
         // ----------------------- Visible emitters -----------------------
-        if (!is_hit)
-            return Vec3f{0.0};  // TODO: implement environment light sampling
+        if (!is_hit) {
+            if (scene->env_map == nullptr)
+                return Vec3f{0.0};
+            curr_isc.dirn = curr_ray.d;
+            return scene->env_map->eval(curr_isc);
+        }
         if (curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_isc.dirn) > 0.0)
             radiance += throughput * curr_isc.shape->emitter->eval(curr_isc);
 
         for (int depth = 1; depth < max_depth || max_depth == -1; depth++) {
-            if (!is_hit)  // TODO: implement environment light sampling
+            if (!is_hit)
                 break;
 
             // ----------------------- Emitter sampling -----------------------
@@ -65,8 +69,20 @@ public:
 
             curr_ray = Ray{curr_isc.position + sign(glm::dot(localToWorld(bsdf_sample.wo, curr_isc.normal), curr_isc.normal)) * curr_isc.normal * Epsilon, localToWorld(bsdf_sample.wo, curr_isc.normal), Epsilon, 1e4};
             is_hit = scene->ray_intersect(curr_ray, curr_isc);
-            if (is_hit && curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_ray.d) < 0.0)
-                radiance += throughput * curr_isc.shape->emitter->eval(curr_isc);
+            Vec3f lightLi{0.0};
+            if (is_hit) {
+                if (curr_isc.shape->emitter == nullptr || glm::dot(curr_isc.dirn, curr_isc.normal) < 0)
+                    lightLi = Vec3f{0.0};
+                else
+                    lightLi = curr_isc.shape->emitter->eval(curr_isc);
+            } else {
+                if (scene->env_map != nullptr) {
+                    Intersection tmp;
+                    tmp.dirn = curr_ray.d;
+                    lightLi = scene->env_map->eval(tmp);
+                }
+            }
+            radiance += throughput * lightLi;
 
             // do RussianRoulette
             if (depth + 1 >= rr_depth) {

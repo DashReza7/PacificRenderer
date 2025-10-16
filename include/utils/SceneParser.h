@@ -211,6 +211,7 @@ struct SceneDesc {
     std::vector<BSDFDesc*> bsdfs;
     std::vector<const TextureDesc*> textures;
     std::vector<EmitterDesc*> emitters;
+    bool has_envmap = false;
 
     std::string to_string() {
         std::ostringstream oss;
@@ -272,6 +273,7 @@ private:
     std::unordered_map<std::string, std::string> defaults;
     std::unordered_map<std::string, BSDFDesc*> shared_bsdfs;
     std::unordered_map<std::string, TextureDesc*> shared_textures;
+    bool has_envmap = false;
 
     /// @brief utility function for parsing a node containing a vector type(point, rgb, vector, etc.) `value` or `x`, `r`, etc.
     /// @param special_char the special character of that vector type. e.g. `point` and `vector` have "x", `rgb` has "r"
@@ -345,6 +347,8 @@ private:
                 for (const auto& [name, texture] : emitter_desc->textures)
                     if (std::find(scene.textures.begin(), scene.textures.end(), texture) == scene.textures.end())
                         scene.textures.push_back(texture);
+                if (emitter_desc->type == "envmap")
+                    scene.has_envmap = true;
             } else if (node_name == "default") {
                 this->add_default(child);
             } else {
@@ -483,6 +487,11 @@ private:
     EmitterDesc* parseEmitter(const pugi::xml_node& node) {
         auto emitter = new EmitterDesc{};
         emitter->type = get_default(node.attribute("type").value());
+        if (emitter->type == "envmap") {
+            if (has_envmap)
+                throw std::runtime_error("Only one environment map is allowed in the scene.");
+            has_envmap = true;
+        }
 
         parseProperties(node, emitter->properties, {"texture"});
 

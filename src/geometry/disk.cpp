@@ -41,7 +41,7 @@ public:
         if (distance < ray.tmin || distance > ray.tmax)
             return false;
 
-        isc.dirn = glm::normalize(ray.o - world_posn);
+        isc.dirn = -ray.d;
         isc.distance = distance;
         isc.position = world_posn;
         isc.normal = get_normal(world_posn);

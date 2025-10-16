@@ -71,7 +71,7 @@ public:
             }
         }
 
-        isc.dirn = glm::normalize(ray.o - isc.position);
+        isc.dirn = -ray.d;
         isc.shape = parent_shape;
         isc.geom = this;
         return true;

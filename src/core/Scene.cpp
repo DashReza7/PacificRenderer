@@ -10,6 +10,13 @@ void Scene::load_scene(const SceneDesc& scene_desc) {
     auto texs_dict = load_textures(scene_desc.textures);
     auto bsdfs_dict = load_bsdfs(scene_desc.bsdfs, texs_dict);
     auto emitters_dict = load_emitters(scene_desc.emitters, texs_dict);
+    if (scene_desc.has_envmap) {
+        for (const auto&[emitter_desc, emitter] : emitters_dict)
+            if (emitter_desc->type == "envmap") {
+                env_map = emitter;
+                break;
+            }
+    }
 
     load_shapes(scene_desc.shapes, bsdfs_dict, emitters_dict);
     bvh_root = new BVHNode{};
@@ -278,7 +285,9 @@ void Scene::load_sensor(const SensorDesc* sensor_desc) {
 }
 
 void Scene::build_bvh(BVHNode* node, const std::vector<Geometry*>& contained_geoms) {
-    // TODO: check for empty list of shapes
+    if (contained_geoms.size() == 0)
+        return;
+        
     node->bbox = contained_geoms[0]->get_bbox();
     for (const auto& geom : contained_geoms)
         node->bbox = node->bbox + geom->get_bbox();
@@ -458,8 +467,16 @@ Float Scene::pdf_nee(const Intersection& isc, const Vec3f& w) const {
     Ray traced_ray{isc.position + sign(glm::dot(isc.normal, w)) * isc.normal * Epsilon, w, Epsilon, 1e4};
     Intersection traced_isc;
     bool is_hit = this->ray_intersect(traced_ray, traced_isc);
-    if (!is_hit || traced_isc.shape->emitter == nullptr)
+
+    // Environment light
+    if (!is_hit) {
+        if (env_map == nullptr)
+            return 0.0;
+        return Inv4Pi / emitters.size();
+    }
+    if (traced_isc.shape->emitter == nullptr || glm::dot(traced_isc.dirn, traced_isc.normal) < 0.0)
         return 0.0;
+
     // traced ray hit an emitter. Find its probability
     Float pdf = 1.0 / emitters.size();
     pdf /= traced_isc.shape->geometries.size();

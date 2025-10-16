@@ -1,5 +1,6 @@
 #include "core/MathUtils.h"
 
+
 Mat3f localToWorldMat(const Vec3f &world_z) {
     Float sign = world_z.z >= 0 ? 1.0 : -1.0;
     Float a = -1.0 / (sign + world_z.z);
@@ -56,29 +57,36 @@ Vec3f uniformHemisphereSample(const Vec2f &sample) {
     return Vec3f{sin_theta * std::cos(phi), sin_theta * std::sin(phi), cos_theta};
 }
 
+Vec3f uniformSphereSample(const Vec2f &sample) {
+    Float cos_theta = 1.0 - 2.0 * sample.x;
+    Float sin_theta = std::sqrt(std::abs(1.0 - Sqr(cos_theta)));
+    Float phi = 2.0 * Pi * sample.y;
+    return Vec3f{sin_theta * std::cos(phi), sin_theta * std::sin(phi), cos_theta};
+}
+
 Vec3f cosineHemisphereSample(const Vec2f &sample) {
     Float theta = std::acos(std::sqrt(sample.x));
     Float phi = 2.0 * Pi * sample.y;
     return Vec3f{std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)};
 }
 
-Vec3f barycentric(const Vec3f& v0, const Vec3f& v1, const Vec3f& v2, const Vec3f& p) {
+Vec3f barycentric(const Vec3f &v0, const Vec3f &v1, const Vec3f &v2, const Vec3f &p) {
     Vec3f v0v1 = v1 - v0;
     Vec3f v0v2 = v2 - v0;
-    Vec3f v0p  = p  - v0;
+    Vec3f v0p = p - v0;
 
     Float d00 = glm::dot(v0v1, v0v1);
     Float d01 = glm::dot(v0v1, v0v2);
     Float d11 = glm::dot(v0v2, v0v2);
-    Float d20 = glm::dot(v0p,  v0v1);
-    Float d21 = glm::dot(v0p,  v0v2);
+    Float d20 = glm::dot(v0p, v0v1);
+    Float d21 = glm::dot(v0p, v0v2);
 
     Float denom = d00 * d11 - d01 * d01;
 
     Float w1 = (d11 * d20 - d01 * d21) / denom;
     Float w2 = (d00 * d21 - d01 * d20) / denom;
     Float w0 = 1.0f - w1 - w2;
-    
+
     return Vec3f{w0, w1, w2};
 }
 
@@ -94,8 +102,7 @@ Mat4f get_rotation_matrix(const Vec3f &axis, Float angle) {
         {cos_phi + one_minus_cos_phi * Sqr(axis.x), one_minus_cos_phi * axis.x * axis.y + axis.z * sin_phi, one_minus_cos_phi * axis.x * axis.z - axis.y * sin_phi, 0.0},
         {one_minus_cos_phi * axis.x * axis.y - axis.z * sin_phi, cos_phi + one_minus_cos_phi * Sqr(axis.y), one_minus_cos_phi * axis.y * axis.z + axis.x * sin_phi, 0.0},
         {one_minus_cos_phi * axis.x * axis.z + axis.y * sin_phi, one_minus_cos_phi * axis.y * axis.z - axis.x * sin_phi, cos_phi + one_minus_cos_phi * Sqr(axis.z), 0.0},
-        {0.0, 0.0, 0.0, 1.0}
-    };
+        {0.0, 0.0, 0.0, 1.0}};
 
     return rot_mat;
 }

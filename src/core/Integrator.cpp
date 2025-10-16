@@ -25,9 +25,12 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
         if (!g_DEBUG)
             break;
         for (int col = 0; col < width; col++) {
-            // TODO: debug
-            if (row != 19 || col != 187)
-                continue;
+            
+            // debug
+            // if (row != 157 || col != 69)
+            // if (row != 0 || col != 0)
+            //     continue;
+                
             for (size_t i = 0; i < sensor->sampler.spp; i++) {
                 Float px, py;
                 Ray sensor_ray = sensor->sample_ray(row, col, sensor->sampler.get_2D(), px, py);

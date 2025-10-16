@@ -12,6 +12,7 @@
 
 bool g_DEBUG = false;
 Logger g_logger = createLogger();
+std::filesystem::path scene_file_path;
 
 int run(int argc, char** argv) {
     auto props = ArgParser::parseArgs(argc, argv);
@@ -19,9 +20,9 @@ int run(int argc, char** argv) {
     // parse scene description file
     SceneParser scene_parser;
     auto scene_desc = scene_parser.parseFile(props["input_file"]);
+    scene_file_path = std::filesystem::absolute(props["input_file"]);
     // load Scene object from scene description
     Scene scene;
-    scene.scene_file_path = std::filesystem::absolute(props["input_file"]);
     scene.load_scene(scene_desc);
 
     Integrator* integrator = IntegratorRegistry::createIntegrator(scene_desc.integrator->type, scene_desc.integrator->properties);

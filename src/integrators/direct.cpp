@@ -17,9 +17,13 @@ public:
     Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const override {
         Intersection isc;
         bool is_hit = scene->ray_intersect(ray, isc);
-        // TODO: maybe use and environment map???
-        if (!is_hit)
-            return Vec3f{0.0};
+        // environment light
+        if (!is_hit) {
+            if (scene->env_map == nullptr)
+                return Vec3f{0.0};
+            isc.dirn = ray.d;
+            return scene->env_map->eval(isc);
+        }
 
         Vec3f radiance{0.0};
         // ----------------------- Visible emitters -----------------------
@@ -58,15 +62,24 @@ public:
                     continue;
 
                 // check if the sample intersects any light
+                Vec3f wo = localToWorld(bsdf_sample.wo, isc.normal);
                 Intersection tmp_isc{};
-                bool is_occluded = scene->ray_intersect(Ray{isc.position + sign(glm::dot(localToWorld(bsdf_sample.wo, isc.normal), isc.normal)) * isc.normal * Epsilon, localToWorld(bsdf_sample.wo, isc.normal), Epsilon, 1e4}, tmp_isc);
-                if (!is_occluded ||
-                    tmp_isc.shape->emitter == nullptr ||
-                    dot(isc.position - tmp_isc.position, tmp_isc.normal) < 0)
-                    continue;
+                bool is_occluded = scene->ray_intersect(Ray{isc.position + sign(glm::dot(wo, isc.normal)) * isc.normal * Epsilon, localToWorld(bsdf_sample.wo, isc.normal), Epsilon, 1e4}, tmp_isc);
+                Vec3f lightLi;
+                if (is_occluded) {
+                    if (tmp_isc.shape->emitter == nullptr || glm::dot(isc.position - tmp_isc.position, tmp_isc.normal) < 0)
+                        continue;
+                    lightLi = tmp_isc.shape->emitter->eval(isc);
+                }
+                else {
+                    if (scene->env_map == nullptr)
+                        continue;
+                    tmp_isc.dirn = wo;
+                    lightLi = scene->env_map->eval(tmp_isc);
+                }
 
                 Float mis_weight = get_mis_weight_bsdf(scene, isc, bsdf_sample, emitter_samples);
-                radiance += mis_weight * bsdf_weight * tmp_isc.shape->emitter->eval(isc) * bsdf_value / bsdf_sample.pdf;
+                radiance += mis_weight * bsdf_weight * lightLi * bsdf_value / bsdf_sample.pdf;
             }
         }
 

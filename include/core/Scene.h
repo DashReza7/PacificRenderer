@@ -3,11 +3,14 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <filesystem>
 
 #include "core/Emitter.h"
 #include "core/Sensor.h"
 #include "core/Shape.h"
 #include "utils/SceneParser.h"
+
+extern std::filesystem::path scene_file_path;
 
 class Scene {
 private:
@@ -31,7 +34,7 @@ private:
 
 public:
     Sensor *sensor = nullptr;
-    std::filesystem::path scene_file_path;
+    Emitter *env_map = nullptr;
 
     /// Load the scene from a description. Returns an integrator.
     void load_scene(const SceneDesc &scene_desc);
