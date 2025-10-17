@@ -19,7 +19,7 @@ public:
         bool is_hit = scene->ray_intersect(ray, isc);
         // environment light
         if (!is_hit) {
-            if (scene->env_map == nullptr)
+            if (scene->env_map == nullptr || hide_emitters)
                 return Vec3f{0.0};
             isc.dirn = ray.d;
             return scene->env_map->eval(isc);

@@ -12,6 +12,7 @@
 - Implement a logger with several log-levels
 - possible bug in BVH build (AABB of flat surfaces might be too thin)
 - rendering is highly sensitive to the choice of Epsilon value
+- bug in barycentric computation (results to nan)
 
 ## Others
 

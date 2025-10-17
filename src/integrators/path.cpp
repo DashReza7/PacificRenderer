@@ -27,7 +27,7 @@ public:
 
         // ----------------------- Visible emitters -----------------------
         if (!is_hit) {
-            if (scene->env_map == nullptr)
+            if (scene->env_map == nullptr || hide_emitters)
                 return Vec3f{0.0};
             curr_isc.dirn = curr_ray.d;
             return scene->env_map->eval(curr_isc);
@@ -49,6 +49,10 @@ public:
                     Vec3f bsdf_value = curr_isc.shape->bsdf->eval(curr_isc, wo_local);
                     if (bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
                         throw std::runtime_error("BSDF eval returned non-positive value in DirectLightingIntegrator");
+                    if (std::isnan(bsdf_value.x) || std::isnan(bsdf_value.y) || std::isnan(bsdf_value.z))
+                        throw std::runtime_error("BSDF eval returned NaN value in DirectLightingIntegrator");
+                    if (std::isinf(bsdf_value.x) || std::isinf(bsdf_value.y) || std::isinf(bsdf_value.z))
+                        throw std::runtime_error("BSDF eval returned Inf value in DirectLightingIntegrator");
 
                     Float mis_weight = get_mis_weight_nee(curr_isc, emitter_sample, 1);
                     radiance += mis_weight * throughput * emitter_sample.radiance * bsdf_value / emitter_sample.pdf;

@@ -19,7 +19,9 @@ void loadBitmap(const std::string &filename, bool raw, Bitmap &bitmap) {
                 const Imf::Rgba &p = temp[y][x];
                 bitmap(x, y) = Vec3f{static_cast<Float>(p.r), static_cast<Float>(p.g), static_cast<Float>(p.b)};
             }
-    } else if (extension == "png" || extension == "jpg" || extension == "jpeg") {
+    } else if (extension == "png" || extension == "jpg" || extension == "jpeg" || extension == "hdr") {
+        if (extension == "hdr")
+            raw = true;
         int channels;
         int width, height;
         unsigned char *data = stbi_load(filename.c_str(), &width, &height, &channels, 0);
