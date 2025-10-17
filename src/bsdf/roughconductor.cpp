@@ -60,14 +60,16 @@ public:
     std::pair<BSDFSample, Vec3f> sample(const Intersection &isc, Float sample1, const Vec2f &sample2) const override {
         Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         if (wi.z <= 0.0 && !has_flag(BSDFFlags::TwoSided))
-            return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
+            return {BSDFSample{Vec3f{0.0}, 0.0, 1.0, BSDFSampleFlags::None},
+                    Vec3f{0.0}};
 
         Vec3f wm = mf_dist->sample_wm(wi, sample2);
         wm = wm * glm::sign(wi.z);
         Vec3f wo = reflect(wi, wm);
 
         Float pdf_val = pdf(isc, wo);
-        return {BSDFSample{wo, pdf_val, 1.0}, eval(isc, wo)};
+        return {BSDFSample{wo, pdf_val, 1.0, BSDFSampleFlags::GlossyReflection},
+                eval(isc, wo)};
     }
 
     std::string to_string() const override {

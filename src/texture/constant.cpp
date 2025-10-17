@@ -12,6 +12,10 @@ public:
     Vec3f eval(const Intersection &isc) const override {
         return albedo;
     }
+
+    Float mean() const override {
+        return luminance(albedo);
+    }
 };
 
 // --------------------------- Registry functions ---------------------------

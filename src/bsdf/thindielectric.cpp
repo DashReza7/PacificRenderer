@@ -5,7 +5,7 @@
 
 class ThinDielectricBSDF final : public BSDF {
 public:
-    Float eta;  // ext_ior / int_ior
+    Float eta;  // int_ior / ext_ior
     const Texture *specular_reflectance;
     const Texture *specular_transmission;
 
@@ -25,19 +25,19 @@ public:
         Vec3f effective_normal = cos_theta_i >= 0 ? Vec3f{0, 0, 1} : Vec3f{0, 0, -1};
 
 
-        Float fr = fresnelReflection(std::abs(cos_theta_i), 1.0 / eta);
+        Float fr = fresnelReflection(std::abs(cos_theta_i), eta);
         if (fr >= 1.0) {
-            // total internal reflection
-            return {BSDFSample{reflect(wi, effective_normal), 1.0, 1.0},
+            // TIR
+            return {BSDFSample{reflect(wi, effective_normal), 1.0, 1.0, BSDFSampleFlags::DeltaReflection},
                     specular_reflectance->eval(isc)};
         }
         
         fr += Sqr(1.0 - fr) * fr / (1.0 - Sqr(fr));
         if (sample1 <= fr) {  // reflection
-            return {BSDFSample{reflect(wi, effective_normal), fr, 1.0},
+            return {BSDFSample{reflect(wi, effective_normal), fr, 1.0, BSDFSampleFlags::DeltaReflection},
                     Vec3f{fr} * specular_reflectance->eval(isc)};
         } else {  // transmission
-            return {BSDFSample{-wi, Float(1.0) - fr, 1.0},
+            return {BSDFSample{-wi, Float(1.0) - fr, 1.0, BSDFSampleFlags::DeltaTransmission},
                     Vec3f{(Float(1.0) - fr)} * specular_transmission->eval(isc)};
         }
     }
@@ -85,7 +85,7 @@ BSDF *createThinDielectricBSDF(const std::unordered_map<std::string, std::string
     }
 
     return new ThinDielectricBSDF(BSDFFlags::Delta | BSDFFlags::PassThrough,
-                ext_ior / int_ior, 
+                int_ior / ext_ior,
                 specular_reflectance, 
                 specular_transmission);
 }

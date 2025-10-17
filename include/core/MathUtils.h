@@ -78,6 +78,7 @@ Vec2f uniformDiskSample(const Vec2f &sample);
 Vec3f uniformHemisphereSample(const Vec2f &sample);
 Vec3f uniformSphereSample(const Vec2f &sample);
 Vec3f cosineHemisphereSample(const Vec2f &sample);
+Float cosineHemispherePDF(const Vec3f &wi, const Vec3f &wo);
 
 inline Float sign(Float x) {
     return x > 0.0 ? 1.0 : (x < 0.0 ? -1.0 : 0.0);

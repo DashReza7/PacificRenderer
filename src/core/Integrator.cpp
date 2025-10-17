@@ -26,9 +26,8 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
             break;
         for (int col = 0; col < width; col++) {
             // debug
-            // if (row != 157 || col != 69)
-            // if (row != 0 || col != 0)
-            //     continue;
+            if (row != 227 || col != 172)
+                continue;
 
             for (size_t i = 0; i < sensor->sampler.spp; i++) {
                 Float px, py;
@@ -114,7 +113,8 @@ Float SamplingIntegrator::get_mis_weight_nee(const Intersection &isc, const Emit
 }
 
 Float SamplingIntegrator::get_mis_weight_bsdf(const Scene *scene, const Intersection &isc, const BSDFSample &bsdf_sample, uint32_t n_emitter_samples) const {
-    if (isc.shape->bsdf->has_flag(BSDFFlags::Delta) || n_emitter_samples == 0)
+    if ((bsdf_sample.flags & BSDFSampleFlags::Delta) != BSDFSampleFlags::None
+            || n_emitter_samples == 0)
         return 1.0;
     Float nee_pdf = scene->pdf_nee(isc, localToWorld(bsdf_sample.wo, isc.normal));
     if (nee_pdf < 0.0)

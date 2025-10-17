@@ -41,3 +41,4 @@
 - implement Beckmann mf distr.
 - implement specular modulation
 - implement scene file validity verification
+- check for the correctness of cosine term multiplied in specular bsdfss

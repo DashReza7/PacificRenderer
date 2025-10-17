@@ -23,10 +23,12 @@ public:
     std::pair<BSDFSample, Vec3f> sample(const Intersection &isc, Float sample1, const Vec2f &sample2) const override {
         Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         if (wi.z <= 0.0 && !this->has_flag(BSDFFlags::TwoSided))
-            return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
+            return {BSDFSample{Vec3f{0.0}, 0.0, 1.0, BSDFSampleFlags::None}, 
+                    Vec3f{0.0}};
         Vec3f bsdf_value = fresnelComplex(std::abs(wi.z), eta, k);
 
-        return {BSDFSample{Vec3f{-wi.x, -wi.y, wi.z}, 1.0, 1.0}, bsdf_value * specular_reflectance->eval(isc)};
+        return {BSDFSample{Vec3f{-wi.x, -wi.y, wi.z}, 1.0, 1.0, BSDFSampleFlags::DeltaReflection}, 
+                bsdf_value * specular_reflectance->eval(isc)};
     }
 
     std::string to_string() const override {

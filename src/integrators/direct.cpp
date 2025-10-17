@@ -56,8 +56,6 @@ public:
         if (isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) || glm::dot(isc.normal, isc.dirn) > 0.0 || isc.shape->bsdf->has_flag(BSDFFlags::PassThrough)) {
             for (size_t i = 0; i < bsdf_samples; i++) {
                 auto [bsdf_sample, bsdf_value] = isc.shape->bsdf->sample(isc, sampler->get_1D(), sampler->get_2D());
-                if (bsdf_sample.pdf < 0.0 || bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
-                    throw std::runtime_error("damn. pdf: " + std::to_string(bsdf_sample.pdf) + ", bsdf_value: " + std::to_string(bsdf_value.x) + ", " + std::to_string(bsdf_value.y) + ", " + std::to_string(bsdf_value.z));
                 if (bsdf_sample.pdf <= Epsilon || glm::length(bsdf_value) <= Epsilon)
                     continue;
 

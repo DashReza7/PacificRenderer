@@ -69,6 +69,11 @@ Vec3f cosineHemisphereSample(const Vec2f &sample) {
     Float phi = 2.0 * Pi * sample.y;
     return Vec3f{std::sin(theta) * std::cos(phi), std::sin(theta) * std::sin(phi), std::cos(theta)};
 }
+Float cosineHemispherePDF(const Vec3f &wi, const Vec3f &wo) {
+    if (wi.z * wo.z <= 0.0)
+        return 0.0;
+    return std::abs(wo.z) * InvPi;
+}
 
 Vec3f barycentric(const Vec3f &v0, const Vec3f &v1, const Vec3f &v2, const Vec3f &p) {
     Vec3f v0v1 = v1 - v0;

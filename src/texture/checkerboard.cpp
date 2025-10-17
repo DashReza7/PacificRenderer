@@ -22,6 +22,10 @@ public:
         else
             return color1;
     }
+
+    Float mean() const override {
+        return 0.5 * (luminance(color0) + luminance(color1));
+    }
 };
 
 // --------------------------- Registry functions ---------------------------

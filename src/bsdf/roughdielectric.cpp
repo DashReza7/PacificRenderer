@@ -8,7 +8,7 @@
 
 class RoughDielectricBSDF final : public BSDF {
 public:
-    Float eta;  // ext_ior over int_ior
+    Float eta;  // int_ior / ext_ior
     Float alpha_u, alpha_v;
     std::string distribution;
     const Microfacet *mf_dist;
@@ -27,18 +27,18 @@ public:
         bool is_reflect = wi.z * wo.z >= 0.0;
         Float etap = 1.0;  // eta_o / eta_i
         if (!is_reflect)
-            etap = wi.z > 0.0 ? 1.0 / eta : eta;
+            etap = wi.z > 0.0 ? eta : 1.0 / eta;
         Vec3f wm = etap * wo + wi;
         if (std::abs(wi.z) <= Epsilon || std::abs(wo.z) <= Epsilon || glm::length(wm) <= Epsilon)
             return Vec3f{0.0};
         wm = wm * sign(wm.z);
         wm /= glm::length(wm);
 
-        Float fr = fresnelReflection(glm::dot(wi, wm), 1.0 / eta);
+        Float fr = fresnelReflection(glm::dot(wi, wm), eta);
         if (is_reflect) {
             // reflection
             Vec3f tmp;
-            bool is_refracted = refract(wi, face_forward(wm, wi), 1.0 / eta, tmp);
+            bool is_refracted = refract(wi, face_forward(wm, wi), eta, tmp);
             if (!is_refracted) {
                 // TIR
                 Float g = mf_dist->G(wi, wo);
@@ -67,18 +67,18 @@ public:
         bool is_reflect = wi.z * wo.z >= 0.0;
         Float etap = 1.0;  // eta_o / eta_i
         if (!is_reflect)
-            etap = wi.z > 0.0 ? 1.0 / eta : eta;
+            etap = wi.z > 0.0 ? eta : 1.0 / eta;
         Vec3f wm = etap * wo + wi;
         if (std::abs(wi.z) <= Epsilon || std::abs(wo.z) <= Epsilon || glm::length(wm) <= Epsilon)
             return 0.0;
         wm = wm * sign(wm.z);
         wm /= glm::length(wm);
 
-        Float fr = fresnelReflection(glm::dot(wi, wm), 1.0 / eta);
+        Float fr = fresnelReflection(glm::dot(wi, wm), eta);
         if (is_reflect) {
             // reflection
             Vec3f tmp;
-            bool is_refracted = refract(wi, face_forward(wm, wi), 1.0 / eta, tmp);
+            bool is_refracted = refract(wi, face_forward(wm, wi), eta, tmp);
             if (!is_refracted) {
                 // TIR
                 Float g = mf_dist->G(wi, wo);
@@ -100,10 +100,11 @@ public:
     std::pair<BSDFSample, Vec3f> sample(const Intersection &isc, Float sample1, const Vec2f &sample2) const override {
         Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         if (std::abs(wi.z) <= Epsilon)
-            return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
+            return {BSDFSample{Vec3f{0.0}, 0.0, 1.0, BSDFSampleFlags::None},
+                    Vec3f{0.0}};
 
         Vec3f wm = mf_dist->sample_wm(wi, sample2);
-        Float etap = wi.z >= 0.0 ? 1.0 / eta : eta;
+        Float etap = wi.z >= 0.0 ? eta : 1.0 / eta;
 
         Vec3f wo;
         bool is_refracted = refract(wi, face_forward(wm, wi), etap, wo);
@@ -112,30 +113,35 @@ public:
             wo = reflect(wi, face_forward(wm, wi));
 
             if (wi.z * wo.z <= Epsilon)
-                return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
+                return {BSDFSample{Vec3f{0.0}, 0.0, 1.0, BSDFSampleFlags::None},
+                        Vec3f{0.0}};
 
             Float g = mf_dist->G(wi, wo);
             Float d = mf_dist->D(wm);
             Float bsdf_val = g * d / (4.0 * wi.z * wo.z) * std::abs(wo.z);
             Float pdf = mf_dist->pdf(wi, wm) / (4.0 * std::abs(glm::dot(wi, wm)));
-            return {BSDFSample{wo, pdf, 1.0}, Vec3f{bsdf_val} * specular_reflectance->eval(isc)};
+            return {BSDFSample{wo, pdf, 1.0, BSDFSampleFlags::DeltaReflection},
+                    Vec3f{bsdf_val} * specular_reflectance->eval(isc)};
         } else {
             Float fr = fresnelReflection(std::abs(glm::dot(wi, wm)), etap);
             if (sample1 <= fr) {
                 // reflection
                 wo = reflect(wi, face_forward(wm, wi));
                 if (std::abs(wo.z) <= Epsilon || wi.z * wo.z <= Epsilon)
-                    return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
+                    return {BSDFSample{Vec3f{0.0}, 0.0, 1.0, BSDFSampleFlags::None},
+                            Vec3f{0.0}};
 
                 Float g = mf_dist->G(wi, wo);
                 Float d = mf_dist->D(wm);
                 Float bsdf_val = g * d / (4.0 * wi.z * wo.z) * std::abs(wo.z) * fr;
                 Float pdf = mf_dist->pdf(wi, wm) / (4.0 * std::abs(glm::dot(wi, wm))) * fr;
-                return {BSDFSample{wo, pdf, 1.0}, Vec3f{bsdf_val} * specular_reflectance->eval(isc)};
+                return {BSDFSample{wo, pdf, 1.0, BSDFSampleFlags::DeltaReflection},
+                        Vec3f{bsdf_val} * specular_reflectance->eval(isc)};
             } else {
                 // refraction
                 if (std::abs(wo.z) <= Epsilon || wi.z * wo.z >= -Epsilon)
-                    return {BSDFSample{Vec3f{0.0}, 0.0, 1.0}, Vec3f{0.0}};
+                    return {BSDFSample{Vec3f{0.0}, 0.0, 1.0, BSDFSampleFlags::None},
+                            Vec3f{0.0}};
 
                 Float g = mf_dist->G(wi, wo);
                 Float d = mf_dist->D(wm);
@@ -146,7 +152,8 @@ public:
                 Float denom = Sqr(glm::dot(wo, wm) + glm::dot(wi, wm) / etap);
                 Float dwm_dwo = std::abs(glm::dot(wo, wm)) / denom;
                 Float pdf = mf_dist->pdf(wi, wm) * dwm_dwo * (1.0 - fr);
-                return {BSDFSample{wo, pdf, Float(1.0) / etap}, Vec3f{bsdf_val} * specular_transmission->eval(isc)};
+                return {BSDFSample{wo, pdf, Float(1.0) / etap, BSDFSampleFlags::DeltaTransmission},
+                        Vec3f{bsdf_val} * specular_transmission->eval(isc)};
             }
         }
     }
@@ -217,7 +224,7 @@ BSDF *createRoughDielectricBSDF(const std::unordered_map<std::string, std::strin
     }
 
     return new RoughDielectricBSDF(BSDFFlags::PassThrough,
-                                   ext_ior / int_ior,
+                                   int_ior / ext_ior,
                                    alpha_u, alpha_v,
                                    distribution, specular_reflectance, specular_transmission);
 }

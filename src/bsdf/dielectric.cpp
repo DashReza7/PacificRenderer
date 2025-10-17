@@ -7,7 +7,7 @@
 
 class SmoothDielectricBSDF final : public BSDF {
 public:
-    Float eta;  // ext_ior / int_ior
+    Float eta;  // int_ior / ext_ior
     const Texture *specular_reflectance;
     const Texture *specular_transmission;
 
@@ -25,25 +25,24 @@ public:
         Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         Float cos_theta_i = wi.z;
         Vec3f effective_normal = cos_theta_i >= 0 ? Vec3f{0, 0, 1} : Vec3f{0, 0, -1};
-        // eta_t / eta_i
-        Float effective_eta = cos_theta_i >= 0 ? 1.0 / eta : eta;
-
+        Float eta_ti = cos_theta_i >= 0 ? eta : 1.0 / eta;
+        
         Vec3f refracted_dirn;
-        bool is_refracted = refract(wi, effective_normal, effective_eta, refracted_dirn);
+        bool is_refracted = refract(wi, effective_normal, eta_ti, refracted_dirn);
         if (!is_refracted) {
-            // total internal reflection
-            return {BSDFSample{reflect(wi, effective_normal), 1.0, 1.0},
+            // TIR
+            return {BSDFSample{reflect(wi, effective_normal), 1.0, 1.0, BSDFSampleFlags::DeltaReflection},
                     specular_reflectance->eval(isc)};
         }
 
-        Float fr = fresnelReflection(std::abs(cos_theta_i), effective_eta);
+        Float fr = fresnelReflection(std::abs(cos_theta_i), eta_ti);
         if (sample1 <= fr) {  // reflection
-            return {BSDFSample{reflect(wi, effective_normal), fr, 1.0},
+            return {BSDFSample{reflect(wi, effective_normal), fr, 1.0, BSDFSampleFlags::DeltaReflection},
                     Vec3f{fr} * specular_reflectance->eval(isc)};
         } else {  // refraction
             // XXX: account for non-symmetry. must be remove when transporting importance
-            return {BSDFSample{refracted_dirn, Float(1.0) - fr, Float(1.0) / effective_eta},
-                    Vec3f{(Float(1.0) - fr) / effective_eta} * specular_transmission->eval(isc)};
+            return {BSDFSample{refracted_dirn, Float(1.0) - fr, Float(1.0) / eta_ti, BSDFSampleFlags::DeltaTransmission},
+                    Vec3f{(Float(1.0) - fr) / eta_ti} * specular_transmission->eval(isc)};
         }
     }
 
@@ -103,7 +102,7 @@ BSDF *createSmoothDielectricBSDF(const std::unordered_map<std::string, std::stri
     }
 
     return new SmoothDielectricBSDF(BSDFFlags::Delta | BSDFFlags::PassThrough, 
-            ext_ior / int_ior,
+            int_ior / ext_ior,
             specular_reflectance,
             specular_transmission);
 }

@@ -16,6 +16,7 @@ private:
     const std::string filter_type;
     const std::string wrap_mode;
     const Mat4f to_uv;
+    Float mean_luminance;
 
 public:
     BitmapTexture(const std::string &filename, const std::string &filter_type, const std::string &wrap_mode, bool raw, const Mat4f to_uv) : filter_type(filter_type), wrap_mode(wrap_mode), to_uv(to_uv) {
@@ -23,6 +24,12 @@ public:
             throw std::runtime_error("Unsupported filter_type '" + filter_type + "' for Bitmap Texture");
                 
         loadBitmap(filename, raw, bitmap);
+        
+        Float total_luminance = 0.0;
+        for (int y = 0; y < bitmap.height; ++y)
+            for (int x = 0; x < bitmap.width; ++x)
+                total_luminance += luminance(bitmap(x, y));
+        mean_luminance = total_luminance / static_cast<Float>(bitmap.width * bitmap.height);
     }
 
     Vec3f eval(const Intersection &isc) const override {
@@ -54,6 +61,10 @@ public:
         int v = static_cast<int>(uv.y * bitmap.height) % bitmap.height;
 
         return bitmap(u, v);
+    }
+
+    Float mean() const override {
+        return mean_luminance;
     }
 };
 
