@@ -1,8 +1,10 @@
 #include "core/BSDF.h"
 #include "core/Constants.h"
 #include "core/MathUtils.h"
-#include "core/Registry.h"
 #include "core/Microfacet.h"
+#include "core/Registry.h"
+#include "core/Texture.h"
+
 
 class RoughDielectricBSDF final : public BSDF {
 public:
@@ -10,8 +12,10 @@ public:
     Float alpha_u, alpha_v;
     std::string distribution;
     const Microfacet *mf_dist;
+    const Texture *specular_reflectance;
+    const Texture *specular_transmission;
 
-    RoughDielectricBSDF(BSDFFlags flags, Float eta, Float alpha_u, Float alpha_v, const std::string &distribution) : BSDF(flags), eta(eta), alpha_u(alpha_u), alpha_v(alpha_v), distribution(distribution) {
+    RoughDielectricBSDF(BSDFFlags flags, Float eta, Float alpha_u, Float alpha_v, const std::string &distribution, const Texture *specular_reflectance, const Texture *specular_transmission) : BSDF(flags), eta(eta), alpha_u(alpha_u), alpha_v(alpha_v), distribution(distribution), specular_reflectance(specular_reflectance), specular_transmission(specular_transmission) {
         mf_dist = MicrofacetRegistry::createMicrofacet(distribution, {{"alpha_u", std::to_string(alpha_u)}, {"alpha_v", std::to_string(alpha_v)}});
     }
     ~RoughDielectricBSDF() {
@@ -40,12 +44,12 @@ public:
                 Float g = mf_dist->G(wi, wo);
                 Float d = mf_dist->D(wm);
                 Float bsdf_val = g * d / std::abs(4.0 * wi.z * wo.z) * std::abs(wo.z);
-                return Vec3f(bsdf_val);
+                return Vec3f{bsdf_val} * specular_reflectance->eval(isc);
             } else {
                 Float g = mf_dist->G(wi, wo);
                 Float d = mf_dist->D(wm);
                 Float bsdf_val = g * d / std::abs(4.0 * wi.z * wo.z) * fr * std::abs(wo.z);
-                return Vec3f(bsdf_val);
+                return Vec3f{bsdf_val} * specular_reflectance->eval(isc);
             }
         } else {
             // refraction
@@ -54,7 +58,7 @@ public:
             Float bsdf_val = g * d * Sqr(etap) / Sqr(glm::dot(wi, wm) + etap * glm::dot(wo, wm)) * std::abs(glm::dot(wi, wm) * glm::dot(wo, wm) / wi.z / wo.z) * std::abs(wo.z) * (1.0 - fr);
             // XXX: account for non-symmetry. must be remove when transporting importance
             bsdf_val /= Sqr(etap);
-            return Vec3f(bsdf_val);
+            return Vec3f{bsdf_val} * specular_transmission->eval(isc);
         }
     }
 
@@ -77,7 +81,7 @@ public:
             bool is_refracted = refract(wi, face_forward(wm, wi), 1.0 / eta, tmp);
             if (!is_refracted) {
                 // TIR
-                Float g =  mf_dist->G(wi, wo);
+                Float g = mf_dist->G(wi, wo);
                 Float d = mf_dist->D(wm);
                 return mf_dist->pdf(wi, wm) / (4.0 * std::abs(glm::dot(wi, wm)));
             } else {
@@ -114,7 +118,7 @@ public:
             Float d = mf_dist->D(wm);
             Float bsdf_val = g * d / (4.0 * wi.z * wo.z) * std::abs(wo.z);
             Float pdf = mf_dist->pdf(wi, wm) / (4.0 * std::abs(glm::dot(wi, wm)));
-            return {BSDFSample{wo, pdf, 1.0}, Vec3f{bsdf_val}};
+            return {BSDFSample{wo, pdf, 1.0}, Vec3f{bsdf_val} * specular_reflectance->eval(isc)};
         } else {
             Float fr = fresnelReflection(std::abs(glm::dot(wi, wm)), etap);
             if (sample1 <= fr) {
@@ -127,7 +131,7 @@ public:
                 Float d = mf_dist->D(wm);
                 Float bsdf_val = g * d / (4.0 * wi.z * wo.z) * std::abs(wo.z) * fr;
                 Float pdf = mf_dist->pdf(wi, wm) / (4.0 * std::abs(glm::dot(wi, wm))) * fr;
-                return {BSDFSample{wo, pdf, 1.0}, Vec3f{bsdf_val}};
+                return {BSDFSample{wo, pdf, 1.0}, Vec3f{bsdf_val} * specular_reflectance->eval(isc)};
             } else {
                 // refraction
                 if (std::abs(wo.z) <= Epsilon || wi.z * wo.z >= -Epsilon)
@@ -142,7 +146,7 @@ public:
                 Float denom = Sqr(glm::dot(wo, wm) + glm::dot(wi, wm) / etap);
                 Float dwm_dwo = std::abs(glm::dot(wo, wm)) / denom;
                 Float pdf = mf_dist->pdf(wi, wm) * dwm_dwo * (1.0 - fr);
-                return {BSDFSample{wo, pdf, Float(1.0) / etap}, Vec3f{bsdf_val}};
+                return {BSDFSample{wo, pdf, Float(1.0) / etap}, Vec3f{bsdf_val} * specular_transmission->eval(isc)};
             }
         }
     }
@@ -155,11 +159,13 @@ public:
 };
 
 // --------------------------- Registry functions ---------------------------
-BSDF *createRoughDielectricBSDF(const std::unordered_map<std::string, std::string> &properties, const std::unordered_map<std::string, const Texture*>& textures) {
+BSDF *createRoughDielectricBSDF(const std::unordered_map<std::string, std::string> &properties, const std::unordered_map<std::string, const Texture *> &textures) {
     Float int_ior = 1.5046;    // bk27
     Float ext_ior = 1.000277;  // air
     Float alpha_u = 0.1, alpha_v = 0.1;
     std::string distribution = "beckmann";
+    const Texture *specular_reflectance = TextureRegistry::createTexture("constant", {{"albedo", "1, 1, 1"}});
+    const Texture *specular_transmission = TextureRegistry::createTexture("constant", {{"albedo", "1, 1, 1"}});
 
     for (const auto &[key, value] : properties) {
         if (key == "int_ior") {
@@ -187,12 +193,33 @@ BSDF *createRoughDielectricBSDF(const std::unordered_map<std::string, std::strin
             alpha_v = std::stod(value);
         } else if (key == "distribution") {
             distribution = value;
+        } else if (key == "specular_reflectance") {
+            delete specular_reflectance;
+            specular_reflectance = TextureRegistry::createTexture("constant", {{"albedo", value}});
+        } else if (key == "specular_transmission") {
+            delete specular_transmission;
+            specular_transmission = TextureRegistry::createTexture("constant", {{"albedo", value}});
         } else {
             throw std::runtime_error("Unknown property '" + key + "' for RoughDielectric BSDF");
         }
     }
 
-    return new RoughDielectricBSDF(BSDFFlags::PassThrough, ext_ior / int_ior, alpha_u, alpha_v, distribution);
+    for (const auto &[key, tex_ptr] : textures) {
+        if (key == "specular_reflectance") {
+            delete specular_reflectance;
+            specular_reflectance = tex_ptr;
+        } else if (key == "specular_transmission") {
+            delete specular_transmission;
+            specular_transmission = tex_ptr;
+        } else {
+            throw std::runtime_error("Unknown texture slot '" + key + "' for RoughDielectric BSDF");
+        }
+    }
+
+    return new RoughDielectricBSDF(BSDFFlags::PassThrough,
+                                   ext_ior / int_ior,
+                                   alpha_u, alpha_v,
+                                   distribution, specular_reflectance, specular_transmission);
 }
 
 namespace {

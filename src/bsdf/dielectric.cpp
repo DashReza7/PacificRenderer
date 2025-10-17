@@ -1,13 +1,17 @@
 #include "core/BSDF.h"
+#include "core/Constants.h"
 #include "core/MathUtils.h"
 #include "core/Registry.h"
-#include "core/Constants.h"
+#include "core/Texture.h"
+
 
 class SmoothDielectricBSDF final : public BSDF {
 public:
     Float eta;  // ext_ior / int_ior
+    const Texture *specular_reflectance;
+    const Texture *specular_transmission;
 
-    SmoothDielectricBSDF(BSDFFlags flags, Float eta) : BSDF(flags), eta(eta) {}
+    SmoothDielectricBSDF(BSDFFlags flags, Float eta, const Texture *specular_reflectance, const Texture *specular_transmission) : BSDF(flags), eta(eta), specular_reflectance(specular_reflectance), specular_transmission(specular_transmission) {}
 
     Vec3f eval(const Intersection &isc, const Vec3f &wo) const override {
         return Vec3f{0.0};
@@ -29,17 +33,17 @@ public:
         if (!is_refracted) {
             // total internal reflection
             return {BSDFSample{reflect(wi, effective_normal), 1.0, 1.0},
-                    Vec3f{1.0}};
+                    specular_reflectance->eval(isc)};
         }
 
         Float fr = fresnelReflection(std::abs(cos_theta_i), effective_eta);
         if (sample1 <= fr) {  // reflection
             return {BSDFSample{reflect(wi, effective_normal), fr, 1.0},
-                    Vec3f{fr}};
+                    Vec3f{fr} * specular_reflectance->eval(isc)};
         } else {  // refraction
             // XXX: account for non-symmetry. must be remove when transporting importance
             return {BSDFSample{refracted_dirn, Float(1.0) - fr, Float(1.0) / effective_eta},
-                    Vec3f{(Float(1.0) - fr) / effective_eta}};
+                    Vec3f{(Float(1.0) - fr) / effective_eta} * specular_transmission->eval(isc)};
         }
     }
 
@@ -51,9 +55,11 @@ public:
 };
 
 // --------------------------- Registry functions ---------------------------
-BSDF *createSmoothDielectricBSDF(const std::unordered_map<std::string, std::string> &properties, const std::unordered_map<std::string, const Texture*>& textures) {
+BSDF *createSmoothDielectricBSDF(const std::unordered_map<std::string, std::string> &properties, const std::unordered_map<std::string, const Texture *> &textures) {
     Float int_ior = 1.5046;    // bk27
     Float ext_ior = 1.000277;  // air
+    const Texture *specular_reflectance = TextureRegistry::createTexture("constant", {{"albedo", "1, 1, 1"}});
+    const Texture *specular_transmission = TextureRegistry::createTexture("constant", {{"albedo", "1, 1, 1"}});
 
     for (const auto &[key, value] : properties) {
         if (key == "int_ior") {
@@ -72,13 +78,34 @@ BSDF *createSmoothDielectricBSDF(const std::unordered_map<std::string, std::stri
                     throw std::runtime_error("Unknown material '" + value + "' for SmoothDielectric BSDF");
                 ext_ior = IOR_TABLE.at(value);
             }
-
+        } else if (key == "specular_reflectance") {
+            delete specular_reflectance;
+            specular_reflectance = TextureRegistry::createTexture("constant", {{"albedo", value}});
+        } else if (key == "specular_transmission") {
+            delete specular_transmission;
+            specular_transmission = TextureRegistry::createTexture("constant", {{"albedo", value}});
+        } else if (key == "specular_transmission") {
         } else {
             throw std::runtime_error("Unknown property '" + key + "' for SmoothDielectric BSDF");
         }
     }
 
-    return new SmoothDielectricBSDF(BSDFFlags::Delta | BSDFFlags::PassThrough, ext_ior / int_ior);
+    for (const auto &[key, tex_ptr] : textures) {
+        if (key == "specular_reflectance") {
+            delete specular_reflectance;
+            specular_reflectance = tex_ptr;
+        } else if (key == "specular_transmission") {
+            delete specular_transmission;
+            specular_transmission = tex_ptr;
+        } else {
+            throw std::runtime_error("Unknown texture slot '" + key + "' for SmoothDielectric BSDF");
+        }
+    }
+
+    return new SmoothDielectricBSDF(BSDFFlags::Delta | BSDFFlags::PassThrough, 
+            ext_ior / int_ior,
+            specular_reflectance,
+            specular_transmission);
 }
 
 namespace {

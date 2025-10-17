@@ -37,3 +37,7 @@
 - fix ray triangle(or BVH) bug having problem with large or small Epsilon(in the dragon scene)
 - implement a Transform class, and apply all transformations with it.
 - compute per-vertex normals when not provided
+- implement bilinear texture interpolation
+- implement Beckmann mf distr.
+- implement specular modulation
+- implement scene file validity verification
