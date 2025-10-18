@@ -16,7 +16,6 @@ public:
 
     SmoothPlasticBSDF(BSDFFlags flags, Float eta, const Texture *diffuse_reflectance, const Texture *specular_reflectance, bool nonlinear)
         : BSDF(flags), eta(eta), diffuse_reflectance(diffuse_reflectance), specular_reflectance(specular_reflectance), nonlinear(nonlinear) {
-        // Compute Fresnel reflectance values
         fdr_int = fresnel_diffuse_reflectance(1.0 / eta);
         fdr_ext = fresnel_diffuse_reflectance(eta);
 
@@ -27,6 +26,8 @@ public:
 
     Vec3f eval(const Intersection &isc, const Vec3f &wo) const override {
         Vec3f wi = worldToLocal(isc.dirn, isc.normal);
+        if (wi.z <= 0.0 && !has_flag(BSDFFlags::TwoSided))
+            return Vec3f{0.0};
         if (wi.z * wo.z <= 0.0)
             return Vec3f{0.0};
 
@@ -42,6 +43,8 @@ public:
 
     Float pdf(const Intersection &isc, const Vec3f &wo) const override {
         Vec3f wi = worldToLocal(isc.dirn, isc.normal);
+        if (wi.z <= 0.0 && !has_flag(BSDFFlags::TwoSided))
+            return 0.0;
         if (wi.z * wo.z <= 0.0)
             return 0.0f;
         // only the diffuse lobe (specular lobe has delta distribution)
@@ -93,7 +96,7 @@ public:
 
     std::string to_string() const override {
         std::ostringstream oss;
-        oss << "BSDF(Diffuse): [ reflectance= ]";
+        oss << "BSDF(SmoothPlastic): [ reflectance= ]";
         return oss.str();
     }
 };

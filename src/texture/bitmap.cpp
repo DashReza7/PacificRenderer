@@ -87,6 +87,8 @@ Texture *createBitmapTexture(const std::unordered_map<std::string, std::string> 
             to_uv = strToMat4f(value);
         } else if (key == "raw") {
             raw = (value == "true" || value == "1");
+        } else if (key == "inv_to_uv") {
+            // ignore
         } else {
             throw std::runtime_error("Unknown property '" + key + "' for Bitmap Texture");
         }

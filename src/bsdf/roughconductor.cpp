@@ -8,8 +8,8 @@
 // Texture reflectance not supported
 class RoughConductorBSDF final : public BSDF {
 public:
-    Vec3f eta, k;              // real and imaginary parts of IOR
-    std::string distribution;  // ggx or beckmann
+    Vec3f eta, k;
+    std::string distribution;
     Float alpha_u, alpha_v;
     Microfacet *mf_dist;
     const Texture *specular_reflectance;
@@ -36,8 +36,7 @@ public:
 
         return mf_dist->D(wm) * fresnelComplex(std::abs(glm::dot(wi, wm)), eta, k) 
             * mf_dist->G(wi, wo) 
-            / (Float(4.0) * std::abs(cos_theta(wi)) * std::abs(cos_theta(wo))) 
-            * std::abs(cos_theta(wo))
+            / (Float(4.0) * std::abs(cos_theta(wi))) 
             * specular_reflectance->eval(isc);
     }
 
@@ -100,24 +99,24 @@ BSDF *createRoughConductorBSDF(const std::unordered_map<std::string, std::string
         } else if (key == "distribution") {
             distribution = value;
             if (distribution != "beckmann" && distribution != "ggx")
-                throw std::runtime_error("SmoothConductorBSDF: Unsupported distribution " + distribution);
+                throw std::runtime_error("RoughConductorBSDF: Unsupported distribution " + distribution);
         } else if (key == "alpha_u") {
             alpha_u = std::stof(value);
             if (alpha_u <= 0.0)
-                throw std::runtime_error("SmoothConductorBSDF: alpha_u should be positive");
+                throw std::runtime_error("RoughConductorBSDF: alpha_u should be positive");
         } else if (key == "alpha_v") {
             alpha_v = std::stof(value);
             if (alpha_v <= 0.0)
-                throw std::runtime_error("SmoothConductorBSDF: alpha_v should be positive");
+                throw std::runtime_error("RoughConductorBSDF: alpha_v should be positive");
         } else if (key == "alpha") {
             if (properties.contains("alpha_u") || properties.contains("alpha_v"))
-                throw std::runtime_error("SmoothConductorBSDF: alpha cannot be used with alpha_u or alpha_v");
+                throw std::runtime_error("RoughConductorBSDF: alpha cannot be used with alpha_u or alpha_v");
             alpha_u = alpha_v = std::stod(value);
         } else if (key == "specular_reflectance") {
             delete specular_reflectance;
             specular_reflectance = TextureRegistry::createTexture("constant", {{"albedo", value}});
         } else {
-            throw std::runtime_error("SmoothConductorBSDF: Unknown property " + key);
+            throw std::runtime_error("RoughConductorBSDF: Unknown property " + key);
         }
     }
 

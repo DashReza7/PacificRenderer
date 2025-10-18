@@ -6,41 +6,29 @@
 
 ## Urgent
 
-- again a bug in MIS
+- fix ray triangle(or BVH) bug having problem with large or small Epsilon(in the dragon scene)
 - add adaptive position based cosine weighted sampling
-- implement textures
-- Implement a logger with several log-levels
-- possible bug in BVH build (AABB of flat surfaces might be too thin)
+s- possible bug in BVH build (AABB of flat surfaces might be too thin)
 - rendering is highly sensitive to the choice of Epsilon value
-- bug in barycentric computation (results to nan)
+- bug in barycentric computation (returns nan)
 
 ## Others
 
+- implement bilinear texture interpolation
+- implement Volumetric integrator
+- compute per-vertex normals when not provided
+- implement a Transform class, and apply all transformations with it.
 - implement ray differential for texture sampling
 - create a UI for setting up the scene and changing parameters (maybe with nanogui)
-- The `hide_emitters` parameter in the scene file doesn't work right now.
-- Convert all () constructors to {}
 - organize the codebase into namespaces, like the math utils.
 - Error handling in SceneParser
-- adjust the formatting in sceneParser (camel case and others)
 - by default use manual. additionally provide the opportunity to use Embree or Optix
 - make bvh build parallel
-- implement AOV integrator
-- implement Volumetric integrator
 - implement normal & bump mapping
 - implement Disney principled BRDF/BSDF
 - Fix the names to be more consistent (e.g. Scene vs scene, BSDF vs bsdf, etc.)
-- Add using a config file to set up small grained details, like the MIS strategy, etc.
 - check to delete all allocated memory
-- Review the to_string functions
-- Checkerboard texture doesn't match with mitsuba when scaled
+- Checkerboard texture doesn't match with mitsuba when scaled (Sphere)
 - add IMath and OpenJPH as submodules
-- fix ray triangle(or BVH) bug having problem with large or small Epsilon(in the dragon scene)
-- implement a Transform class, and apply all transformations with it.
-- compute per-vertex normals when not provided
-- implement bilinear texture interpolation
-- implement Beckmann mf distr.
-- implement specular modulation
 - implement scene file validity verification
 - check for the correctness of cosine term multiplied in specular bsdfss
-- fix the Sphere uv get function to match Mitsuba
