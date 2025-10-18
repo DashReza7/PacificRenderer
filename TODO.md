@@ -43,3 +43,4 @@
 - implement specular modulation
 - implement scene file validity verification
 - check for the correctness of cosine term multiplied in specular bsdfss
+- fix the Sphere uv get function to match Mitsuba

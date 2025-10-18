@@ -9,9 +9,9 @@ class SmoothDielectricBSDF final : public BSDF {
 public:
     Float eta;  // int_ior / ext_ior
     const Texture *specular_reflectance;
-    const Texture *specular_transmission;
+    const Texture *specular_transmittance;
 
-    SmoothDielectricBSDF(BSDFFlags flags, Float eta, const Texture *specular_reflectance, const Texture *specular_transmission) : BSDF(flags), eta(eta), specular_reflectance(specular_reflectance), specular_transmission(specular_transmission) {}
+    SmoothDielectricBSDF(BSDFFlags flags, Float eta, const Texture *specular_reflectance, const Texture *specular_transmittance) : BSDF(flags), eta(eta), specular_reflectance(specular_reflectance), specular_transmittance(specular_transmittance) {}
 
     Vec3f eval(const Intersection &isc, const Vec3f &wo) const override {
         return Vec3f{0.0};
@@ -42,7 +42,7 @@ public:
         } else {  // refraction
             // XXX: account for non-symmetry. must be remove when transporting importance
             return {BSDFSample{refracted_dirn, Float(1.0) - fr, Float(1.0) / eta_ti, BSDFSampleFlags::DeltaTransmission},
-                    Vec3f{(Float(1.0) - fr) / eta_ti} * specular_transmission->eval(isc)};
+                    Vec3f{(Float(1.0) - fr) / eta_ti} * specular_transmittance->eval(isc)};
         }
     }
 
@@ -58,7 +58,7 @@ BSDF *createSmoothDielectricBSDF(const std::unordered_map<std::string, std::stri
     Float int_ior = 1.5046;    // bk27
     Float ext_ior = 1.000277;  // air
     const Texture *specular_reflectance = TextureRegistry::createTexture("constant", {{"albedo", "1, 1, 1"}});
-    const Texture *specular_transmission = TextureRegistry::createTexture("constant", {{"albedo", "1, 1, 1"}});
+    const Texture *specular_transmittance = TextureRegistry::createTexture("constant", {{"albedo", "1, 1, 1"}});
 
     for (const auto &[key, value] : properties) {
         if (key == "int_ior") {
@@ -80,9 +80,9 @@ BSDF *createSmoothDielectricBSDF(const std::unordered_map<std::string, std::stri
         } else if (key == "specular_reflectance") {
             delete specular_reflectance;
             specular_reflectance = TextureRegistry::createTexture("constant", {{"albedo", value}});
-        } else if (key == "specular_transmission") {
-            delete specular_transmission;
-            specular_transmission = TextureRegistry::createTexture("constant", {{"albedo", value}});
+        } else if (key == "specular_transmittance") {
+            delete specular_transmittance;
+            specular_transmittance = TextureRegistry::createTexture("constant", {{"albedo", value}});
         } else if (key == "specular_transmission") {
         } else {
             throw std::runtime_error("Unknown property '" + key + "' for SmoothDielectric BSDF");
@@ -93,9 +93,9 @@ BSDF *createSmoothDielectricBSDF(const std::unordered_map<std::string, std::stri
         if (key == "specular_reflectance") {
             delete specular_reflectance;
             specular_reflectance = tex_ptr;
-        } else if (key == "specular_transmission") {
-            delete specular_transmission;
-            specular_transmission = tex_ptr;
+        } else if (key == "specular_transmittance") {
+            delete specular_transmittance;
+            specular_transmittance = tex_ptr;
         } else {
             throw std::runtime_error("Unknown texture slot '" + key + "' for SmoothDielectric BSDF");
         }
@@ -104,7 +104,7 @@ BSDF *createSmoothDielectricBSDF(const std::unordered_map<std::string, std::stri
     return new SmoothDielectricBSDF(BSDFFlags::Delta | BSDFFlags::PassThrough, 
             int_ior / ext_ior,
             specular_reflectance,
-            specular_transmission);
+            specular_transmittance);
 }
 
 namespace {

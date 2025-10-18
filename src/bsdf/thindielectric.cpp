@@ -7,9 +7,9 @@ class ThinDielectricBSDF final : public BSDF {
 public:
     Float eta;  // int_ior / ext_ior
     const Texture *specular_reflectance;
-    const Texture *specular_transmission;
+    const Texture *specular_transmittance;
 
-    ThinDielectricBSDF(BSDFFlags flags, Float eta, const Texture *specular_reflectance, const Texture *specular_transmission) : BSDF(flags), eta(eta), specular_reflectance(specular_reflectance), specular_transmission(specular_transmission) {}
+    ThinDielectricBSDF(BSDFFlags flags, Float eta, const Texture *specular_reflectance, const Texture *specular_transmittance) : BSDF(flags), eta(eta), specular_reflectance(specular_reflectance), specular_transmittance(specular_transmittance) {}
 
     Vec3f eval(const Intersection &isc, const Vec3f &wo) const override {
         return Vec3f{0.0};
@@ -38,7 +38,7 @@ public:
                     Vec3f{fr} * specular_reflectance->eval(isc)};
         } else {  // transmission
             return {BSDFSample{-wi, Float(1.0) - fr, 1.0, BSDFSampleFlags::DeltaTransmission},
-                    Vec3f{(Float(1.0) - fr)} * specular_transmission->eval(isc)};
+                    Vec3f{(Float(1.0) - fr)} * specular_transmittance->eval(isc)};
         }
     }
 
@@ -54,7 +54,7 @@ BSDF *createThinDielectricBSDF(const std::unordered_map<std::string, std::string
     Float int_ior = 1.5046;    // bk27
     Float ext_ior = 1.000277;  // air
     const Texture *specular_reflectance = TextureRegistry::createTexture("constant", {{"albedo", "1, 1, 1"}});
-    const Texture *specular_transmission = TextureRegistry::createTexture("constant", {{"albedo", "1, 1, 1"}});
+    const Texture *specular_transmittance = TextureRegistry::createTexture("constant", {{"albedo", "1, 1, 1"}});
 
     for (const auto &[key, value] : properties) {
         if (key == "int_ior") {
@@ -64,9 +64,9 @@ BSDF *createThinDielectricBSDF(const std::unordered_map<std::string, std::string
         } else if (key == "specular_reflectance") {
             delete specular_reflectance;
             specular_reflectance = TextureRegistry::createTexture("constant", {{"albedo", value}});
-        } else if (key == "specular_transmission") {
-            delete specular_transmission;
-            specular_transmission = TextureRegistry::createTexture("constant", {{"albedo", value}});
+        } else if (key == "specular_transmittance") {
+            delete specular_transmittance;
+            specular_transmittance = TextureRegistry::createTexture("constant", {{"albedo", value}});
         } else {
             throw std::runtime_error("Unknown property '" + key + "' for ThinDielectric BSDF");
         }
@@ -76,9 +76,9 @@ BSDF *createThinDielectricBSDF(const std::unordered_map<std::string, std::string
         if (key == "specular_reflectance") {
             delete specular_reflectance;
             specular_reflectance = tex_ptr;
-        } else if (key == "specular_transmission") {
-            delete specular_transmission;
-            specular_transmission = tex_ptr;
+        } else if (key == "specular_transmittance") {
+            delete specular_transmittance;
+            specular_transmittance = tex_ptr;
         } else {
             throw std::runtime_error("Unknown texture slot '" + key + "' for ThinDielectric BSDF");
         }
@@ -86,8 +86,8 @@ BSDF *createThinDielectricBSDF(const std::unordered_map<std::string, std::string
 
     return new ThinDielectricBSDF(BSDFFlags::Delta | BSDFFlags::PassThrough,
                 int_ior / ext_ior,
-                specular_reflectance, 
-                specular_transmission);
+                specular_reflectance,
+                specular_transmittance);
 }
 
 namespace {

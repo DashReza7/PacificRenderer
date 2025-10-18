@@ -13,9 +13,9 @@ public:
     std::string distribution;
     const Microfacet *mf_dist;
     const Texture *specular_reflectance;
-    const Texture *specular_transmission;
+    const Texture *specular_transmittance;
 
-    RoughDielectricBSDF(BSDFFlags flags, Float eta, Float alpha_u, Float alpha_v, const std::string &distribution, const Texture *specular_reflectance, const Texture *specular_transmission) : BSDF(flags), eta(eta), alpha_u(alpha_u), alpha_v(alpha_v), distribution(distribution), specular_reflectance(specular_reflectance), specular_transmission(specular_transmission) {
+    RoughDielectricBSDF(BSDFFlags flags, Float eta, Float alpha_u, Float alpha_v, const std::string &distribution, const Texture *specular_reflectance, const Texture *specular_transmittance) : BSDF(flags), eta(eta), alpha_u(alpha_u), alpha_v(alpha_v), distribution(distribution), specular_reflectance(specular_reflectance), specular_transmittance(specular_transmittance) {
         mf_dist = MicrofacetRegistry::createMicrofacet(distribution, {{"alpha_u", std::to_string(alpha_u)}, {"alpha_v", std::to_string(alpha_v)}});
     }
     ~RoughDielectricBSDF() {
@@ -58,7 +58,7 @@ public:
             Float bsdf_val = g * d * Sqr(etap) / Sqr(glm::dot(wi, wm) + etap * glm::dot(wo, wm)) * std::abs(glm::dot(wi, wm) * glm::dot(wo, wm) / wi.z / wo.z) * std::abs(wo.z) * (1.0 - fr);
             // XXX: account for non-symmetry. must be remove when transporting importance
             bsdf_val /= Sqr(etap);
-            return Vec3f{bsdf_val} * specular_transmission->eval(isc);
+            return Vec3f{bsdf_val} * specular_transmittance->eval(isc);
         }
     }
 
@@ -153,7 +153,7 @@ public:
                 Float dwm_dwo = std::abs(glm::dot(wo, wm)) / denom;
                 Float pdf = mf_dist->pdf(wi, wm) * dwm_dwo * (1.0 - fr);
                 return {BSDFSample{wo, pdf, Float(1.0) / etap, BSDFSampleFlags::DeltaTransmission},
-                        Vec3f{bsdf_val} * specular_transmission->eval(isc)};
+                        Vec3f{bsdf_val} * specular_transmittance->eval(isc)};
             }
         }
     }
@@ -172,7 +172,7 @@ BSDF *createRoughDielectricBSDF(const std::unordered_map<std::string, std::strin
     Float alpha_u = 0.1, alpha_v = 0.1;
     std::string distribution = "beckmann";
     const Texture *specular_reflectance = TextureRegistry::createTexture("constant", {{"albedo", "1, 1, 1"}});
-    const Texture *specular_transmission = TextureRegistry::createTexture("constant", {{"albedo", "1, 1, 1"}});
+    const Texture *specular_transmittance = TextureRegistry::createTexture("constant", {{"albedo", "1, 1, 1"}});
 
     for (const auto &[key, value] : properties) {
         if (key == "int_ior") {
@@ -203,9 +203,9 @@ BSDF *createRoughDielectricBSDF(const std::unordered_map<std::string, std::strin
         } else if (key == "specular_reflectance") {
             delete specular_reflectance;
             specular_reflectance = TextureRegistry::createTexture("constant", {{"albedo", value}});
-        } else if (key == "specular_transmission") {
-            delete specular_transmission;
-            specular_transmission = TextureRegistry::createTexture("constant", {{"albedo", value}});
+        } else if (key == "specular_transmittance") {
+            delete specular_transmittance;
+            specular_transmittance = TextureRegistry::createTexture("constant", {{"albedo", value}});
         } else {
             throw std::runtime_error("Unknown property '" + key + "' for RoughDielectric BSDF");
         }
@@ -215,9 +215,9 @@ BSDF *createRoughDielectricBSDF(const std::unordered_map<std::string, std::strin
         if (key == "specular_reflectance") {
             delete specular_reflectance;
             specular_reflectance = tex_ptr;
-        } else if (key == "specular_transmission") {
-            delete specular_transmission;
-            specular_transmission = tex_ptr;
+        } else if (key == "specular_transmittance") {
+            delete specular_transmittance;
+            specular_transmittance = tex_ptr;
         } else {
             throw std::runtime_error("Unknown texture slot '" + key + "' for RoughDielectric BSDF");
         }
@@ -226,7 +226,7 @@ BSDF *createRoughDielectricBSDF(const std::unordered_map<std::string, std::strin
     return new RoughDielectricBSDF(BSDFFlags::PassThrough,
                                    int_ior / ext_ior,
                                    alpha_u, alpha_v,
-                                   distribution, specular_reflectance, specular_transmission);
+                                   distribution, specular_reflectance, specular_transmittance);
 }
 
 namespace {

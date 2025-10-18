@@ -7,9 +7,13 @@ private:
     Float alpha_u, alpha_v;
 
     Float D(const Vec3f &w, const Vec3f &wm) const {
+        if (std::abs(w.z) <= Epsilon)
+            return 0.0;
         return G1(w) * D(wm) * std::abs(glm::dot(w, wm)) / std::abs(w.z);
     }
     Float G1(const Vec3f &w) const {
+        if (std::abs(w.z) <= Epsilon)
+            return 0.0;
         return 1.0 / (1.0 + Lambda(w));
     }
     Float Lambda(const Vec3f &w) const {

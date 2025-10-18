@@ -1,4 +1,5 @@
 #include "core/MathUtils.h"
+#include "core/MathUtils.h"
 
 
 Mat3f localToWorldMat(const Vec3f &world_z) {
@@ -73,6 +74,14 @@ Float cosineHemispherePDF(const Vec3f &wi, const Vec3f &wo) {
     if (wi.z * wo.z <= 0.0)
         return 0.0;
     return std::abs(wo.z) * InvPi;
+}
+
+Vec3f sphericalToCartesian(Float theta, Float phi) {
+    Float sin_theta = std::sin(theta);
+    return Vec3f{
+        sin_theta * std::cos(phi),
+        sin_theta * std::sin(phi),
+        std::cos(theta)};
 }
 
 Vec3f barycentric(const Vec3f &v0, const Vec3f &v1, const Vec3f &v2, const Vec3f &p) {
