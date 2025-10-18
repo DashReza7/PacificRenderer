@@ -30,6 +30,7 @@ add_executable(${PROJECT_NAME}
     "src/lights/area.cpp"
     "src/lights/directional.cpp"
     "src/lights/envmap.cpp"
+    "src/lights/constant.cpp"
     "src/filters/gaussian.cpp"
     "src/geometry/triangle.cpp"
     "src/geometry/sphere.cpp"
