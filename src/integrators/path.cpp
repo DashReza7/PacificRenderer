@@ -30,7 +30,13 @@ public:
             if (scene->env_map == nullptr || hide_emitters)
                 return Vec3f{0.0};
             curr_isc.dirn = curr_ray.d;
-            return scene->env_map->eval(curr_isc);
+            // TODO:
+            Vec3f lightLi = scene->env_map->eval(curr_isc);
+            if (std::isnan(lightLi.x) || std::isnan(lightLi.y) || std::isnan(lightLi.z))
+                throw std::runtime_error("Env map returned NaN value in PathTracerIntegrator");
+            if (std::isinf(lightLi.x) || std::isinf(lightLi.y) || std::isinf(lightLi.z))
+                throw std::runtime_error("Env map returned Inf value in PathTracerIntegrator");
+            return lightLi;
         }
         if (curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_isc.dirn) > 0.0)
             radiance += throughput * curr_isc.shape->emitter->eval(curr_isc);
@@ -45,8 +51,10 @@ public:
             if (!curr_isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
                 EmitterSample emitter_sample = scene->sample_emitter(curr_isc, sampler->get_1D(), sampler->get_3D());
                 if (emitter_sample.is_visible) {
-                    Vec3f wo_local = worldToLocal(-emitter_sample.direction, curr_isc.normal);
+                    Vec3f wo_local = worldToLocal(-emitter_sample.direction, curr_isc.normal);                    
                     Vec3f bsdf_value = curr_isc.shape->bsdf->eval(curr_isc, wo_local);
+
+                    // TODO: debug
                     if (bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
                         throw std::runtime_error("BSDF eval returned non-positive value in DirectLightingIntegrator");
                     if (std::isnan(bsdf_value.x) || std::isnan(bsdf_value.y) || std::isnan(bsdf_value.z))
@@ -62,12 +70,25 @@ public:
             // ------------------------ BSDF sampling -------------------------
 
             auto [bsdf_sample, bsdf_value] = curr_isc.shape->bsdf->sample(curr_isc, sampler->get_1D(), sampler->get_2D());
+            if (bsdf_sample.pdf < 0.0 || bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0) {
+                std::cerr << curr_isc.shape->bsdf->to_string() << std::endl;
+                throw std::runtime_error("BSDF sample returned invalid value in PathTracerIntegrator: " + std::to_string(bsdf_sample.pdf) + ", " + std::to_string(bsdf_value.x) + ", " + std::to_string(bsdf_value.y) + ", " + std::to_string(bsdf_value.z));
+            }
+            if (std::isnan(bsdf_sample.pdf) || std::isnan(bsdf_value.x) || std::isnan(bsdf_value.y) || std::isnan(bsdf_value.z))
+                throw std::runtime_error("BSDF sample returned NaN value in PathTracerIntegrator");
+            if (std::isinf(bsdf_sample.pdf) || std::isinf(bsdf_value.x) || std::isinf(bsdf_value.y) || std::isinf(bsdf_value.z))
+                throw std::runtime_error("BSDF sample returned Inf value in PathTracerIntegrator");
             if (bsdf_sample.pdf <= Epsilon || glm::length(bsdf_value) <= Epsilon)
                 break;
 
             Float mis_weight = get_mis_weight_bsdf(scene, curr_isc, bsdf_sample, 1);
             throughput *= mis_weight * bsdf_value / bsdf_sample.pdf;
 
+            if (std::isnan(throughput.x) || std::isnan(throughput.y) || std::isnan(throughput.z))
+                throw std::runtime_error("Throughput is NaN in PathTracerIntegrator");
+            if (std::isinf(throughput.x) || std::isinf(throughput.y) || std::isinf(throughput.z))
+                throw std::runtime_error("Throughput is Inf in PathTracerIntegrator");
+            
             curr_ray = Ray{curr_isc.position + sign(glm::dot(localToWorld(bsdf_sample.wo, curr_isc.normal), curr_isc.normal)) * curr_isc.normal * Epsilon, localToWorld(bsdf_sample.wo, curr_isc.normal), Epsilon, 1e4};
             is_hit = scene->ray_intersect(curr_ray, curr_isc);
             Vec3f lightLi{0.0};

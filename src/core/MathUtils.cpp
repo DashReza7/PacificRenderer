@@ -1,5 +1,6 @@
 #include "core/MathUtils.h"
 #include "core/MathUtils.h"
+#include <iostream>
 
 
 Mat3f localToWorldMat(const Vec3f &world_z) {
@@ -16,6 +17,9 @@ Mat3f localToWorldMat(const Vec3f &world_z) {
 }
 
 Vec3f localToWorld(const Vec3f &local, const Vec3f &world_z) {
+    if (std::abs(glm::length(world_z) - 1.0) > 1e-6)
+        throw std::runtime_error("world_z is not normalized in localToWorld");
+    
     Mat3f trafo = localToWorldMat(world_z);
     return trafo * local;
 }
@@ -96,10 +100,14 @@ Vec3f barycentric(const Vec3f &v0, const Vec3f &v1, const Vec3f &v2, const Vec3f
     Float d21 = glm::dot(v0p, v0v2);
 
     Float denom = d00 * d11 - d01 * d01;
+    if (denom <= 1e-11) {
+        std::cerr << "Warning: barycentric() -> Degenerate triangle exists: " << denom << std::endl;
+        return Vec3f{0.33, 0.33, 0.34}; // degenerate triangle, return arbitrary barycentric coords
+    }
 
     Float w1 = (d11 * d20 - d01 * d21) / denom;
     Float w2 = (d00 * d21 - d01 * d20) / denom;
-    Float w0 = 1.0f - w1 - w2;
+    Float w0 = 1.0 - w1 - w2;
 
     return Vec3f{w0, w1, w2};
 }

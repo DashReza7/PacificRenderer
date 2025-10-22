@@ -190,6 +190,7 @@ void load_obj(const ShapeDesc* shape_desc, Shape* shape) {
 
 void load_ply(const ShapeDesc* shape_desc, Shape* shape) {
     happly::PLYData mesh{(scene_file_path.parent_path() / shape_desc->properties.at("filename")).string(), false};
+
     auto element_names = mesh.getElementNames();
     if (std::find(element_names.begin(), element_names.end(), "vertex") == element_names.end())
         throw std::runtime_error("PLY mesh must have vertex elements");
@@ -220,6 +221,7 @@ void load_ply(const ShapeDesc* shape_desc, Shape* shape) {
     for (size_t i = 0; i < vt_u.size(); ++i)
         if (vt_u.size() != 0)
             tex_coords.push_back(new Vec2f{vt_u[i], vt_v[i]});
+
     // apply transform
     Mat4f to_world = strToMat4f(shape_desc->properties.at("to_world"));
     Mat4f tsp_inv_to_world = glm::transpose(strToMat4f(shape_desc->properties.at("inv_to_world")));
@@ -231,7 +233,10 @@ void load_ply(const ShapeDesc* shape_desc, Shape* shape) {
     auto& face_element = mesh.getElement("face");
     if (!face_element.hasProperty("vertex_indices"))
         throw std::runtime_error("PLY mesh face elements must have vertex_indices property");
+    // TODO: clean this
     auto face_vertex_indices = face_element.getListProperty<int>("vertex_indices");
+    // auto face_vertex_indices = face_element.getListProperty<uint32_t>("vertex_indices");
+
     for (const auto& face : face_vertex_indices) {
         if (face.size() == 3) {
             GeometryCreationContext gctx{};

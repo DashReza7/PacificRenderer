@@ -14,14 +14,17 @@ public:
         Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         if (wi.z * wo.z <= 0.0)
             return Vec3f{0.0};
-        return InvPi * std::abs(wo.z) * reflectance->eval(isc);
+            
+        Vec3f f = InvPi * std::abs(wo.z) * reflectance->eval(isc);
+        return f;
     }
 
     Float pdf(const Intersection &isc, const Vec3f &wo) const override {
         Vec3f wi = worldToLocal(isc.dirn, isc.normal);
         if (wi.z * wo.z <= 0.0)
             return 0.0f;
-        return std::abs(wo.z) * InvPi;
+        Float pdf_val = std::abs(wo.z) * InvPi;
+        return pdf_val;
     }
 
     std::pair<BSDFSample, Vec3f> sample(const Intersection &isc, Float sample1, const Vec2f &sample2) const override {

@@ -47,7 +47,8 @@ BSDF *createSmoothConductorBSDF(const std::unordered_map<std::string, std::strin
 
     for (const auto &[key, value] : properties) {
         if (key == "material") {
-            throw std::runtime_error("SmoothConductorBSDF: named material not supported");
+            // throw std::runtime_error("SmoothConductorBSDF: named material not supported");
+            std::cerr << "Warning: named material not supported. Using default material..." << std::endl;
         } else if (key == "eta") {
             eta = strToVec3f(value);
         } else if (key == "k") {

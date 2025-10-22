@@ -369,3 +369,4 @@ python/
 .vscode
 compile_commands.json
 rendered_images/
+ppmToPng.exe

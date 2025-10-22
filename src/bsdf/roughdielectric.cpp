@@ -44,11 +44,15 @@ public:
                 Float g = mf_dist->G(wi, wo);
                 Float d = mf_dist->D(wm);
                 Float bsdf_val = g * d / std::abs(4.0 * wi.z * wo.z) * std::abs(wo.z);
+                if (std::isnan(bsdf_val) || std::isinf(bsdf_val))
+                    return Vec3f{0.0};
                 return Vec3f{bsdf_val} * specular_reflectance->eval(isc);
             } else {
                 Float g = mf_dist->G(wi, wo);
                 Float d = mf_dist->D(wm);
                 Float bsdf_val = g * d / std::abs(4.0 * wi.z * wo.z) * fr * std::abs(wo.z);
+                if (std::isnan(bsdf_val) || std::isinf(bsdf_val))
+                    return Vec3f{0.0};
                 return Vec3f{bsdf_val} * specular_reflectance->eval(isc);
             }
         } else {
@@ -58,6 +62,9 @@ public:
             Float bsdf_val = g * d * Sqr(etap) / Sqr(glm::dot(wi, wm) + etap * glm::dot(wo, wm)) * std::abs(glm::dot(wi, wm) * glm::dot(wo, wm) / wi.z / wo.z) * std::abs(wo.z) * (1.0 - fr);
             // XXX: account for non-symmetry. must be remove when transporting importance
             bsdf_val /= Sqr(etap);
+            // TODO
+            if (std::isnan(bsdf_val) || std::isinf(bsdf_val))
+                return Vec3f{0.0};
             return Vec3f{bsdf_val} * specular_transmittance->eval(isc);
         }
     }

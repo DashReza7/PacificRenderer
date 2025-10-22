@@ -4,13 +4,15 @@
 
 - The scene parser can't parse all mitsuba3 files.
 
-## Urgent
+## Important
 
+- bug in .hdr files
 - fix ray triangle(or BVH) bug having problem with large or small Epsilon(in the dragon scene)
 - add adaptive position based cosine weighted sampling
-s- possible bug in BVH build (AABB of flat surfaces might be too thin)
+- possible bug in BVH build (AABB of flat surfaces might be too thin)
 - rendering is highly sensitive to the choice of Epsilon value
-- bug in barycentric computation (returns nan)
+- bug in Beckmann distribution. sometimes returning nan
+- bug in `veach-bidir` scene
 
 ## Others
 
@@ -32,3 +34,5 @@ s- possible bug in BVH build (AABB of flat surfaces might be too thin)
 - add IMath and OpenJPH as submodules
 - implement scene file validity verification
 - check for the correctness of cosine term multiplied in specular bsdfss
+- inconsistency in hdr envmap values
+- film and sampler may be defined outisde sensor and referenced via id
