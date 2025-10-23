@@ -28,22 +28,23 @@ PacificRenderer is a physically-based renderer written in C++. It aims to provid
 	- Directional Light
 	- Environment Map (HDR)
 - **Geometry**:
-	- Triangle Meshes (OBJ)
+	- Triangle Meshes (obj, ply, serialized)
 	- Spheres
 	- Disks
+    - Rectangle, Cube
 - **Texture Support**: Bitmap, checkerboard, and constant textures.
 - **Image Output**: Supports PNG, JPG, EXR, and HDR output formats.
 - **Multithreading**: Parallel rendering using multiple CPU threads.
 - **BVH Acceleration**: Fast ray tracing with bounding volume hierarchy.
-- **Filter Support**: Gaussian and other reconstruction filters.
+- **Filter Support**: Gaussian reconstruction filter.
 - **Extensible Registry System**: Easily add new BSDFs, integrators, emitters, and textures.
 
 ---
 
 ## Scene File Format & Compatibility
 
-- Scene files are written in XML and are a subset of the Mitsuba renderer's format.
-- Most Mitsuba scenes are compatible, but some features are not yet implemented (e.g., RoughPlastic BSDF, Volumetric Integrator, and others).
+- Scene files are written in XML and are a subset of the [Mitsuba renderer's format](https://mitsuba.readthedocs.io/en/stable/src/key_topics/scene_format.html).
+- Most Mitsuba scenes are compatible, but some features are not yet implemented (e.g., RoughPlastic BSDF and Volumetric Integrator).
 
 ---
 
@@ -80,7 +81,7 @@ PacificRenderer is a physically-based renderer written in C++. It aims to provid
 
 ## Gallery
 
-Below are some images rendered with PacificRenderer (see `gallery/`):
+Below are some images rendered with PacificRenderer. The scene files are mostly from [Mitsuba gallery](https://mitsuba.readthedocs.io/en/stable/src/gallery.html). Stanford bunny and dragon are from [Stanford 3D scanning repository](https://graphics.stanford.edu/data/3Dscanrep/).
 
 ### Cornell Box
 
