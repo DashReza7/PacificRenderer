@@ -1,5 +1,5 @@
 <p align="center">
-	<img src="gallery/cbox-pacific.png" alt="cbox-pacific" width="30%">
+	<img src="gallery/cbox-pacific.png" alt="cbox-pacific" width="40%">
 </p>
 
 # PacificRenderer
