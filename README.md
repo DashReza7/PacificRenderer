@@ -12,7 +12,7 @@ PacificRenderer is a physically-based renderer written in C++. It aims to provid
 
 - **Physically-Based Rendering**: Implements unbiased Monte Carlo path tracing and other integrators for realistic image synthesis.
 - **Mitsuba Scene Compatibility**: Supports a subset of Mitsuba's XML scene format, allowing you to use many existing Mitsuba scenes directly.
-- **Modular Integrator System**: Includes integrators such as Path Tracer, Direct Lighting, Albedo, Depth, and more.
+- **Modular Integrator System**: Includes integrators such as Path Tracer, Particle Tracer, Direct Lighting, Albedo, Depth, and more.
 - **BSDFs and Materials**:
 	- Diffuse
 	- Conductor (Metal)
