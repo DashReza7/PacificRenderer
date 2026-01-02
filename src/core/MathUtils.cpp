@@ -49,6 +49,13 @@ Float triangle_area(const Vec3f &a, const Vec3f &b, const Vec3f &c) {
     return Float(0.5) * length(cross(b - a, c - a));
 }
 
+Float uniformDiscrete(Float sample, int n) {
+    if (n < 1)
+        throw std::runtime_error("n must be >= 1 in uniformDiscrete");
+
+    return std::min(int(sample * n), n - 1);
+}
+
 Vec2f uniformDiskSample(const Vec2f &sample) {
     Float r = std::sqrt(sample.x);
     Float theta = 2.0 * Pi * sample.y;

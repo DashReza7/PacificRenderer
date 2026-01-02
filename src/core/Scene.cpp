@@ -799,6 +799,14 @@ Float Scene::pdf_nee(const Intersection& isc, const Vec3f& w) const {
     return pdf;
 }
 
+Vec3f Scene::sample_emitter_ptrace(Vec2f sample1, Vec3f sample2, Float sample3, 
+                            Vec3f &posn, Vec3f &dirn, Float &pdf) const {
+    int light_idx = uniformDiscrete(sample3, emitters.size());
+    Vec3f Le = emitters[light_idx]->sampleLe(sample1, sample2, posn, dirn, pdf);
+    pdf /= emitters.size();
+    return Le;
+}
+
 std::string Scene::to_string() const {
     std::ostringstream oss;
     oss << "Scene: " << scene_file_path.string() << "\n";

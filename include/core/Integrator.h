@@ -33,3 +33,9 @@ protected:
 public:
     MonteCarloIntegrator(int max_depth, int rr_depth) : max_depth(max_depth), rr_depth(rr_depth) {};
 };
+
+class AdjointIntegrator : public Integrator {
+public:
+    virtual void render(const Scene *scene, Sensor *sensor, uint32_t n_threads, bool show_progress) override;
+    virtual void sample(const Scene *scene, const Sensor *sensor);
+};

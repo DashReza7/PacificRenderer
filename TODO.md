@@ -6,6 +6,8 @@
 
 ## Important
 
+- fix non-symmetric behaviour in dielectric, shading normals
+- bug in BVH ray intersection
 - bug in .hdr files
 - fix ray triangle(or BVH) bug having problem with large or small Epsilon(in the dragon scene)
 - add adaptive position based cosine weighted sampling

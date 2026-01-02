@@ -24,6 +24,10 @@ public:
         return EmitterSample{1.0, direction, !is_hit, irradiance, EmitterFlags::DELTA_DIRECTION};
     }
 
+    Vec3f sampleLe(const Vec2f &sample1, const Vec3f &sample2, Vec3f &posn, Vec3f &dirn, Float &pdf) const override {
+        throw std::runtime_error("Directional light does not support sampleLe() yet.");
+    }
+
     std::string to_string() const override {
         std::ostringstream oss;
         oss << "Emitter(DirectionalLight): [ irradiance=" << irradiance << ", direction=" << direction << " ]";

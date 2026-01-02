@@ -16,7 +16,7 @@ class Scene {
 private:
     std::vector<Shape*> shapes{};
     BVHNode *bvh_root = nullptr;
-    AccelerationType accel_type = AccelerationType::BVH;
+    AccelerationType accel_type = AccelerationType::NONE;
     std::vector<Emitter*> emitters{};
 
     std::vector<Geometry*> get_all_geoms() const;
@@ -43,5 +43,9 @@ public:
     /// @param w the direction we want to compute its pdf
     /// @return The direction's pdf in solid angle measure
     Float pdf_nee(const Intersection &isc, const Vec3f &w) const;
+    /// @brief sample a posn & dirn on a light source, Used for particle tracing
+    /// @return RGB contribution value
+    Vec3f sample_emitter_ptrace(Vec2f sample1, Vec3f sample2, Float sample3, 
+                                Vec3f &posn, Vec3f &dirn, Float &pdf) const;
     std::string to_string() const;
 };

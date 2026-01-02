@@ -27,6 +27,10 @@ public:
         return EmitterSample{Inv4Pi, -w, is_valid, eval(tmp_isc), EmitterFlags::NONE};
     }
 
+    Vec3f sampleLe(const Vec2f &sample1, const Vec3f &sample2, Vec3f &posn, Vec3f &dirn, Float &pdf) const override {
+        throw std::runtime_error("Constant light does not support sampleLe() yet.");
+    }
+    
     std::string to_string() const override {
         std::ostringstream oss;
         oss << "Emitter(ConstantLight): []";

@@ -368,5 +368,5 @@ build/
 python/
 .vscode
 compile_commands.json
-rendered_images/
+rendered-images/
 ppmToPng.exe
