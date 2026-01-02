@@ -32,6 +32,9 @@ public:
     }
 
     Vec3f sampleLe(const Vec2f &sample1, const Vec3f &sample2, Vec3f &posn, Vec3f &dirn, Float &pdf) const override {
+        // TODO        
+        throw std::runtime_error("point light doesn't support sampleLe yet.");
+        
         posn = position;
         dirn = uniformSphereSample(sample1);
         pdf = Inv4Pi;

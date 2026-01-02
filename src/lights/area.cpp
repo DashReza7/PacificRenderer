@@ -52,18 +52,18 @@ public:
         return EmitterSample{pdf, -dirn, is_valid, radiance_val, EmitterFlags::AREA};
     }
 
+    // Sample a posn on surface uniformly (area measure),
+    // and a uniform dirn from hemisphere (solid angle measure)
     Vec3f sampleLe(const Vec2f &sample1, const Vec3f &sample2, Vec3f &posn, Vec3f &dirn, Float &pdf) const override {
         auto [position, normal, pdf_shape] = shape->sample_point_on_surface(sample2.x, Vec2f{sample2.y, sample2.z});
         posn = position;
         dirn = localToWorld(uniformHemisphereSample(sample1), normal);
-        // FIXME: Is this correct? I mean it's a combination of area measure and solid angle measure!
         pdf = pdf_shape * Inv2Pi;
 
         // TODO: this only works for constant Area light
         Intersection isc_tmp;
-        // TODO: Is this multiplication by cos correct?
+        // multiply by cosine term, used for area measure in particle tracing
         return eval(isc_tmp) * std::abs(glm::dot(normal, dirn));
-        // return eval(isc_tmp);
     }
     
     std::string to_string() const override {

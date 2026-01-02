@@ -21,21 +21,20 @@ public:
 
         int n_samples = sensor->film.width * sensor->film.height * sensor->sampler.spp;
         for (int smpl = 0; smpl < n_samples; smpl++) {
+            Vec3f sensor_origin = sensor->get_origin_world();
             // sample a posn & dirn on light source
             Vec3f posn, dirn;
-            Float pdf;
+            Float pdf;  // must convert the solid angle measure part to area measure
             Vec3f T = scene->sample_emitter_ptrace(sensor->sampler.get_2D(), sensor->sampler.get_3D(), sensor->sampler.get_1D(),
                                                    posn, dirn, pdf);
 
             T /= sensor->sampler.spp;
-            Vec3f sensor_origin = sensor->get_origin_world();
+            T /= pdf;
 
             // shoot a ray
             Ray ray{posn + dirn * Epsilon, dirn, 1e-4, 1e6};
             Intersection isc;
             bool is_hit = scene->ray_intersect(ray, isc);
-            // convert the dirn part of pdf to area measure
-            T /= pdf;
 
             // loop over various lengths of paths
             for (int i = 0; i < max_depth; i++) {
@@ -57,16 +56,15 @@ public:
 
                 // ----------------- prepare posn & dirn for the next iter -----------------
                 auto [bsdf_sample, bsdf_val] = isc.shape->bsdf->sample(isc, sensor->sampler.get_1D(), sensor->sampler.get_2D());
-                posn = isc.position;
+                T *= bsdf_val / bsdf_sample.pdf;
+
                 dirn = localToWorld(bsdf_sample.wo, isc.normal);
                 ray = Ray{isc.position + dirn * Epsilon, dirn, 1e-4, 1e6};
                 is_hit = scene->ray_intersect(ray, isc);
-                T *= bsdf_val / bsdf_sample.pdf;
             }
 
-            if (show_progress)
-                if (smpl % 100 == 0)
-                    std::cout << "\rProgress: " << std::format("{:.02f}", ((smpl + 1) / static_cast<double>(n_samples)) * 100) << "%" << std::flush;
+            if (show_progress && smpl % 100 == 0)
+                std::cout << "\rProgress: " << std::format("{:.02f}", ((smpl + 1) / static_cast<double>(n_samples)) * 100) << "%" << std::flush;
         }
     }
 
