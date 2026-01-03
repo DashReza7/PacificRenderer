@@ -108,4 +108,6 @@ public:
     BVHNode(BVHNode *left_, BVHNode *right_, AABB bbox_) : left(left_), right(right_), bbox(bbox_) {}
 
     bool intersect(const Ray &ray, Intersection &isc);
+    
+    bool intersect_optimized(Ray &ray, Intersection &isc);
 };

@@ -23,6 +23,14 @@ int run(int argc, char** argv) {
     scene_file_path = std::filesystem::absolute(props["input_file"]);
     // load Scene object from scene description
     Scene scene;
+    if (scene_desc.props.contains("accel_type")) {
+        if (scene_desc.props.at("accel_type") == "bvh")
+            scene.accel_type = AccelerationType::BVH;
+        else if (scene_desc.props.at("accel_type") == "none")
+            scene.accel_type = AccelerationType::NONE;
+        else
+            throw std::runtime_error("unsupported acceleration type: " + scene_desc.props.at("accel_type"));
+    }
     scene.load_scene(scene_desc);
 
     Integrator* integrator = IntegratorRegistry::createIntegrator(scene_desc.integrator->type, scene_desc.integrator->properties);

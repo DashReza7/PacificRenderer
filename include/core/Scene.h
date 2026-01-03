@@ -16,7 +16,6 @@ class Scene {
 private:
     std::vector<Shape*> shapes{};
     BVHNode *bvh_root = nullptr;
-    AccelerationType accel_type = AccelerationType::NONE;
     std::vector<Emitter*> emitters{};
 
     std::vector<Geometry*> get_all_geoms() const;
@@ -24,6 +23,7 @@ private:
     bool ray_intersect_bvh(const Ray &ray, Intersection &isc) const;
 
 public:
+    AccelerationType accel_type = AccelerationType::BVH;
     Sensor *sensor = nullptr;
     Emitter *env_map = nullptr;
 

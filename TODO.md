@@ -7,7 +7,6 @@
 ## Important
 
 - fix non-symmetric behaviour in dielectric, shading normals
-- bug in BVH ray intersection (for ptracer)
 - bug in .hdr files
 - bug in ptracer (black pixels)
 - fix ray triangle(or BVH) bug having problem with large or small Epsilon(in the dragon scene)
@@ -39,3 +38,4 @@
 - check for the correctness of cosine term multiplied in specular bsdfss
 - inconsistency in hdr envmap values
 - film and sampler may be defined outisde sensor and referenced via id
+- add wirefrarme integrator

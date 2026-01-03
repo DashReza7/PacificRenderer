@@ -212,6 +212,7 @@ struct SceneDesc {
     std::vector<const TextureDesc*> textures;
     std::vector<EmitterDesc*> emitters;
     bool has_envmap = false;
+    std::unordered_map<std::string, std::string> props{};
 
     std::string to_string() {
         std::ostringstream oss;
@@ -350,7 +351,9 @@ private:
                 if (emitter_desc->type == "envmap")
                     scene.has_envmap = true;
             } else if (node_name == "default") {
-                this->add_default(child);
+                auto [name, value] = this->add_default(child);
+                if (name == "accel_type")
+                    scene.props[name] = value;
             } else {
                 throw std::runtime_error(std::string("Unknown scene object: ") + node_name);
             }
@@ -659,9 +662,9 @@ private:
         return {trafo, inv_trafo};
     }
 
-    void add_default(const pugi::xml_node& node) {
-        defaults[node.attribute("name").value()] =
-            node.attribute("value").value();
+    std::pair<std::string, std::string> add_default(const pugi::xml_node& node) {
+        defaults[node.attribute("name").value()] = node.attribute("value").value();
+        return {node.attribute("name").value(), node.attribute("value").value()};
     }
 
     std::string get_default(const std::string& value) {

@@ -76,10 +76,21 @@ public:
                             // ----------------- prepare posn & dirn for the next iter -----------------
                             auto [bsdf_sample, bsdf_val] = isc.shape->bsdf->sample(isc, sensor->sampler.get_1D(), sensor->sampler.get_2D());
                             T *= bsdf_val / bsdf_sample.pdf;
+                            if (bsdf_sample.pdf == 0 || bsdf_val == Vec3f{0})
+                                break;
 
                             dirn = localToWorld(bsdf_sample.wo, isc.normal);
                             ray = Ray{isc.position + dirn * Epsilon, dirn, 1e-4, 1e6};
                             is_hit = scene->ray_intersect(ray, isc);
+
+                            // DEBUG:
+                            // if (std::isinf(T.x) || std::isinf(T.y) || std::isinf(T.z) 
+                            //  || std::isnan(T.x) || std::isnan(T.y) || std::isnan(T.z)
+                            //  || T.x < 0 || T.y < 0 || T.z < 0) {
+                            //     std::lock_guard<std::mutex> lock(print_mutex);
+                            //     std::cout << "\r\nDEBUG: inf or nan or negative T encountered: " << T << std::endl;
+                            //     exit(EXIT_FAILURE);
+                            // }
                         }
 
                         if (show_progress && smpl % 100 == 0) {

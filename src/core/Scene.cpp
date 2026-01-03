@@ -635,8 +635,11 @@ void Scene::load_scene(const SceneDesc& scene_desc) {
     }
 
     load_shapes(scene_desc.shapes, bsdfs_dict, emitters_dict, shapes);
-    bvh_root = new BVHNode{};
-    build_bvh(bvh_root, get_all_geoms());
+    
+    if (accel_type == AccelerationType::BVH) {
+        bvh_root = new BVHNode{};
+        build_bvh(bvh_root, get_all_geoms());
+    }
 
     load_sensor(scene_desc.sensor, sensor);
 }
@@ -744,7 +747,10 @@ bool Scene::ray_intersect_bruteforce(const Ray& ray, Intersection& isc) const {
 bool Scene::ray_intersect_bvh(const Ray& ray, Intersection& isc) const {
     if (bvh_root == nullptr)
         throw std::runtime_error("BVH not built");
-    return bvh_root->intersect(ray, isc);
+    // CHANGED with the new bvh intersect function
+    // return bvh_root->intersect(ray, isc);
+    Ray r{ray};
+    return bvh_root->intersect_optimized(r, isc);
 }
 
 bool Scene::ray_intersect(const Ray& ray, Intersection& isc) const {
