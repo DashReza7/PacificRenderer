@@ -4,6 +4,7 @@
 #include "core/MathUtils.h"
 #include "core/Registry.h"
 #include "core/Scene.h"
+#include "core/Thread.h"
 
 class ParticleTracerIntegrator : public Integrator {
 private:
@@ -19,53 +20,87 @@ public:
         extern bool g_DEBUG;
         // FIXME: right now directly visible lights are not captured
 
-        int n_samples = sensor->film.width * sensor->film.height * sensor->sampler.spp;
-        for (int smpl = 0; smpl < n_samples; smpl++) {
-            Vec3f sensor_origin = sensor->get_origin_world();
-            // sample a posn & dirn on light source
-            Vec3f posn, dirn;
-            Float pdf;  // must convert the solid angle measure part to area measure
-            Vec3f T = scene->sample_emitter_ptrace(sensor->sampler.get_2D(), sensor->sampler.get_3D(), sensor->sampler.get_1D(),
-                                                   posn, dirn, pdf);
+        if (max_depth < 0)
+            max_depth = 100;
 
-            T /= sensor->sampler.spp;
-            T /= pdf;
+        // Use sensor->sampler as the master RNG, then create n_threads Samplers with different seeds
+        ThreadPool tpool{sensor->sampler, n_threads};
+        std::vector<std::future<void>> results;
+        std::atomic<size_t> n_rendered_particles{0};
+        std::mutex print_mutex;
 
-            // shoot a ray
-            Ray ray{posn + dirn * Epsilon, dirn, 1e-4, 1e6};
-            Intersection isc;
-            bool is_hit = scene->ray_intersect(ray, isc);
+        auto start_time = std::chrono::high_resolution_clock::now();
 
-            // loop over various lengths of paths
-            for (int i = 0; i < max_depth; i++) {
-                if (!is_hit)
-                    break;
+        Vec3f sensor_origin = sensor->get_origin_world();
+        int n_all_samples = sensor->film.width * sensor->film.height * sensor->sampler.spp;
+        for (size_t thread_idx = 0; thread_idx < n_threads; thread_idx++) {
+            int samples_per_thread = n_all_samples / n_threads;
+            if (thread_idx == n_threads - 1)
+                samples_per_thread += n_all_samples % n_threads;
+            results.emplace_back(
+                tpool.enqueue([this, sensor, scene, show_progress, n_all_samples, sensor_origin, samples_per_thread, &n_rendered_particles, &print_mutex](Sampler& sampler) {
+                    
+                    for (int smpl = 0; smpl < samples_per_thread; smpl++) {
+                        // sample a posn & dirn on light source
+                        Vec3f posn, dirn;
+                        Float pdf;  // must convert the solid angle measure part to area measure
+                        Vec3f T = scene->sample_emitter_ptrace(sensor->sampler.get_2D(), sensor->sampler.get_3D(), sensor->sampler.get_1D(),
+                                                               posn, dirn, pdf);
 
-                // ----------------- compute the contrib (connect to camera) -----------------
-                Vec3f sensor_dirn = glm::normalize(sensor_origin - isc.position);
-                Float sensor_dist = glm::length(sensor_origin - isc.position);
-                // check if camera is visible
-                Intersection tmp_isc;
-                bool is_camera_occluded = scene->ray_intersect(Ray{isc.position + sensor_dirn * Epsilon, sensor_dirn, 1e-4, sensor_dist, true}, tmp_isc);
-                if (!is_camera_occluded) {
-                    Vec3f bsdfval_sensor = isc.shape->bsdf->eval(isc, worldToLocal(sensor_dirn, isc.normal));
-                    Vec3f camT = T * bsdfval_sensor;
-                    camT /= Sqr(sensor_dist);
-                    sensor->add_contrib(-sensor_dirn, camT);
-                }
+                        T /= sensor->sampler.spp;
+                        T /= pdf;
 
-                // ----------------- prepare posn & dirn for the next iter -----------------
-                auto [bsdf_sample, bsdf_val] = isc.shape->bsdf->sample(isc, sensor->sampler.get_1D(), sensor->sampler.get_2D());
-                T *= bsdf_val / bsdf_sample.pdf;
+                        // shoot a ray
+                        Ray ray{posn + dirn * Epsilon, dirn, 1e-4, 1e6};
+                        Intersection isc;
+                        bool is_hit = scene->ray_intersect(ray, isc);
 
-                dirn = localToWorld(bsdf_sample.wo, isc.normal);
-                ray = Ray{isc.position + dirn * Epsilon, dirn, 1e-4, 1e6};
-                is_hit = scene->ray_intersect(ray, isc);
-            }
+                        // loop over various lengths of paths
+                        for (int i = 0; i < max_depth; i++) {
+                            if (!is_hit)
+                                break;
 
-            if (show_progress && smpl % 100 == 0)
-                std::cout << "\rProgress: " << std::format("{:.02f}", ((smpl + 1) / static_cast<double>(n_samples)) * 100) << "%" << std::flush;
+                            // ----------------- compute the contrib (connect to camera) -----------------
+                            Vec3f sensor_dirn = glm::normalize(sensor_origin - isc.position);
+                            Float sensor_dist = glm::length(sensor_origin - isc.position);
+                            // check if camera is visible
+                            Intersection tmp_isc;
+                            bool is_camera_occluded = scene->ray_intersect(Ray{isc.position + sensor_dirn * Epsilon, sensor_dirn, 1e-4, sensor_dist, true}, tmp_isc);
+                            if (!is_camera_occluded) {
+                                Vec3f bsdfval_sensor = isc.shape->bsdf->eval(isc, worldToLocal(sensor_dirn, isc.normal));
+                                Vec3f camT = T * bsdfval_sensor;
+                                camT /= Sqr(sensor_dist);
+                                sensor->add_contrib(-sensor_dirn, camT);
+                            }
+
+                            // ----------------- prepare posn & dirn for the next iter -----------------
+                            auto [bsdf_sample, bsdf_val] = isc.shape->bsdf->sample(isc, sensor->sampler.get_1D(), sensor->sampler.get_2D());
+                            T *= bsdf_val / bsdf_sample.pdf;
+
+                            dirn = localToWorld(bsdf_sample.wo, isc.normal);
+                            ray = Ray{isc.position + dirn * Epsilon, dirn, 1e-4, 1e6};
+                            is_hit = scene->ray_intersect(ray, isc);
+                        }
+
+                        if (show_progress && smpl % 100 == 0) {
+                            if (smpl > 0)
+                                n_rendered_particles.fetch_add(100);
+                            {
+                                std::lock_guard<std::mutex> lock(print_mutex);
+                                std::cout << "\rProgress: " << std::format("{:.02f}", ((n_rendered_particles + 1) / static_cast<double>(n_all_samples)) * 100) << "%" << std::flush;
+                            }
+                        }
+                    }
+                    
+                }));
         }
+        for (auto& result : results)
+            result.get();
+        std::cout << std::endl;
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = end_time - start_time;
+        std::cout << "Rendering completed in " << std::format("{:.02f}", elapsed.count()) << " seconds.";
     }
 
     std::string to_string() const override {

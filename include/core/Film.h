@@ -36,7 +36,10 @@ public:
                     continue;
                 Float filter_weight = rfilter->eval(x - (c - col), y - (r - row));
                 std::lock_guard<std::mutex> lock(pixels_mutex[r * width + c]);
-                pixels[r * width + c] += filter_weight * value;
+                Vec3f my_val = value;
+                if (std::isinf(value.x) || std::isinf(value.y) || std::isinf(value.z) || value.x < 0 || value.y < 0 || value.z < 0)
+                    my_val = Vec3f{0};
+                pixels[r * width + c] += filter_weight * my_val;
                 pixels_weights_sum[r * width + c] += filter_weight;
             }
         }
