@@ -51,7 +51,7 @@ public:
             if (!curr_isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
                 EmitterSample emitter_sample = scene->sample_emitter(curr_isc, sampler->get_1D(), sampler->get_3D());
                 if (emitter_sample.is_visible) {
-                    Vec3f wo_local = worldToLocal(-emitter_sample.direction, curr_isc.normal);                    
+                    Vec3f wo_local = worldToLocal(-emitter_sample.direction, curr_isc.normal);
                     Vec3f bsdf_value = curr_isc.shape->bsdf->eval(curr_isc, wo_local);
 
                     // TODO: debug
@@ -88,7 +88,7 @@ public:
                 throw std::runtime_error("Throughput is NaN in PathTracerIntegrator");
             if (std::isinf(throughput.x) || std::isinf(throughput.y) || std::isinf(throughput.z))
                 throw std::runtime_error("Throughput is Inf in PathTracerIntegrator");
-            
+
             curr_ray = Ray{curr_isc.position + sign(glm::dot(localToWorld(bsdf_sample.wo, curr_isc.normal), curr_isc.normal)) * curr_isc.normal * Epsilon, localToWorld(bsdf_sample.wo, curr_isc.normal), Epsilon, 1e4};
             is_hit = scene->ray_intersect(curr_ray, curr_isc);
             Vec3f lightLi{0.0};

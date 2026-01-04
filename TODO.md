@@ -8,13 +8,11 @@
 
 - fix non-symmetric behaviour in dielectric, shading normals
 - bug in .hdr files
-- bug in ptracer (black pixels)
 - fix ray triangle(or BVH) bug having problem with large or small Epsilon(in the dragon scene)
 - add adaptive position based cosine weighted sampling
 - possible bug in BVH build (AABB of flat surfaces might be too thin)
-- rendering is highly sensitive to the choice of Epsilon value
 - bug in Beckmann distribution. sometimes returning nan
-- bug in `veach-bidir` scene
+- bug in `veach-bidir` scene (Found it. It's related to twosided-bsdf, and how I handle it during path tracing)
 
 ## Others
 
