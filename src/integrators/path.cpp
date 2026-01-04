@@ -26,20 +26,27 @@ public:
         bool is_hit = scene->ray_intersect(curr_ray, curr_isc);
 
         // ----------------------- Visible emitters -----------------------
-        if (!is_hit) {
-            if (scene->env_map == nullptr || hide_emitters)
-                return Vec3f{0.0};
-            curr_isc.dirn = curr_ray.d;
-            // TODO:
-            Vec3f lightLi = scene->env_map->eval(curr_isc);
-            if (std::isnan(lightLi.x) || std::isnan(lightLi.y) || std::isnan(lightLi.z))
-                throw std::runtime_error("Env map returned NaN value in PathTracerIntegrator");
-            if (std::isinf(lightLi.x) || std::isinf(lightLi.y) || std::isinf(lightLi.z))
-                throw std::runtime_error("Env map returned Inf value in PathTracerIntegrator");
-            return lightLi;
+        if (!hide_emitters) {
+            // envmap
+            if (!is_hit) {
+                if (scene->env_map == nullptr)
+                    return Vec3f{0.0};
+                curr_isc.dirn = curr_ray.d;
+                // TODO: BUG for hdr envmap maybe?
+                Vec3f lightLi = scene->env_map->eval(curr_isc);
+                if (std::isnan(lightLi.x) || std::isnan(lightLi.y) || std::isnan(lightLi.z))
+                    throw std::runtime_error("Env map returned NaN value in PathTracerIntegrator");
+                if (std::isinf(lightLi.x) || std::isinf(lightLi.y) || std::isinf(lightLi.z))
+                    throw std::runtime_error("Env map returned Inf value in PathTracerIntegrator");
+                return lightLi;
+            }
+            // area light
+            if (curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_isc.dirn) > 0.0)
+                radiance += throughput * curr_isc.shape->emitter->eval(curr_isc);
         }
-        if (curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_isc.dirn) > 0.0)
-            radiance += throughput * curr_isc.shape->emitter->eval(curr_isc);
+        // blackout emitters if hide_emitter
+        if (is_hit && hide_emitters && curr_isc.shape->emitter)
+            return Vec3f{0};
 
         for (int depth = 1; depth < max_depth || max_depth == -1; depth++) {
             if (!is_hit ||

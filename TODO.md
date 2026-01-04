@@ -12,7 +12,6 @@
 - add adaptive position based cosine weighted sampling
 - possible bug in BVH build (AABB of flat surfaces might be too thin)
 - bug in Beckmann distribution. sometimes returning nan
-- bug in `veach-bidir` scene (Found it. It's related to twosided-bsdf, and how I handle it during path tracing)
 
 ## Others
 

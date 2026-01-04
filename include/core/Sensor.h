@@ -5,6 +5,17 @@
 #include "core/Sampler.h"
 
 class Sensor {
+private:
+    Float film_area;
+
+    Float get_film_area() const {
+        Float aspect_ratio = static_cast<Float>(film.width) / static_cast<Float>(film.height);
+        Float tan_half_fov = std::tan(glm::radians(fov) * 0.5f);
+        Float width = 2.0f * tan_half_fov;
+        Float height = width / aspect_ratio;
+        return width * height;
+    }
+
 public:
     Mat4f to_world;
     /// field of view in degrees. between 0 and 180
@@ -13,7 +24,9 @@ public:
     Film film;
     Sampler sampler;
 
-    Sensor(const Mat4f &to_world, Float fov, uint32_t sampler_seed, uint32_t film_width, uint32_t film_height, uint32_t spp, Float near_clip, Float far_clip, const RFilter *rfilter) : to_world(to_world), fov(fov), film(film_width, film_height, rfilter), sampler(sampler_seed, spp), near_clip(near_clip), far_clip(far_clip) {}
+    Sensor(const Mat4f &to_world, Float fov, uint32_t sampler_seed, uint32_t film_width, uint32_t film_height, uint32_t spp, Float near_clip, Float far_clip, const RFilter *rfilter) : to_world(to_world), fov(fov), film(film_width, film_height, rfilter), sampler(sampler_seed, spp), near_clip(near_clip), far_clip(far_clip) {
+        film_area = get_film_area();
+    }
 
     /// @brief Sample a ray from the sensor through the pixel (row, col) with the given 2D sample in [0,1)^2
     Ray sample_ray(uint32_t row, uint32_t col, const Vec2f &sample2, Float &px, Float &py) {
@@ -74,7 +87,7 @@ public:
 
         // multiply by the importance function
         L *= std::abs(dirn_cam.z);
-        L /= get_film_area();
+        L /= film_area;
 
         film.commit_sample(L, row, col, px, py);
     }
@@ -82,14 +95,6 @@ public:
     Vec3f get_origin_world() {
         Vec4f origin_world_h = to_world * Vec4f{0.0, 0.0, 0.0, 1.0};
         return Vec3f{origin_world_h} / origin_world_h.w;
-    }
-
-    Float get_film_area() const {
-        Float aspect_ratio = static_cast<Float>(film.width) / static_cast<Float>(film.height);
-        Float tan_half_fov = std::tan(glm::radians(fov) * 0.5f);
-        Float width = 2.0f * tan_half_fov;
-        Float height = width / aspect_ratio;
-        return width * height;
     }
 
     std::string to_string() {

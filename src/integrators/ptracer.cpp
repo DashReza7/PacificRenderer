@@ -39,16 +39,34 @@ public:
                 samples_per_thread += n_all_samples % n_threads;
             results.emplace_back(
                 tpool.enqueue([this, sensor, scene, show_progress, n_all_samples, sensor_origin, samples_per_thread, &n_rendered_particles, &print_mutex](Sampler& sampler) {
-                    
                     for (int smpl = 0; smpl < samples_per_thread; smpl++) {
                         // sample a posn & dirn on light source
-                        Vec3f posn, dirn;
+                        Vec3f posn, normal, dirn;
                         Float pdf;  // must convert the solid angle measure part to area measure
                         Vec3f T = scene->sample_emitter_ptrace(sensor->sampler.get_2D(), sensor->sampler.get_3D(), sensor->sampler.get_1D(),
-                                                               posn, dirn, pdf);
+                                                               posn, normal, dirn, pdf);
 
                         T /= sensor->sampler.spp;
                         T /= pdf;
+
+                        // ----------------- Directly connect to camera (if hide_emitters == false) -----------------
+                        Vec3f sensor_dirn = glm::normalize(sensor_origin - posn);
+                        if (!hide_emitters && glm::dot(normal, sensor_dirn) > 0) {
+                            Float sensor_dist = glm::length(sensor_origin - posn);
+                            // check if camera is visible
+                            Intersection tmp_isc;
+                            bool is_camera_occluded = scene->ray_intersect(Ray{posn + normal * Epsilon, sensor_dirn, 1e-4, sensor_dist, true}, tmp_isc);
+                            if (!is_camera_occluded) {
+                                // TODO: should I add a factor of 2Pi?
+                                Vec3f camT = T / std::abs(glm::dot(normal, dirn)) 
+                                                             * std::abs(glm::dot(normal, sensor_dirn));
+                                // TODO: fix this. makes black pixels
+                                if (std::abs(glm::dot(normal, dirn)) <= 1e-4)
+                                    camT = Vec3f{0};
+                                camT /= Sqr(sensor_dist);
+                                sensor->add_contrib(-sensor_dirn, camT);
+                            }
+                        }
 
                         // shoot a ray
                         Ray ray{posn + dirn * Epsilon, dirn, 1e-4, 1e6};
@@ -65,7 +83,7 @@ public:
                             Float sensor_dist = glm::length(sensor_origin - isc.position);
                             // check if camera is visible
                             Intersection tmp_isc;
-                            bool is_camera_occluded = scene->ray_intersect(Ray{isc.position + sensor_dirn * Epsilon, sensor_dirn, 1e-4, sensor_dist, true}, tmp_isc);
+                            bool is_camera_occluded = scene->ray_intersect(Ray{isc.position + sign(glm::dot(sensor_dirn, isc.normal)) * isc.normal * Epsilon, sensor_dirn, 1e-4, sensor_dist, true}, tmp_isc);
                             if (!is_camera_occluded) {
                                 Vec3f bsdfval_sensor = isc.shape->bsdf->eval(isc, worldToLocal(sensor_dirn, isc.normal));
                                 Vec3f camT = T * bsdfval_sensor;
@@ -82,15 +100,6 @@ public:
                             dirn = localToWorld(bsdf_sample.wo, isc.normal);
                             ray = Ray{isc.position + dirn * Epsilon, dirn, 1e-4, 1e6};
                             is_hit = scene->ray_intersect(ray, isc);
-
-                            // DEBUG:
-                            // if (std::isinf(T.x) || std::isinf(T.y) || std::isinf(T.z) 
-                            //  || std::isnan(T.x) || std::isnan(T.y) || std::isnan(T.z)
-                            //  || T.x < 0 || T.y < 0 || T.z < 0) {
-                            //     std::lock_guard<std::mutex> lock(print_mutex);
-                            //     std::cout << "\r\nDEBUG: inf or nan or negative T encountered: " << T << std::endl;
-                            //     exit(EXIT_FAILURE);
-                            // }
                         }
 
                         if (show_progress && smpl % 100 == 0) {
@@ -102,7 +111,6 @@ public:
                             }
                         }
                     }
-                    
                 }));
         }
         for (auto& result : results)

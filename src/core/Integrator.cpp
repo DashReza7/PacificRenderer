@@ -26,7 +26,7 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
             break;
         for (int col = 0; col < width; col++) {
 
-            if (row == 148 && col == 199)
+            if (row != 216 || col != 128)
                 continue;
             
             for (size_t i = 0; i < sensor->sampler.spp; i++) {
