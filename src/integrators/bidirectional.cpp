@@ -36,6 +36,7 @@ private:
         }
     }
 
+    // prefix.size is the number of vertices. 1 means only the camera vertex.
     void createLightPath(const Scene *scene, Sampler *sampler,
                         std::vector<Intersection> &prefix_iscs, std::vector<Vec3f> &prefix_betas,
                         int max_length = -1) const {
@@ -105,7 +106,7 @@ public:
 
     Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &sensor_ray, int row, int col) const override {
         // ---------------- Sample a camera path ----------------
-        int cam_max_length = 10;
+        int cam_max_length = 10;  // max number of segments
         std::vector<Intersection> cam_prefix_iscs{};
         std::vector<Vec3f> cam_prefix_betas{};
         createCameraPath(scene, sampler, sensor_ray, cam_prefix_iscs, cam_prefix_betas, cam_max_length);
@@ -114,8 +115,7 @@ public:
             return Vec3f{0};
 
         // ---------------- Sample a  light path ----------------
-        // TODO: right now no light path of length 0
-        int light_max_length = 10;
+        int light_max_length = 10;  // max number of segments
         std::vector<Intersection> light_prefix_iscs{};
         std::vector<Vec3f> light_prefix_betas{};
         createLightPath(scene, sampler, light_prefix_iscs, light_prefix_betas, light_max_length);
@@ -144,7 +144,6 @@ public:
         Vec3f cam_beta = cam_prefix_betas.at(cam_vertex_idx);
         Vec3f light_beta = light_prefix_betas.at(light_vertex_idx);
         Vec3f total_contrib = cam_beta * light_beta * cam_bsdfval * light_bsdfval / Sqr(distance);
-        // Vec3f total_contrib = cam_beta * light_beta * cam_bsdfval * light_bsdfval;
 
         return total_contrib;
     }
