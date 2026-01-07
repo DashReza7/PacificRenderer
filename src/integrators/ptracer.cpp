@@ -46,6 +46,7 @@ public:
                         Vec3f T = scene->sample_emitter_ptrace(sensor->sampler.get_2D(), sensor->sampler.get_3D(), sensor->sampler.get_1D(),
                                                                posn, normal, dirn, pdf);
 
+                        T *= std::abs(glm::dot(normal, dirn));
                         T /= sensor->sampler.spp;
                         T /= pdf;
 

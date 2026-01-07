@@ -65,7 +65,7 @@ public:
         // TODO: this only works for constant Area light
         Intersection isc_tmp;
         // multiply by cosine term, used for area measure in particle tracing
-        return eval(isc_tmp) * std::abs(glm::dot(normal, dirn));
+        return eval(isc_tmp);
     }
     
     std::string to_string() const override {

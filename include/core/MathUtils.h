@@ -76,6 +76,8 @@ Float triangle_area(const Vec3f &a, const Vec3f &b, const Vec3f &c);
 
 /// @brief uniformly sample a discrete pmf from 0 (inclusive) to n (exclusive)
 Float uniformDiscrete(Float sample, int n);
+/// @brief uniformly sample a discrete pmf from a to b (both inclusive)
+Float uniformDiscrete(Float sample, int a, int b);
 Vec2f uniformDiskSample(const Vec2f &sample);
 Vec3f uniformHemisphereSample(const Vec2f &sample);
 Vec3f uniformSphereSample(const Vec2f &sample);

@@ -22,6 +22,8 @@ add_executable(${PROJECT_NAME}
     "src/integrators/depth.cpp"
     "src/integrators/albedo.cpp"
     "src/integrators/geometric_normal.cpp"
+    "src/integrators/ptracer.cpp"
+    "src/integrators/bidirectional.cpp"
     "src/core/Integrator.cpp"
     "src/core/Bitmap.cpp"
     "src/utils/stb.cpp"

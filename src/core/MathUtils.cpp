@@ -56,6 +56,10 @@ Float uniformDiscrete(Float sample, int n) {
     return std::min(int(sample * n), n - 1);
 }
 
+Float uniformDiscrete(Float sample, int a, int b) {
+    return a + uniformDiscrete(sample, b - a + 1);
+}
+
 Vec2f uniformDiskSample(const Vec2f &sample) {
     Float r = std::sqrt(sample.x);
     Float theta = 2.0 * Pi * sample.y;
