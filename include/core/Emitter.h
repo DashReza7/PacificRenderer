@@ -46,7 +46,7 @@ public:
 
     /// Used for Particle tracing. Return the rgb value, fill out position, direction and pdf of the sampled point.
     virtual Vec3f sampleLe(const Vec2f &sample1, const Vec3f &sample2, 
-                           Vec3f &posn, Vec3f &normal, Vec3f &dirn, Float &pdf) const = 0;
+                           Vec3f &posn, Vec3f &normal, Vec3f &dirn, Float &pdf_posn, Float &pdf_dirn) const = 0;
     
     virtual std::string to_string() const = 0;
 };

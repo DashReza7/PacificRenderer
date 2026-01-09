@@ -12,19 +12,20 @@
 
 class Film {
 private:
+    std::vector<Vec3f> pixels;  // in RGB format, [0, 1], row-major order
     std::vector<Float> pixels_weights_sum;
+    std::vector<Vec3f> pixel_splats;
     std::vector<std::mutex> pixels_mutex;
     const RFilter* rfilter;
 
 public:
-    std::vector<Vec3f> pixels;  // in RGB format, [0, 1], row-major order
     uint32_t width, height;
 
-    Film(uint32_t width, uint32_t height, const RFilter* rfilter) : width(width), height(height), pixels(width * height), pixels_weights_sum(width * height), pixels_mutex(width * height), rfilter(rfilter) {}
+    Film(uint32_t width, uint32_t height, const RFilter* rfilter) : width(width), height(height), pixels(width * height), pixels_weights_sum(width * height), pixel_splats(width * height), pixels_mutex(width * height), rfilter(rfilter) {}
 
     /// row: 0 is bottom, height-1 is top
     /// col: 0 is left, width-1 is right
-    /// px, py are the sample position in sensor space (in range [0, 1])
+    /// px, py are the sample position in sensor space (in range [0, 1) )
     void commit_sample(const Vec3f& value, uint32_t row, uint32_t col, Float px, Float py) {
         Float x = px * width - (col + 0.5);
         Float y = py * height - (row + 0.5);
@@ -38,21 +39,37 @@ public:
                 std::lock_guard<std::mutex> lock(pixels_mutex[r * width + c]);
                 Vec3f my_val = value;
                 if (std::isinf(value.x) || std::isinf(value.y) || std::isinf(value.z) || value.x < 0 || value.y < 0 || value.z < 0)
-                    my_val = Vec3f{0};
+                    throw std::runtime_error(std::format("film.commit_sample received invalid pixel value: %lf, %lf, %lf", value.x, value.y, value.z));
                 pixels[r * width + c] += filter_weight * my_val;
                 pixels_weights_sum[r * width + c] += filter_weight;
             }
         }
     }
 
-    /// called after the rendering is complete. divides each pixel by its weight_sum
-    void normalize_pixels() {
+    // p_film is in [0,1)^2
+    void commit_splat(const Vec3f& value, const Vec2f& p_film) {
+        int col = static_cast<int>(p_film.x * width);
+        int row = static_cast<int>(p_film.y * height);
+        std::lock_guard<std::mutex> lock(pixels_mutex[row * width + col]);
+        if (std::isinf(value.x) || std::isinf(value.y) || std::isinf(value.z) || value.x < 0 || value.y < 0 || value.z < 0)
+            throw std::runtime_error(std::format("film.commit_splat received invalid pixel value: %lf, %lf, %lf", value.x, value.y, value.z));
+        pixel_splats[row * width + col] += value;
+    }
+
+    /// called after the rendering is complete. Adds the pixel_val/weightAccum by splatted values
+    void normalize_pixels(Float splat_scale = 1.0) {
+        // normalize pixels
         for (uint32_t row = 0; row < height; row++)
             for (uint32_t col = 0; col < width; col++)
                 if (pixels_weights_sum[row * width + col] <= 0)
                     pixels[row * width + col] = Vec3f{0.0};
                 else
                     pixels[row * width + col] /= pixels_weights_sum[row * width + col];
+
+        // add splats
+        for (uint32_t row = 0; row < height; row++)
+            for (uint32_t col = 0; col < width; col++)
+                pixels[row * width + col] += pixel_splats.at(row * width + col) * splat_scale;
     }
 
     /// Output the image to a file (PNG format)
@@ -94,7 +111,7 @@ public:
         }
         stbi_write_hdr(filename.c_str(), width, height, 3, img_data.data());
     }
-    
+
     void save_image(const std::string& filename, const std::vector<Vec3f>& pixels) const {
         std::vector<uint8_t> img_data(width * height * 3);
         for (uint32_t row = 0; row < height; row++) {

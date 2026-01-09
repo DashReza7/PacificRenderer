@@ -32,14 +32,15 @@ public:
     }
 
     Vec3f sampleLe(const Vec2f &sample1, const Vec3f &sample2, 
-                   Vec3f &posn, Vec3f &normal, Vec3f &dirn, Float &pdf) const override {
+                   Vec3f &posn, Vec3f &normal, Vec3f &dirn, Float &pdf_posn, Float &pdf_dirn) const override {
         // TODO        
         throw std::runtime_error("point light doesn't support sampleLe yet.");
         
         posn = position;
         dirn = uniformSphereSample(sample1);
         normal = dirn;
-        pdf = Inv4Pi;
+        pdf_posn = 1.0;
+        pdf_dirn = Inv4Pi;
         // TODO: this only returns intensity. Must be divided by distance squared to be converted to radiance
         return intensity;
     }

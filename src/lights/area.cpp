@@ -55,12 +55,13 @@ public:
     // Sample a posn on surface uniformly (area measure),
     // and a uniform dirn from hemisphere (solid angle measure)
     Vec3f sampleLe(const Vec2f &sample1, const Vec3f &sample2, 
-                   Vec3f &posn, Vec3f &normal, Vec3f &dirn, Float &pdf) const override {
+                   Vec3f &posn, Vec3f &normal, Vec3f &dirn, Float &pdf_posn, Float &pdf_dirn) const override {
         auto [position, nml, pdf_shape] = shape->sample_point_on_surface(sample2.x, Vec2f{sample2.y, sample2.z});
         posn = position;
         normal = nml;
         dirn = localToWorld(uniformHemisphereSample(sample1), normal);
-        pdf = pdf_shape * Inv2Pi;
+        pdf_posn = pdf_shape;
+        pdf_dirn = Inv2Pi;
 
         // TODO: this only works for constant Area light
         Intersection isc_tmp;

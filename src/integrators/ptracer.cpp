@@ -31,7 +31,7 @@ public:
 
         auto start_time = std::chrono::high_resolution_clock::now();
 
-        Vec3f sensor_origin = sensor->get_origin_world();
+        Vec3f sensor_origin = sensor->origin_world;
         int n_all_samples = sensor->film.width * sensor->film.height * sensor->sampler.spp;
         for (size_t thread_idx = 0; thread_idx < n_threads; thread_idx++) {
             int samples_per_thread = n_all_samples / n_threads;
@@ -42,17 +42,18 @@ public:
                     for (int smpl = 0; smpl < samples_per_thread; smpl++) {
                         // sample a posn & dirn on light source
                         Vec3f posn, normal, dirn;
-                        Float pdf;  // must convert the solid angle measure part to area measure
+                        Float pdf_posn, pdf_dirn;
                         Vec3f T = scene->sample_emitter_ptrace(sensor->sampler.get_2D(), sensor->sampler.get_3D(), sensor->sampler.get_1D(),
-                                                               posn, normal, dirn, pdf);
+                                                               posn, normal, dirn, pdf_posn, pdf_dirn);
 
                         T *= std::abs(glm::dot(normal, dirn));
-                        T /= sensor->sampler.spp;
-                        T /= pdf;
+                        T /= (pdf_posn * pdf_dirn);
 
                         // ----------------- Directly connect to camera (if hide_emitters == false) -----------------
                         Vec3f sensor_dirn = glm::normalize(sensor_origin - posn);
                         if (!hide_emitters && glm::dot(normal, sensor_dirn) > 0) {
+                            throw std::runtime_error("ptracer directly lights are not implemented. please enable hide_emitter");
+                            
                             Float sensor_dist = glm::length(sensor_origin - posn);
                             // check if camera is visible
                             Intersection tmp_isc;
@@ -65,7 +66,7 @@ public:
                                 if (std::abs(glm::dot(normal, dirn)) <= 1e-4)
                                     camT = Vec3f{0};
                                 camT /= Sqr(sensor_dist);
-                                sensor->add_contrib(-sensor_dirn, camT);
+                                // sensor->add_contrib(-sensor_dirn, camT);
                             }
                         }
 
@@ -79,17 +80,21 @@ public:
                             if (!is_hit)
                                 break;
 
-                            // ----------------- compute the contrib (connect to camera) -----------------
+                            // --------------------------- Connect to camera ---------------------------
                             Vec3f sensor_dirn = glm::normalize(sensor_origin - isc.position);
                             Float sensor_dist = glm::length(sensor_origin - isc.position);
                             // check if camera is visible
                             Intersection tmp_isc;
                             bool is_camera_occluded = scene->ray_intersect(Ray{isc.position + sign(glm::dot(sensor_dirn, isc.normal)) * isc.normal * Epsilon, sensor_dirn, 1e-4, sensor_dist, true}, tmp_isc);
                             if (!is_camera_occluded) {
-                                Vec3f bsdfval_sensor = isc.shape->bsdf->eval(isc, worldToLocal(sensor_dirn, isc.normal));
-                                Vec3f camT = T * bsdfval_sensor;
-                                camT /= Sqr(sensor_dist);
-                                sensor->add_contrib(-sensor_dirn, camT);
+                                Vec3f w_sensor;
+                                Vec2f p_film;
+                                Float pdf_sensor;
+                                Vec3f importance = sensor->sample_Wi(isc, w_sensor, pdf_sensor, p_film);
+                                sensor->film.commit_splat(T * isc.shape->bsdf->eval(isc, worldToLocal(sensor_dirn, isc.normal))
+                                                            * importance
+                                                            / pdf_sensor,
+                                                          p_film);
                             }
 
                             // ----------------- prepare posn & dirn for the next iter -----------------
@@ -103,12 +108,12 @@ public:
                             is_hit = scene->ray_intersect(ray, isc);
                         }
 
-                        if (show_progress && smpl % 100 == 0) {
+                        if (show_progress && smpl % 400 == 0) {
                             if (smpl > 0)
                                 n_rendered_particles.fetch_add(100);
                             {
                                 std::lock_guard<std::mutex> lock(print_mutex);
-                                std::cout << "\rProgress: " << std::format("{:.02f}", ((n_rendered_particles + 1) / static_cast<double>(n_all_samples)) * 100) << "%" << std::flush;
+                                std::cout << "\rProgress: " << std::format("{:.02f}", ((n_rendered_particles + 1) / static_cast<double>(n_all_samples)) * 400) << "%" << std::flush;
                             }
                         }
                     }
@@ -118,6 +123,9 @@ public:
             result.get();
         std::cout << std::endl;
 
+        // add splats to film
+        sensor->film.normalize_pixels(1.0 / sensor->sampler.spp);
+        
         auto end_time = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end_time - start_time;
         std::cout << "Rendering completed in " << std::format("{:.02f}", elapsed.count()) << " seconds.";

@@ -49,14 +49,14 @@ Float triangle_area(const Vec3f &a, const Vec3f &b, const Vec3f &c) {
     return Float(0.5) * length(cross(b - a, c - a));
 }
 
-Float uniformDiscrete(Float sample, int n) {
+int uniformDiscrete(Float sample, int n) {
     if (n < 1)
         throw std::runtime_error("n must be >= 1 in uniformDiscrete");
 
     return std::min(int(sample * n), n - 1);
 }
 
-Float uniformDiscrete(Float sample, int a, int b) {
+int uniformDiscrete(Float sample, int a, int b) {
     return a + uniformDiscrete(sample, b - a + 1);
 }
 

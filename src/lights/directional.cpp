@@ -25,7 +25,7 @@ public:
     }
 
     Vec3f sampleLe(const Vec2f &sample1, const Vec3f &sample2, 
-                   Vec3f &posn, Vec3f &normal, Vec3f &dirn, Float &pdf) const override {
+                   Vec3f &posn, Vec3f &normal, Vec3f &dirn, Float &pdf_posn, Float &pdf_dirn) const override {
         throw std::runtime_error("Directional light does not support sampleLe() yet.");
     }
 

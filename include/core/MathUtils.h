@@ -75,9 +75,9 @@ bool refract(const Vec3f &wi, const Vec3f &n, Float eta, Vec3f &wo);
 Float triangle_area(const Vec3f &a, const Vec3f &b, const Vec3f &c);
 
 /// @brief uniformly sample a discrete pmf from 0 (inclusive) to n (exclusive)
-Float uniformDiscrete(Float sample, int n);
+int uniformDiscrete(Float sample, int n);
 /// @brief uniformly sample a discrete pmf from a to b (both inclusive)
-Float uniformDiscrete(Float sample, int a, int b);
+int uniformDiscrete(Float sample, int a, int b);
 Vec2f uniformDiskSample(const Vec2f &sample);
 Vec3f uniformHemisphereSample(const Vec2f &sample);
 Vec3f uniformSphereSample(const Vec2f &sample);
