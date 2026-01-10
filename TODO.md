@@ -12,6 +12,7 @@
 - add adaptive position based cosine weighted sampling
 - possible bug in BVH build (AABB of flat surfaces might be too thin)
 - bug in Beckmann distribution. sometimes returning nan
+- bidir s=0 & t=1 strategies. Also its performance is bad.
 
 ## Others
 

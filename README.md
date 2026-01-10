@@ -98,27 +98,37 @@ Below are some images rendered with PacificRenderer. The scene files are mostly 
 |--------------------------|----------------------------|----------------|
 | ![matpreview-roughconductor](gallery/matpreview-roughconductor.png) | ![matpreview-roughdielectric](gallery/matpreview-roughdielectric.png) | ![thindielectric](gallery/thindielectric.png) |
 
-### Cars
+### Integrators comparison
+
+| path-trace(spp=32) | particle-trace(spp=32) | bidir-path-trace(spp=32) |
+|-----|------|-----|
+| ![pathtrace32](gallery/cornell-box-pathtrace-spp32.png) | ![ptrace32](gallery/cornell-box-ptrace-spp32.png) | ![bidir32](gallery/cornell-box-bidir-spp32.png) |
+
+| path-trace(spp=2048) | particle-trace(spp=2048) |
+|----------------------|--------------------------|
+| ![pathtrace2048](gallery/veach-ajar-pathtrace-spp2048.png) | ![ptrace2048](gallery/veach-ajar-ptrace-spp2048.png) |
+
+### Misc.
 
 | car | car2 |
 |-----|------|
 | ![car](gallery/car.png) | ![car2](gallery/car2.png) |
 
-### Veach Scenes
+| veach-ajar | glass-of-water |
+|------------|----------------|
+| ![veach-ajar](gallery/veach-ajar.png) | ![glass-of-water](gallery/glass-of-water.png) |
 
-| veach-ajar | veach-bidir | veach-mis |
-|------------|------------|-----------|
-| ![veach-ajar](gallery/veach-ajar.png) | ![veach-bidir](gallery/veach-bidir.png) | ![veach-mis](gallery/veach-mis.png) |
+| lamp | lego-bulldozer | stanford-bunny-dielectric |
+|------|---------------|---------------------------|
+| ![lamp](gallery/lamp.png) | ![lego-bulldozer](gallery/lego-bulldozer.png) | ![stanford-bunny-dielectric](gallery/stanford-bunny-dielectric.png) |
 
-### Misc.
+| veach-mis | teapot |
+|---------------|--------|
+| ![veach-mis](gallery/veach-mis.png) | ![teapot](gallery/teapot.png) |
 
-| glass-of-water | lamp | lego-bulldozer | stanford-bunny-dielectric |
-|----------------|------|---------------|---------------------------|
-| ![glass-of-water](gallery/glass-of-water.png) | ![lamp](gallery/lamp.png) | ![lego-bulldozer](gallery/lego-bulldozer.png) | ![stanford-bunny-dielectric](gallery/stanford-bunny-dielectric.png) |
-
-| stanford-bunny-diffuse | stanford-dragon | teapot |
-|-----------------------|-----------------|--------|
-| ![stanford-bunny-diffuse](gallery/stanford-bunny-diffuse.png) | ![stanford-dragon](gallery/stanford-dragon.png) | ![teapot](gallery/teapot.png) |
+| stanford-bunny-diffuse |                stanford-dragon                  |
+| ---------------------- |-------------------------------------------------|
+| ![stanford-bunny-diffuse](gallery/stanford-bunny-diffuse.png) | ![stanford-dragon](gallery/stanford-dragon.png) |
 
 ---
 

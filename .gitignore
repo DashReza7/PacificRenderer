@@ -370,3 +370,4 @@ python/
 compile_commands.json
 rendered-images/
 ppmToPng.exe
+tmp/

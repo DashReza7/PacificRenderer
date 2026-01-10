@@ -17,7 +17,7 @@ private:
         cam_isc.normal = glm::normalize(Vec3f{scene->sensor->to_world * Vec4f{0, 0, 1, 0}});
         path_iscs.push_back(cam_isc);
         // TODO: make sure this doesn't fail anything
-        path_betas.push_back(Vec3f{0});
+        path_betas.push_back(Vec3f{1});
         path_probs.push_back(1.0);
 
         Ray cur_ray{ray};
@@ -138,9 +138,10 @@ private:
                        const std::vector<Intersection> &cam_iscs, const std::vector<Intersection> &light_iscs,
                        const std::vector<Vec3f> &cam_betas, const std::vector<Vec3f> &light_betas,
                        const std::vector<Float> &cam_probs, const std::vector<Float> &light_probs,
-                       int s, int t, Float &mis_weight) const {
+                       int s, int t, Float &mis_weight, Vec2f &p_new) const {
 
         mis_weight = 0;
+        p_new = Vec2f{-1};
         int cam_idx = t - 1;
         int light_idx = s - 1;
         
@@ -151,24 +152,41 @@ private:
         Float dist = glm::length(light_isc.position - cam_isc.position);
 
         // Check for delta bsdf
-        if (cam_isc.shape->bsdf->has_flag(BSDFFlags::Delta) || light_isc.shape->bsdf->has_flag(BSDFFlags::Delta))
-            return Vec3f{0};
+        if ((cam_isc.shape && cam_isc.shape->bsdf->has_flag(BSDFFlags::Delta)) ||
+            light_isc.shape->bsdf->has_flag(BSDFFlags::Delta))
+                return Vec3f{0};
         // Check for visibility
         Intersection tmp_isc;
         bool is_occluded = scene->ray_intersect(Ray{cam_isc.position + sign(glm::dot(cam_isc.normal, dirn)) * Epsilon * cam_isc.normal , dirn, 1e-2, dist - 1e-2f, true},
                                                 tmp_isc);
         if (is_occluded)
             return Vec3f{0};
-        // if s==1 check for correct orientation
+        // check for correct orientation of area light
         if (s == 1 && glm::dot(-dirn, light_isc.normal) <= 0)
             return Vec3f{0};
-        if (!cam_isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) && glm::dot(dirn, cam_isc.normal) <= 0.0)
+        if (cam_isc.shape && !cam_isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) && glm::dot(dirn, cam_isc.normal) <= 0.0)
             return Vec3f{0};
         if (light_isc.shape && !light_isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) && glm::dot(-dirn, light_isc.normal) <= 0.0)
             return Vec3f{0};
+        // check if the connection is inside the view spectrum
+        Float unused;
+        Vec2f unused2; Vec3f unused3;
+        if (t == 1) {
+            if(!scene->sensor->worldToIplane(dirn, unused2, unused3))
+                return Vec3f{0};
+        }
         
         // compute the unweighted contribution
-        Vec3f cam_bsdfval = cam_iscs.at(cam_idx).shape->bsdf->eval(cam_isc, worldToLocal(dirn, cam_isc.normal));
+        Vec3f cam_bsdfval;
+        if (t == 1) {
+            Float pdf_we;
+            scene->sensor->pdf_We(dirn, unused, pdf_we);
+            if (pdf_we == 0)
+                return Vec3f{0};
+            cam_bsdfval = scene->sensor->We(dirn) / pdf_we ;  // TODO: should I divide by its pdf???
+        } else {
+            cam_bsdfval = cam_iscs.at(cam_idx).shape->bsdf->eval(cam_isc, worldToLocal(dirn, cam_isc.normal));
+        }
         Vec3f light_bsdfval = s != 1 ?
                                 light_iscs.at(light_idx).shape->bsdf->eval(light_isc, worldToLocal(-dirn, light_isc.normal))
                               : Vec3f{std::abs(glm::dot(light_isc.normal, dirn))};
@@ -192,6 +210,8 @@ private:
 
         std::vector<Float> other_tech_probs{};
         for (int i = s+1; i <= s+t-2; i++) {
+            // TODO: handle i=s+t-1
+            
             Intersection prev_isc = (i == s+1) ? light_isc : cam_iscs.at(cam_idx - (i - (s+2)));
             Intersection cur_isc  = cam_iscs.at(cam_idx - (i - (s+1)));
             Intersection next_isc = cam_iscs.at(cam_idx - (i - s));
@@ -204,8 +224,12 @@ private:
             Float p1 = i == 2 ? cosineHemispherePDF(worldToLocal(dirn1, light_iscs.at(0).normal), worldToLocal(dirn1, light_iscs.at(0).normal))
                      : prev_isc.shape->bsdf->has_flag(BSDFFlags::Delta) ? 1.0
                      : prev_isc.shape->bsdf->pdf(prev_isc, worldToLocal(dirn1, prev_isc.normal));
-            Float p2 = next_isc.shape->bsdf->has_flag(BSDFFlags::Delta) ? 1.0
-                     :next_isc.shape->bsdf->pdf(next_isc, worldToLocal(dirn2, next_isc.normal));
+            Float p2;
+            if (i == s+t-1)
+                scene->sensor->pdf_We(dirn2, unused, p2);
+            else
+                p2 = next_isc.shape->bsdf->has_flag(BSDFFlags::Delta) ? 1.0
+                    : next_isc.shape->bsdf->pdf(next_isc, worldToLocal(dirn2, next_isc.normal));
             Float cos1 = std::abs(glm::dot(cur_isc.normal, dirn1));
             Float cos2 = std::abs(glm::dot(cur_isc.normal, dirn2));
             Float prev_prob = (i == s+1) ? p_s : other_tech_probs.at(other_tech_probs.size()-1);
@@ -250,8 +274,13 @@ private:
             Float p1 = i == 1 ? cosineHemispherePDF(worldToLocal(dirn1, light_iscs.at(0).normal), worldToLocal(dirn1, light_iscs.at(0).normal))
                      : prev_isc.shape->bsdf->has_flag(BSDFFlags::Delta) ? 1.0
                      : prev_isc.shape->bsdf->pdf(prev_isc, worldToLocal(dirn1, prev_isc.normal));
-            Float p2 = next_isc.shape->bsdf->has_flag(BSDFFlags::Delta) ? 1.0
-                     : next_isc.shape->bsdf->pdf(next_isc, worldToLocal(dirn2, next_isc.normal));
+            
+            Float p2;
+            if (i == s-1 && t == 1)
+                scene->sensor->pdf_We(dirn2, unused, p2);
+            else
+                p2 = next_isc.shape->bsdf->has_flag(BSDFFlags::Delta) ? 1.0
+                    : next_isc.shape->bsdf->pdf(next_isc, worldToLocal(dirn2, next_isc.normal));
             Float cos1 = std::abs(glm::dot(cur_isc.normal, dirn1));
             Float cos2 = std::abs(glm::dot(cur_isc.normal, dirn2));
             Float next_prob = (i == s-1) ? p_s : other_tech_probs.at(other_tech_probs.size()-1);
@@ -298,9 +327,10 @@ private:
         if (!check_valid(mis_weight)) {
             std::cout << "\ninvalid mis_weight: " << mis_weight << ". p_s: " << p_s << "\n";
             exit(EXIT_FAILURE);
-            // mis_weight = 1.0;
         }
         
+        if (t == 1)
+            scene->sensor->worldToIplane(dirn, p_new, unused3);
         return L;
     }
     
@@ -335,11 +365,15 @@ public:
                 if (k > max_depth)
                     continue;
                 Float mis_weight;
+                Vec2f p_new;
                 Vec3f contrib = connect_bdpt(scene, cam_path_iscs, light_path_iscs,
                                              cam_path_betas, light_path_betas,
                                              cam_path_probs, light_path_probs,
-                                             s, t, mis_weight);
-                L += contrib * mis_weight;
+                                             s, t, mis_weight, p_new);
+                if (p_new.x < 0 || p_new.y < 0)
+                    L += contrib * mis_weight;
+                else
+                    scene->sensor->film.commit_splat(contrib * mis_weight / (Float)(scene->sensor->sampler.spp) , p_new);
             }
         }
         return L;
