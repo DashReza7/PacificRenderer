@@ -6,7 +6,6 @@
 
 class Sensor {
 private:
-    Mat4f to_world;
     Float aspect_ratio;
     Float fov;  // field of view in degrees. between 0 and 180
     Float near_clip, far_clip;
@@ -31,6 +30,7 @@ private:
     }
 
 public:
+    Mat4f to_world;
     const Vec3f origin_world;
     Float film_area;  // the film area at z=1
     Film film;

@@ -90,6 +90,25 @@ inline Float sign(Float x) {
     return x > 0.0 ? 1.0 : (x < 0.0 ? -1.0 : 0.0);
 }
 
+inline bool check_valid(Float x, bool nan=true, bool inf=true, bool neg=true) {
+    if (nan && std::isnan(x))
+        return false;
+    if (inf && std::isinf(x))
+        return false;
+    if (neg && x < 0)
+        return false;
+    return true;
+}
+inline bool check_valid(Vec3f x, bool nan=true, bool inf=true, bool neg=true) {
+    if (nan && (std::isnan(x.x) || std::isnan(x.y) || std::isnan(x.z)))
+        return false;
+    if (inf && (std::isinf(x.x) || std::isinf(x.y) || std::isinf(x.z)))
+        return false;
+    if (neg && (x.x < 0 || x.y < 0 || x.z < 0))
+        return false;
+    return true;
+}
+
 Vec3f barycentric(const Vec3f& v0, const Vec3f& v1, const Vec3f& v2, const Vec3f& p);
 Float lerp(Float t, Float a, Float b);
 

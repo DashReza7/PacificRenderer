@@ -46,6 +46,7 @@ public:
     /// @brief sample a posn & dirn on a light source, Used for particle tracing
     /// @return RGB contribution value
     Vec3f sample_emitter_ptrace(Vec2f sample1, Vec3f sample2, Float sample3, 
-                                Vec3f &posn, Vec3f &normal, Vec3f &dirn, Float &pdf_posn, Float &pdf_dirn) const;
+                                Vec3f &posn, Vec3f &normal, Vec3f &dirn, const Shape *&shape,
+                                Float &pdf_posn, Float &pdf_dirn) const;
     std::string to_string() const;
 };

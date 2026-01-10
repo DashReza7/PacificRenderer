@@ -20,6 +20,9 @@ public:
     void set_shape(const Shape *shape) override {
         this->shape = shape;
     }
+    const Shape *get_shape() override {
+        return shape;
+    }
 
     // FIXME: validate the physical correctness
     virtual Vec3f eval(const Intersection &isc) const override {
@@ -55,13 +58,16 @@ public:
     // Sample a posn on surface uniformly (area measure),
     // and a uniform dirn from hemisphere (solid angle measure)
     Vec3f sampleLe(const Vec2f &sample1, const Vec3f &sample2, 
-                   Vec3f &posn, Vec3f &normal, Vec3f &dirn, Float &pdf_posn, Float &pdf_dirn) const override {
+                   Vec3f &posn, Vec3f &normal, Vec3f &dirn,
+                   Float &pdf_posn, Float &pdf_dirn) const override {
         auto [position, nml, pdf_shape] = shape->sample_point_on_surface(sample2.x, Vec2f{sample2.y, sample2.z});
         posn = position;
         normal = nml;
-        dirn = localToWorld(uniformHemisphereSample(sample1), normal);
+        // dirn = localToWorld(uniformHemisphereSample(sample1), normal);
+        dirn = localToWorld(cosineHemisphereSample(sample1), normal);
         pdf_posn = pdf_shape;
-        pdf_dirn = Inv2Pi;
+        // pdf_dirn = Inv2Pi;
+        pdf_dirn = cosineHemispherePDF(worldToLocal(dirn, normal), worldToLocal(dirn, normal));
 
         // TODO: this only works for constant Area light
         Intersection isc_tmp;

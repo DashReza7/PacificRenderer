@@ -807,10 +807,12 @@ Float Scene::pdf_nee(const Intersection& isc, const Vec3f& w) const {
 }
 
 Vec3f Scene::sample_emitter_ptrace(Vec2f sample1, Vec3f sample2, Float sample3, 
-                            Vec3f &posn, Vec3f &normal, Vec3f &dirn, Float &pdf_posn, Float &pdf_dirn) const {
+                            Vec3f &posn, Vec3f &normal, Vec3f &dirn, const Shape *&shape,
+                            Float &pdf_posn, Float &pdf_dirn) const {
     int light_idx = uniformDiscrete(sample3, emitters.size());
     Vec3f Le = emitters[light_idx]->sampleLe(sample1, sample2, posn, normal, dirn, pdf_posn, pdf_dirn);
     pdf_posn /= emitters.size();
+    shape = emitters.at(light_idx)->get_shape();
     return Le;
 }
 

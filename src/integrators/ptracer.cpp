@@ -43,8 +43,9 @@ public:
                         // sample a posn & dirn on light source
                         Vec3f posn, normal, dirn;
                         Float pdf_posn, pdf_dirn;
+                        const Shape *light_shape;
                         Vec3f T = scene->sample_emitter_ptrace(sensor->sampler.get_2D(), sensor->sampler.get_3D(), sensor->sampler.get_1D(),
-                                                               posn, normal, dirn, pdf_posn, pdf_dirn);
+                                                               posn, normal, dirn, light_shape, pdf_posn, pdf_dirn);
 
                         T *= std::abs(glm::dot(normal, dirn));
                         T /= (pdf_posn * pdf_dirn);
