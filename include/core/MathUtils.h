@@ -141,6 +141,9 @@ inline Float sin_phi(const Vec3f &w) {
     Float sinTheta = sin_theta(w);
     return sinTheta <= Epsilon ? 0.0 : glm::clamp(w.y / sinTheta, Float(-1.0), Float(1.0));
 }
+inline Float absDot(const Vec3f &v, const Vec3f &w) {
+    return std::abs(glm::dot(v, w));
+}
 
 inline Vec3f face_forward(const Vec3f &v, const Vec3f &n) {
     return glm::dot(v, n) >= 0.0 ? v : -v;

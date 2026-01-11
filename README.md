@@ -12,7 +12,13 @@ PacificRenderer is a physically-based renderer written in C++. It aims to provid
 
 - **Physically-Based Rendering**: Implements unbiased Monte Carlo path tracing and other integrators for realistic image synthesis.
 - **Mitsuba Scene Compatibility**: Supports a subset of Mitsuba's XML scene format, allowing you to use many existing Mitsuba scenes directly.
-- **Modular Integrator System**: Includes integrators such as Path Tracer, Particle Tracer, Bidirectional Path Tracer, Direct Lighting, Albedo, Depth, and more.
+- **Modular Integrator System**: Includes the following integrators:
+    - Path tracer (`path`)
+	- Particle tracer (`ptracer`)
+	- Unstratified path tracer (`path-unstrat`. In contrast to the regular path tracer which samples the film plane pixel by pixel(i.e. stratified), this integrator samples the film plane in an unstratified manner. It's noisier than the regular path tracer, and was written for the purpose of demonstrating the advantages of stratified sampling)
+	- Bidirectional path tracer (`bidirectional`. Note that the strategies for s=0 and t=1 are not yet implemented, hence the resulting images are not better than the previous integrators)
+	- Direct lighting (`direct`)
+	- Depth (`depth`), Albedo (`albedo`), Geometric normal (`geometric_normal`)
 - **BSDFs and Materials**:
 	- Diffuse
 	- Conductor (Metal)
@@ -26,16 +32,16 @@ PacificRenderer is a physically-based renderer written in C++. It aims to provid
 	- Point Light
 	- Area Light
 	- Directional Light
-	- Environment Map (HDR)
+	- Environment Map
 - **Geometry**:
-	- Triangle Meshes (obj, ply, serialized)
-	- Spheres
-	- Disks
+	- Triangle Meshe (**obj**, **ply**, **serialized**)
+	- Sphere
+	- Disk
     - Rectangle, Cube
 - **Texture Support**: Bitmap, checkerboard, and constant textures.
 - **Image Output**: Supports PNG, JPG, EXR, and HDR output formats.
 - **Multithreading**: Parallel rendering using multiple CPU threads.
-- **BVH Acceleration**: Fast ray tracing with bounding volume hierarchy.
+- **BVH Acceleration**: ray tracing acceleration with bounding volume hierarchy.
 - **Filter Support**: Gaussian reconstruction filter.
 - **Extensible Registry System**: Easily add new BSDFs, integrators, emitters, and textures.
 
@@ -100,9 +106,9 @@ Below are some images rendered with PacificRenderer. The scene files are mostly 
 
 ### Integrators comparison
 
-| path-trace(spp=32) | particle-trace(spp=32) | bidir-path-trace(spp=32) |
-|-----|------|-----|
-| ![pathtrace32](gallery/cornell-box-pathtrace-spp32.png) | ![ptrace32](gallery/cornell-box-ptrace-spp32.png) | ![bidir32](gallery/cornell-box-bidir-spp32.png) |
+| path-trace(spp=32) | pathtrace-unstr(spp=32) | particle-trace(spp=32) | bidir-path-trace(spp=32) |
+|-----|---|-----|-----|
+| ![pathtrace32](gallery/cornell-box-pathtrace-spp32.png) | ![pathtrace_unstrat32](gallery/cornell-box-pathtrace_unstrat-spp32.png) | ![ptrace32](gallery/cornell-box-ptrace-spp32.png) | ![bidir32](gallery/cornell-box-bidir-spp32.png) |
 
 | path-trace(spp=2048) | particle-trace(spp=2048) |
 |----------------------|--------------------------|

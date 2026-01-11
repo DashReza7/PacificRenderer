@@ -44,7 +44,7 @@ public:
                         Vec3f posn, normal, dirn;
                         Float pdf_posn, pdf_dirn;
                         const Shape *light_shape;
-                        Vec3f T = scene->sample_emitter_ptrace(sensor->sampler.get_2D(), sensor->sampler.get_3D(), sensor->sampler.get_1D(),
+                        Vec3f T = scene->sampleEmitter(sampler.get_2D(), sampler.get_3D(), sampler.get_1D(),
                                                                posn, normal, dirn, light_shape, pdf_posn, pdf_dirn);
 
                         T *= std::abs(glm::dot(normal, dirn));
@@ -99,7 +99,7 @@ public:
                             }
 
                             // ----------------- prepare posn & dirn for the next iter -----------------
-                            auto [bsdf_sample, bsdf_val] = isc.shape->bsdf->sample(isc, sensor->sampler.get_1D(), sensor->sampler.get_2D());
+                            auto [bsdf_sample, bsdf_val] = isc.shape->bsdf->sample(isc, sampler.get_1D(), sampler.get_2D());
                             T *= bsdf_val / bsdf_sample.pdf;
                             if (bsdf_sample.pdf == 0 || bsdf_val == Vec3f{0})
                                 break;
@@ -111,10 +111,10 @@ public:
 
                         if (show_progress && smpl % 400 == 0) {
                             if (smpl > 0)
-                                n_rendered_particles.fetch_add(100);
+                                n_rendered_particles.fetch_add(400);
                             {
                                 std::lock_guard<std::mutex> lock(print_mutex);
-                                std::cout << "\rProgress: " << std::format("{:.02f}", ((n_rendered_particles + 1) / static_cast<double>(n_all_samples)) * 400) << "%" << std::flush;
+                                std::cout << "\rProgress: " << std::format("{:.02f}", ((n_rendered_particles + 1) / static_cast<double>(n_all_samples)) * 100) << "%" << std::flush;
                             }
                         }
                     }

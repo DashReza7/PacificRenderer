@@ -10,46 +10,28 @@ private:
     Float fov;  // field of view in degrees. between 0 and 180
     Float near_clip, far_clip;
 
-    // return the dirn from camera to a point on the image plane in world coordinates
-    // px & py are in normalized image space ( in [0, 1) )
-    Vec3f iplaneToWorld(Float px, Float py) {
-        // Map to [-1, 1] range, with correct orientation
-        // Horizontal FoV
-        Float x = -(2.0 * px - 1.0) * std::tan(glm::radians(fov) * 0.5);
-        Float y = (2.0 * py - 1.0) / aspect_ratio * std::tan(glm::radians(fov) * 0.5);
-
-        // dirn in camera space (camera looks toward +Z)
-        Vec3f dir_cam = glm::normalize(Vec3f{x, y, 1.0});
-        dir_cam = glm::normalize(dir_cam);
-
-        // Transform to world space
-        Vec4f dir_world_h = to_world * Vec4f{dir_cam, 0.0f};
-        Vec3f dir_world = glm::normalize(Vec3f{dir_world_h});
-
-        return dir_world;
-    }
-
 public:
     Mat4f to_world;
-    const Vec3f origin_world;
+    Vec3f origin_world;
+    Vec3f forward_world;
     Float film_area;  // the film area at z=1
     Film film;
     Sampler sampler;
 
     Sensor(const Mat4f &to_world, Float fov, uint32_t sampler_seed, uint32_t film_width, uint32_t film_height,
            uint32_t spp, Float near_clip, Float far_clip, const RFilter *rfilter)
-           : to_world(to_world), fov(fov), film(film_width, film_height, rfilter), sampler(sampler_seed, spp),
-           near_clip(near_clip), far_clip(far_clip), origin_world([&to_world]() {
-               Vec4f origin_world_h = to_world * Vec4f{0, 0, 0, 1};
-               return Vec3f{origin_world_h} / origin_world_h.w;
-           }()) {
-
+        : to_world(to_world), fov(fov), film(film_width, film_height, rfilter), sampler(sampler_seed, spp), near_clip(near_clip), far_clip(far_clip) {
         // compute film area
         aspect_ratio = static_cast<Float>(film.width) / static_cast<Float>(film.height);
         Float tan_half_fov = std::tan(glm::radians(fov) * 0.5f);
         Float width = 2.0f * tan_half_fov;
         Float height = width / aspect_ratio;
         film_area = width * height;
+
+        Vec4f origin_world_h = to_world * Vec4f{0, 0, 0, 1};
+        origin_world = Vec3f{origin_world_h} / origin_world_h.w;
+
+        forward_world = glm::normalize(Vec3f{to_world * Vec4f{0, 0, 1, 0}});
     }
 
     // get the importance value given a dirn in the world from camera position
@@ -60,7 +42,7 @@ public:
 
         if (!is_valid)
             return Vec3f{0};
-        
+
         Float cos2Theta = dirn_cam.z * dirn_cam.z;
         return Vec3f{1.0} / (film_area * Sqr(cos2Theta));
     }
@@ -81,7 +63,7 @@ public:
             pdf_dir = 1.0 / (film_area * cosTheta * cosTheta * cosTheta);
         }
     }
-    
+
     /// @brief Sample a ray from the sensor through the pixel (row, col) with the given 2D sample in [0,1)^2
     Ray sample_ray(uint32_t row, uint32_t col, const Vec2f &sample2, Float &px, Float &py) {
         px = (static_cast<Float>(col) + sample2.x) / static_cast<Float>(film.width);   // in [0, 1)
@@ -106,6 +88,24 @@ public:
         pdf = Sqr(dist) / (std::abs(cam_dirn.z));
 
         return We(-w);
+    }
+
+    // return the dirn from camera to a point on the image plane in world coordinates
+    // px & py are in normalized image space ( in [0, 1) )
+    Vec3f iplaneToWorld(Float px, Float py) {
+        // Map to [-1, 1] range, with correct orientation
+        // Horizontal FoV
+        Float x = -(2.0 * px - 1.0) * std::tan(glm::radians(fov) * 0.5);
+        Float y = (2.0 * py - 1.0) / aspect_ratio * std::tan(glm::radians(fov) * 0.5);
+
+        // dirn in camera space (camera looks toward +Z)
+        Vec3f dir_cam = glm::normalize(Vec3f{x, y, 1.0});
+
+        // Transform to world space
+        Vec4f dir_world_h = to_world * Vec4f{dir_cam, 0.0f};
+        Vec3f dir_world = glm::normalize(Vec3f{dir_world_h});
+
+        return dir_world;
     }
 
     /// return the [px, py] ( in [0, 1) ) from the world direction (pointing from camera to the next vertex)
@@ -134,7 +134,7 @@ public:
         p = Vec2f{px, py};
         return true;
     }
-    
+
     std::string to_string() {
         std::ostringstream oss;
         oss << "Sensor: [ " << film.to_string() << ", " << sampler.to_string() << ", " << "fov=" << fov << ", near_clip=" << near_clip << ", far_clip=" << far_clip << ", to_world=(NotImplemented) ]";

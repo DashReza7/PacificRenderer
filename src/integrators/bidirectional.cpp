@@ -73,7 +73,7 @@ private:
         Vec3f light_posn, light_normal, light_dirn;
         Float light_pdf_posn, light_pdf_dirn;
         const Shape *light_shape;
-        Vec3f lightLe = scene->sample_emitter_ptrace(sampler->get_2D(), sampler->get_3D(), sampler->get_1D(),
+        Vec3f lightLe = scene->sampleEmitter(sampler->get_2D(), sampler->get_3D(), sampler->get_1D(),
                                                      light_posn, light_normal, light_dirn, light_shape,
                                                      light_pdf_posn, light_pdf_dirn);
         Intersection light_isc{};
