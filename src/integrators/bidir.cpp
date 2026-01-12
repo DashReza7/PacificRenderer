@@ -221,9 +221,9 @@ void BidirIntegrator::createLightPath(std::vector<Vertex> &light_path, const Sce
         return;
 
     // DEBUG
-    if (isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
-        std::cout << "\nhit a diel";
-    }
+    // if (isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
+    //     std::cout << "\nhit a diel";
+    // }
         
     Vertex v{VertexType::SURFACE_VERTEX, PathType::LIGHT_PATH};
     v.isc = isc;
