@@ -85,6 +85,12 @@ public:
 
         Vec3f cam_dirn;
         bool is_valid = worldToIplane(-w, p_film, cam_dirn);
+        if (!is_valid) {
+            w = Vec3f{0};
+            pdf = 0;
+            p_film = Vec2f{-1};
+            return Vec3f{0};
+        }
         pdf = Sqr(dist) / (std::abs(cam_dirn.z));
 
         return We(-w);

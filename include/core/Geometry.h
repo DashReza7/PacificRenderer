@@ -60,7 +60,7 @@ struct Intersection {
     Vec3f position, normal;
     /// Normalized direction, from the hit position to the ray origin
     Vec3f dirn;
-    const Shape *shape;
+    const Shape *shape = nullptr;
     const Geometry *geom;
 };
 

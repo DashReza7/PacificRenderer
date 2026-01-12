@@ -122,7 +122,7 @@ Below are some images rendered with PacificRenderer. The scene files are mostly 
 
 ### Misc.
 
-| car | car2 |
+| car 1 | car 2 |
 |-----|------|
 | ![car](gallery/car.png) | ![car2](gallery/car2.png) |
 
