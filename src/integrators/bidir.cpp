@@ -39,7 +39,8 @@ private:
                          int max_vertices) const;
 
     Vec3f connectPaths(const std::vector<Vertex> &cam_path, const std::vector<Vertex> &light_path,
-                       const Scene *scene, int s, int t, Float &mis_weight, Vec2f &pfilm_new) const;
+                       const Scene *scene, int s, int t, Float &mis_weight, Vec2f &pfilm_new,
+                       Sampler *sampler) const;
 
     bool isConnValid(const std::vector<Vertex> &cam_path, const std::vector<Vertex> &light_path,
                      const Scene *scene, int cam_idx, int light_idx) const;
@@ -75,7 +76,7 @@ public:
                 //     continue;
                 Vec2f pfilm_new{-1};
                 Float mis_weight = 0;
-                Vec3f contrib = connectPaths(cam_path, light_path, scene, s, t, mis_weight, pfilm_new);
+                Vec3f contrib = connectPaths(cam_path, light_path, scene, s, t, mis_weight, pfilm_new, sampler);
                 // TODO: right now ignore pfilm_new. this is for direct connection of light vertex to camera
                 L += contrib * mis_weight;
             }
@@ -227,10 +228,11 @@ void BidirIntegrator::createLightPath(std::vector<Vertex> &light_path, const Sce
 }
 
 Vec3f BidirIntegrator::connectPaths(const std::vector<Vertex> &cam_path, const std::vector<Vertex> &light_path,
-                                    const Scene *scene, int s, int t, Float &mis_weight, Vec2f &pfilm_new) const {
+                                    const Scene *scene, int s, int t, Float &mis_weight, Vec2f &pfilm_new,
+                                    Sampler *sampler) const {
     if (!isConnValid(cam_path, light_path, scene, t - 1, s - 1))
         return Vec3f{0};
-
+        
     int cam_idx = t - 1;
     int light_idx = s - 1;
     Vertex vcam = cam_path.at(cam_idx);

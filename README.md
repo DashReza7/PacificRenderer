@@ -16,7 +16,7 @@ PacificRenderer is a physically-based renderer written in C++. It aims to provid
     - Path tracer (`path`)
 	- Particle tracer (`ptracer`)
 	- Unstratified path tracer (`path-unstrat`. In contrast to the regular path tracer which samples the film plane pixel by pixel(i.e. stratified), this integrator samples the film plane in an unstratified manner. It's noisier than the regular path tracer, and was written for the purpose of demonstrating the advantages of stratified sampling)
-	- Bidirectional path tracer (`bidirectional`. Note that the strategies for s=0 and t=1 are not yet implemented, hence the resulting images are not better than the previous integrators)
+	- Bidirectional path tracer (`bidir`. Note that the strategies for s=0 and t=1 are not yet implemented, hence the resulting images are not better than the previous integrators)
 	- Direct lighting (`direct`)
 	- Depth (`depth`), Albedo (`albedo`), Geometric normal (`geometric_normal`)
 - **BSDFs and Materials**:
@@ -88,6 +88,8 @@ PacificRenderer is a physically-based renderer written in C++. It aims to provid
 
 Below are some images rendered with PacificRenderer. The scene files are mostly from [Mitsuba gallery](https://mitsuba.readthedocs.io/en/stable/src/gallery.html). Stanford bunny and dragon are from [Stanford 3D scanning repository](https://graphics.stanford.edu/data/3Dscanrep/).
 
+*Remark*: Some techniques in the bidirectional path tracing (s=0, t=1) are not implemented yet, hence the resulting images may be a little darker.
+
 ### Cornell Box
 
 | cornell-box | cbox-pacific | cbox-plastic |
@@ -109,6 +111,10 @@ Below are some images rendered with PacificRenderer. The scene files are mostly 
 | path-trace(spp=32) | pathtrace-unstr(spp=32) | particle-trace(spp=32) | bidir-path-trace(spp=32) |
 |-----|---|-----|-----|
 | ![pathtrace32](gallery/cornell-box-pathtrace-spp32.png) | ![pathtrace_unstrat32](gallery/cornell-box-pathtrace_unstrat-spp32.png) | ![ptrace32](gallery/cornell-box-ptrace-spp32.png) | ![bidir32](gallery/cornell-box-bidir-spp32.png) |
+
+| path-trace(spp=48) | bidir-pt(spp=32, equal time) |
+|--------------------|------------------------------|
+| ![](gallery/veach-ajar-pathtrace-spp48.png) | ![](gallery/veach-ajar-bdpt-spp32.png) |
 
 | path-trace(spp=2048) | particle-trace(spp=2048) |
 |----------------------|--------------------------|
