@@ -112,9 +112,13 @@ Below are some images rendered with PacificRenderer. The scene files are mostly 
 |-----|---|-----|-----|
 | ![pathtrace32](gallery/cornell-box-pathtrace-spp32.png) | ![pathtrace_unstrat32](gallery/cornell-box-pathtrace_unstrat-spp32.png) | ![ptrace32](gallery/cornell-box-ptrace-spp32.png) | ![bidir32](gallery/cornell-box-bidir-spp32.png) |
 
-| path-trace(spp=48) | bidir-pt(spp=32, equal time) |
+| path-trace(spp=384) | bidir-pt(spp=64), equal time |
+|---------------------|------------------------------|
+| ![](gallery/veach-bidir-pathtrace-spp384.png) | ![](gallery/veach-bidir-bdpt-spp64.png) |
+
+<!-- | path-trace(spp=48) | bidir-pt(spp=32, equal time) |
 |--------------------|------------------------------|
-| ![](gallery/veach-ajar-pathtrace-spp48.png) | ![](gallery/veach-ajar-bdpt-spp32.png) |
+| ![](gallery/veach-ajar-pathtrace-spp48.png) | ![](gallery/veach-ajar-bdpt-spp32.png) | -->
 
 | path-trace(spp=2048) | particle-trace(spp=2048) |
 |----------------------|--------------------------|

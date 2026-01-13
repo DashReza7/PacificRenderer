@@ -13,13 +13,16 @@ private:
     int rr_depth;
     bool hide_emitters;
 
+    void sample_particle(int samples_per_thread, const Scene* scene, Sampler& sampler, bool show_progress,
+                         std::atomic<size_t>& n_rendered_particles, std::mutex& print_mutex, int n_all_samples) const;
+
 public:
     ParticleTracerIntegrator(int max_depth, int rr_depth, bool hide_emitters) : max_depth(max_depth), rr_depth(rr_depth), hide_emitters(hide_emitters) {}
 
     void render(const Scene* scene, Sensor* sensor, uint32_t n_threads, bool show_progress) override {
         extern bool g_DEBUG;
         // FIXME: right now directly visible lights are not captured
-
+        
         if (max_depth < 0)
             max_depth = 100;
 
@@ -39,85 +42,7 @@ public:
                 samples_per_thread += n_all_samples % n_threads;
             results.emplace_back(
                 tpool.enqueue([this, sensor, scene, show_progress, n_all_samples, sensor_origin, samples_per_thread, &n_rendered_particles, &print_mutex](Sampler& sampler) {
-                    for (int smpl = 0; smpl < samples_per_thread; smpl++) {
-                        // sample a posn & dirn on light source
-                        Vec3f posn, normal, dirn;
-                        Float pdf_posn, pdf_dirn;
-                        const Shape *light_shape;
-                        Vec3f T = scene->sampleEmitter(sampler.get_2D(), sampler.get_3D(), sampler.get_1D(),
-                                                               posn, normal, dirn, light_shape, pdf_posn, pdf_dirn);
-
-                        T *= std::abs(glm::dot(normal, dirn));
-                        T /= (pdf_posn * pdf_dirn);
-
-                        // ----------------- Directly connect to camera (if hide_emitters == false) -----------------
-                        Vec3f sensor_dirn = glm::normalize(sensor_origin - posn);
-                        if (!hide_emitters && glm::dot(normal, sensor_dirn) > 0) {
-                            throw std::runtime_error("ptracer directly lights are not implemented. please enable hide_emitter");
-                            
-                            Float sensor_dist = glm::length(sensor_origin - posn);
-                            // check if camera is visible
-                            Intersection tmp_isc;
-                            bool is_camera_occluded = scene->ray_intersect(Ray{posn + normal * Epsilon, sensor_dirn, 1e-4, sensor_dist, true}, tmp_isc);
-                            if (!is_camera_occluded) {
-                                // TODO: should I add a factor of 2Pi?
-                                Vec3f camT = T / std::abs(glm::dot(normal, dirn)) 
-                                                             * std::abs(glm::dot(normal, sensor_dirn));
-                                // TODO: fix this. makes black pixels
-                                if (std::abs(glm::dot(normal, dirn)) <= 1e-4)
-                                    camT = Vec3f{0};
-                                camT /= Sqr(sensor_dist);
-                                // sensor->add_contrib(-sensor_dirn, camT);
-                            }
-                        }
-
-                        // shoot a ray
-                        Ray ray{posn + dirn * Epsilon, dirn, 1e-4, 1e6};
-                        Intersection isc;
-                        bool is_hit = scene->ray_intersect(ray, isc);
-
-                        // loop over various lengths of paths
-                        for (int i = 0; i < max_depth; i++) {
-                            if (!is_hit)
-                                break;
-
-                            // --------------------------- Connect to camera ---------------------------
-                            Vec3f sensor_dirn = glm::normalize(sensor_origin - isc.position);
-                            Float sensor_dist = glm::length(sensor_origin - isc.position);
-                            // check if camera is visible
-                            Intersection tmp_isc;
-                            bool is_camera_occluded = scene->ray_intersect(Ray{isc.position + sign(glm::dot(sensor_dirn, isc.normal)) * isc.normal * Epsilon, sensor_dirn, 1e-4, sensor_dist, true}, tmp_isc);
-                            if (!is_camera_occluded) {
-                                Vec3f w_sensor;
-                                Vec2f p_film;
-                                Float pdf_sensor;
-                                Vec3f importance = sensor->sample_Wi(isc, w_sensor, pdf_sensor, p_film);
-                                sensor->film.commit_splat(T * isc.shape->bsdf->eval(isc, worldToLocal(sensor_dirn, isc.normal))
-                                                            * importance
-                                                            / pdf_sensor,
-                                                          p_film);
-                            }
-
-                            // ----------------- prepare posn & dirn for the next iter -----------------
-                            auto [bsdf_sample, bsdf_val] = isc.shape->bsdf->sample(isc, sampler.get_1D(), sampler.get_2D());
-                            T *= bsdf_val / bsdf_sample.pdf;
-                            if (bsdf_sample.pdf == 0 || bsdf_val == Vec3f{0})
-                                break;
-
-                            dirn = localToWorld(bsdf_sample.wo, isc.normal);
-                            ray = Ray{isc.position + dirn * Epsilon, dirn, 1e-4, 1e6};
-                            is_hit = scene->ray_intersect(ray, isc);
-                        }
-
-                        if (show_progress && smpl % 400 == 0) {
-                            if (smpl > 0)
-                                n_rendered_particles.fetch_add(400);
-                            {
-                                std::lock_guard<std::mutex> lock(print_mutex);
-                                std::cout << "\rProgress: " << std::format("{:.02f}", ((n_rendered_particles + 1) / static_cast<double>(n_all_samples)) * 100) << "%" << std::flush;
-                            }
-                        }
-                    }
+                    sample_particle(samples_per_thread, scene, sampler, show_progress, n_rendered_particles, print_mutex, n_all_samples);
                 }));
         }
         for (auto& result : results)
@@ -126,7 +51,7 @@ public:
 
         // add splats to film
         sensor->film.normalize_pixels(1.0 / sensor->sampler.spp);
-        
+
         auto end_time = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = end_time - start_time;
         std::cout << "Rendering completed in " << std::format("{:.02f}", elapsed.count()) << " seconds.";
@@ -169,3 +94,83 @@ struct ParticleTracerIntegratorRegistrar {
 
 static ParticleTracerIntegratorRegistrar registrar;
 }  // namespace
+
+void ParticleTracerIntegrator::sample_particle(int samples_per_thread, const Scene* scene, Sampler& sampler, bool show_progress,
+                     std::atomic<size_t>& n_rendered_particles, std::mutex& print_mutex, int n_all_samples) const {
+    for (int smpl = 0; smpl < samples_per_thread; smpl++) {
+        // sample a posn & dirn on light source
+        Vec3f posn, normal, dirn;
+        Float pdf_posn, pdf_dirn;
+        const Shape* light_shape;
+        Vec3f T = scene->sampleEmitter(sampler.get_2D(), sampler.get_3D(), sampler.get_1D(),
+                                       posn, normal, dirn, light_shape, pdf_posn, pdf_dirn);
+
+        T *= std::abs(glm::dot(normal, dirn));
+        T /= (pdf_posn * pdf_dirn);
+
+        // ----------------- Directly connect to camera (if hide_emitters == false) -----------------
+        Vec3f sensor_dirn = glm::normalize(scene->sensor->origin_world - posn);
+        if (!hide_emitters && glm::dot(normal, sensor_dirn) > 0) {
+            throw std::runtime_error("ptracer directly lights are not implemented. please enable hide_emitter");
+
+            Float sensor_dist = glm::length(scene->sensor->origin_world - posn);
+            // check if camera is visible
+            Intersection tmp_isc;
+            bool is_camera_occluded = scene->ray_intersect(Ray{posn + normal * Epsilon, sensor_dirn, 1e-4, sensor_dist, true}, tmp_isc);
+            if (!is_camera_occluded) {
+                // TODO: should I add a factor of 2Pi?
+                Vec3f camT = T / std::abs(glm::dot(normal, dirn)) * std::abs(glm::dot(normal, sensor_dirn));
+                // TODO: fix this. makes black pixels
+                if (std::abs(glm::dot(normal, dirn)) <= 1e-4)
+                    camT = Vec3f{0};
+                camT /= Sqr(sensor_dist);
+                // sensor->add_contrib(-sensor_dirn, camT);
+            }
+        }
+
+        // shoot a ray
+        Ray ray{posn + dirn * Epsilon, dirn, 1e-4, 1e6};
+        Intersection isc;
+        bool is_hit = scene->ray_intersect(ray, isc);
+
+        // loop over various lengths of paths
+        for (int i = 0; i < max_depth; i++) {
+            if (!is_hit)
+                break;
+
+            // --------------------------- Connect to camera ---------------------------
+            Vec3f sensor_dirn = glm::normalize(scene->sensor->origin_world - isc.position);
+            Float sensor_dist = glm::length(scene->sensor->origin_world - isc.position);
+            // check if camera is visible
+            Intersection tmp_isc;
+            bool is_camera_occluded = scene->ray_intersect(Ray{isc.position + sign(glm::dot(sensor_dirn, isc.normal)) * isc.normal * Epsilon, sensor_dirn, 1e-4, sensor_dist, true}, tmp_isc);
+            if (!is_camera_occluded) {
+                Vec3f w_sensor;
+                Vec2f p_film;
+                Float pdf_sensor;
+                Vec3f importance = scene->sensor->sample_Wi(isc, w_sensor, pdf_sensor, p_film);
+                scene->sensor->film.commit_splat(T * isc.shape->bsdf->eval(isc, worldToLocal(sensor_dirn, isc.normal)) * importance / pdf_sensor,
+                                                 p_film);
+            }
+
+            // ----------------- prepare posn & dirn for the next iter -----------------
+            auto [bsdf_sample, bsdf_val] = isc.shape->bsdf->sample(isc, sampler.get_1D(), sampler.get_2D());
+            T *= bsdf_val / bsdf_sample.pdf;
+            if (bsdf_sample.pdf == 0 || bsdf_val == Vec3f{0})
+                break;
+
+            dirn = localToWorld(bsdf_sample.wo, isc.normal);
+            ray = Ray{isc.position + dirn * Epsilon, dirn, 1e-4, 1e6};
+            is_hit = scene->ray_intersect(ray, isc);
+        }
+
+        if (show_progress && smpl % 400 == 0) {
+            if (smpl > 0)
+                n_rendered_particles.fetch_add(400);
+            {
+                std::lock_guard<std::mutex> lock(print_mutex);
+                std::cout << "\rProgress: " << std::format("{:.02f}", ((n_rendered_particles + 1) / static_cast<double>(n_all_samples)) * 100) << "%" << std::flush;
+            }
+        }
+    }
+}

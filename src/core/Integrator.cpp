@@ -62,10 +62,11 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
                                 Vec3f returned_radiance = this->sample_radiance(scene, &sampler, sensor_ray, row, col);
 
                                 // check for invalid values
-                                if (std::isnan(returned_radiance.x) || std::isnan(returned_radiance.y) || std::isnan(returned_radiance.z) ||
-                                    std::isinf(returned_radiance.x) || std::isinf(returned_radiance.y) || std::isinf(returned_radiance.z) ||
-                                    returned_radiance.x < 0 || returned_radiance.y < 0 || returned_radiance.z < 0)
-                                    throw std::runtime_error("Invalid radiance value: " + std::to_string(returned_radiance.x) + ", " + std::to_string(returned_radiance.y) + ", " + std::to_string(returned_radiance.z) + " at pixel (" + std::to_string(row) + ", " + std::to_string(col) + ")");
+                                if (!check_valid(returned_radiance)) {
+                                    // throw std::runtime_error("Invalid radiance value: " + std::to_string(returned_radiance.x) + ", " + std::to_string(returned_radiance.y) + ", " + std::to_string(returned_radiance.z) + " at pixel (" + std::to_string(row) + ", " + std::to_string(col) + ")");
+                                    std::cout << "\ninvalid radiance value. considering it zero: " << returned_radiance << ". (row=" << row << ", col=" << col << ")\n";
+                                    returned_radiance = Vec3f{0};
+                                }
 
                                 sensor->film.commit_sample(returned_radiance, row, col, px, py);
                             }
@@ -88,7 +89,7 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
         result.get();
     std::cout << std::endl;
 
-    sensor->film.normalize_pixels();
+    sensor->film.normalize_pixels(1.0 / scene->sensor->sampler.spp);
 
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end_time - start_time;

@@ -51,9 +51,13 @@ public:
         int col = static_cast<int>(p_film.x * width);
         int row = static_cast<int>(p_film.y * height);
         std::lock_guard<std::mutex> lock(pixels_mutex[row * width + col]);
+        // TODO
         if (std::isinf(value.x) || std::isinf(value.y) || std::isinf(value.z) || value.x < 0 || value.y < 0 || value.z < 0)
             throw std::runtime_error(std::format("film.commit_splat received invalid pixel value: %lf, %lf, %lf", value.x, value.y, value.z));
+
         pixel_splats[row * width + col] += value;
+        // Float filter_weight = rfilter->eval(p_film.x, p_film.y);
+        // pixel_splats[row * width + col] += value * filter_weight;
     }
 
     /// called after the rendering is complete. Adds the pixel_val/weightAccum by splatted values

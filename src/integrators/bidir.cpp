@@ -51,42 +51,7 @@ private:
 public:
     BidirIntegrator(int max_depth, bool hide_emitters) : max_depth(max_depth), hide_emitters(hide_emitters) {}
 
-    Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const override {
-        // --------------------- Sample a CAMERA path ---------------------
-        int cam_max_length = 10;
-        std::vector<Vertex> cam_path{};
-        createCamPath(cam_path, scene, sampler, ray, cam_max_length);
-        int n_cam_vertices = cam_path.size();
-        // TODO: this is just for when we don't consider t=1
-        if (n_cam_vertices == 1)
-            return Vec3f{0};
-
-        // --------------------- Sample a LIGHT  path ---------------------
-        int light_max_length = 10;
-        std::vector<Vertex> light_path{};
-        createLightPath(light_path, scene, sampler, light_max_length);
-        int n_light_vertices = light_path.size();
-
-        // ------------------------ Connect  paths ------------------------
-        Vec3f L{0};
-        for (int s = 1; s <= n_light_vertices; s++) {
-            for (int t = 1; t <= n_cam_vertices; t++) {
-                if (s == 1 && t == 1)
-                    continue;
-                int k = s + t - 1;
-                // TODO if (k > max_depth)  rightnow ignore
-                //     continue;
-                Vec2f pfilm_new{-1};
-                Float mis_weight = 0;
-                Vec3f contrib = connectPaths(cam_path, light_path, scene, s, t, mis_weight, pfilm_new, sampler);
-                if (pfilm_new.x < 0 || pfilm_new.y < 0)
-                    L += contrib * mis_weight;
-                else
-                    scene->sensor->film.commit_splat(contrib * mis_weight, pfilm_new);
-            }
-        }
-        return L;
-    }
+    Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const override;
 
     std::string to_string() const override {
         throw std::runtime_error("BidirIntegrator to_string not implemented yet!");
@@ -123,8 +88,46 @@ static BidirIntegratorRegistrar registrar;
 
 // ------------------ BDPT function definitions ------------------------
 
-void BidirIntegrator::randomWalk(std::vector<Vertex> &path,
-                                 const Scene *scene, Ray &ray, Intersection &isc,
+Vec3f BidirIntegrator::sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const {
+    // --------------------- Sample a CAMERA path ---------------------
+    int cam_max_length = 5;
+    std::vector<Vertex> cam_path{};
+    createCamPath(cam_path, scene, sampler, ray, cam_max_length);
+    int n_cam_vertices = cam_path.size();
+    // TODO: this is just for when we don't consider t=1
+    if (n_cam_vertices == 1)
+        return Vec3f{0};
+
+    // --------------------- Sample a LIGHT  path ---------------------
+    int light_max_length = 5;
+    std::vector<Vertex> light_path{};
+    createLightPath(light_path, scene, sampler, light_max_length);
+    int n_light_vertices = light_path.size();
+
+    // ------------------------ Connect  paths ------------------------
+    Vec3f L{0};
+    for (int s = 1; s <= n_light_vertices; s++) {
+        for (int t = 1; t <= n_cam_vertices; t++) {
+        // for (int t = 2; t <= n_cam_vertices; t++) {
+            if (s == 1 && t == 1)
+                continue;
+            int k = s + t - 1;
+            Vec2f pfilm_new{-1};
+            Float mis_weight = 0;
+            Vec3f contrib = connectPaths(cam_path, light_path, scene, s, t, mis_weight, pfilm_new, sampler);
+            if (pfilm_new.x < 0 || pfilm_new.y < 0)
+                L += contrib * mis_weight;
+            else {
+                scene->sensor->film.commit_splat(contrib * mis_weight, pfilm_new);
+                // scene->sensor->film.commit_splat(contrib, pfilm_new);
+                // std::cout << "\ncontrib=" << contrib << ", mis_weight=" << mis_weight << "\n";
+            }
+        }
+    }
+    return L;
+}
+
+void BidirIntegrator::randomWalk(std::vector<Vertex> &path, const Scene *scene, Ray &ray, Intersection &isc,
                                  Sampler *sampler, int max_depth, PathType path_type) const {
     bool is_hit;
     Vertex v{VertexType::SURFACE_VERTEX, path_type};
@@ -135,7 +138,7 @@ void BidirIntegrator::randomWalk(std::vector<Vertex> &path,
             return;
 
         Vec3f bsdf_wo = localToWorld(bsdf_sample.wo, isc.normal);
-        ray = Ray{isc.position + sign(glm::dot(isc.normal, bsdf_wo))*Epsilon*isc.normal, bsdf_wo, ray.tmin, ray.tmax};
+        ray = Ray{isc.position + sign(glm::dot(isc.normal, bsdf_wo)) * Epsilon * isc.normal, bsdf_wo, ray.tmin, ray.tmax};
         is_hit = scene->ray_intersect(ray, isc);
         if (!is_hit || bsdf_sample.pdf == 0 || bsdf_value == Vec3f{0})
             return;
@@ -154,8 +157,7 @@ void BidirIntegrator::randomWalk(std::vector<Vertex> &path,
     }
 }
 
-void BidirIntegrator::createCamPath(std::vector<Vertex> &cam_path, const Scene *scene, Sampler *sampler,
-                                    const Ray &sensor_ray, int max_vertices) const {
+void BidirIntegrator::createCamPath(std::vector<Vertex> &cam_path, const Scene *scene, Sampler *sampler, const Ray &sensor_ray, int max_vertices) const {
     if (max_vertices <= 0)
         return;
     Vertex camVertex{VertexType::CAMERA_VERTEX, PathType::CAMERA_PATH};
@@ -166,7 +168,8 @@ void BidirIntegrator::createCamPath(std::vector<Vertex> &cam_path, const Scene *
     camVertex.isc = cam_isc;
     camVertex.wi = Vec3f{0};
     camVertex.wo = sensor_ray.d;
-    camVertex.cum_beta = Vec3f{1};  // TODO: Is this and the next line correct?
+    // camVertex.cum_beta = Vec3f{1};  // TODO: Is this and the next line correct?
+    camVertex.cum_beta = Vec3f{1.0f / scene->sensor->film_area};
     camVertex.cum_pdf = 1.0;
     cam_path.push_back(camVertex);
     if (max_vertices == 1)
@@ -196,8 +199,7 @@ void BidirIntegrator::createCamPath(std::vector<Vertex> &cam_path, const Scene *
     randomWalk(cam_path, scene, ray, isc, sampler, max_vertices - 2, PathType::CAMERA_PATH);
 }
 
-void BidirIntegrator::createLightPath(std::vector<Vertex> &light_path, const Scene *scene, Sampler *sampler,
-                                      int max_vertices) const {
+void BidirIntegrator::createLightPath(std::vector<Vertex> &light_path, const Scene *scene, Sampler *sampler, int max_vertices) const {
     if (max_vertices <= 0)
         return;
     Vertex lightVertex{VertexType::LIGHT_VERTEX, PathType::LIGHT_PATH};
@@ -220,11 +222,6 @@ void BidirIntegrator::createLightPath(std::vector<Vertex> &light_path, const Sce
     if (!is_hit)
         return;
 
-    // DEBUG
-    // if (isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
-    //     std::cout << "\nhit a diel";
-    // }
-        
     Vertex v{VertexType::SURFACE_VERTEX, PathType::LIGHT_PATH};
     v.isc = isc;
     v.wi = -lightVertex.wo;
@@ -241,38 +238,34 @@ Vec3f BidirIntegrator::connectPaths(const std::vector<Vertex> &cam_path, const s
                                     Sampler *sampler) const {
     if (!isConnValid(cam_path, light_path, scene, t - 1, s - 1))
         return Vec3f{0};
-        
+
     int cam_idx = t - 1;
     int light_idx = s - 1;
     Vertex vcam = cam_path.at(cam_idx);
     Vertex vlight = light_path.at(light_idx);
     Vec3f dirn = glm::normalize(vlight.isc.position - vcam.isc.position);
     Float dist = glm::length(vlight.isc.position - vcam.isc.position);
-    // ------------------- Compute contribution of the path -------------------
-    Vec3f cam_bsdfval;
-    if (t == 1) {
-        Float pdf_Wi;
-        Vec3f unused;
-        Vec3f Wi = scene->sensor->sample_Wi(vlight.isc, unused, pdf_Wi, pfilm_new);
-        if (pdf_Wi == 0)
-            return Vec3f{0};
-        cam_bsdfval = Wi / pdf_Wi;
-    } else {
-        cam_bsdfval = vcam.isc.shape->bsdf->eval(vcam.isc, worldToLocal(dirn, vcam.isc.normal));
-    }
     
+    // ------------------- Compute contribution of the path -------------------
+
     Vec3f light_bsdfval;
     if (vlight.vertex_type == VertexType::LIGHT_VERTEX)
         light_bsdfval = Vec3f{absDot(vlight.isc.normal, dirn)};
     else
         light_bsdfval = vlight.isc.shape->bsdf->eval(vlight.isc, worldToLocal(-dirn, vlight.isc.normal));
-    
-    Vec3f L;
-    if (t == 1) {  // directly splat to film
-        L = vlight.cum_beta * light_bsdfval * cam_bsdfval;
+
+    Vec3f L{0};
+    Vec3f cam_bsdfval;
+    if (t == 1) {
+        Vec3f unused;
+        bool is_dirn_valid = scene->sensor->worldToIplane(dirn, pfilm_new, unused);
+        Float cosTheta = glm::dot(dirn, scene->sensor->forward_world);
+        cam_bsdfval = Vec3f{1.0f / Sqr(cosTheta * cosTheta)};  // the directional component of We (as in Veach's thesis)
     } else {
-        L = vcam.cum_beta * vlight.cum_beta * cam_bsdfval * light_bsdfval / Sqr(dist);
+        cam_bsdfval = vcam.isc.shape->bsdf->eval(vcam.isc, worldToLocal(dirn, vcam.isc.normal));
     }
+
+    L = vcam.cum_beta * vlight.cum_beta * cam_bsdfval * light_bsdfval / Sqr(dist);
 
     mis_weight = getMisWeight(cam_path, light_path, scene, s, t);
 
@@ -302,7 +295,7 @@ bool BidirIntegrator::isConnValid(const std::vector<Vertex> &cam_path, const std
     if (lightVertex.vertex_type == VertexType::LIGHT_VERTEX && lightVertex.isc.shape &&
         glm::dot(-dirn, lightVertex.isc.normal) <= 0)
         return false;
-    
+
     // Check for correct orientation of vertices
     if (camVertex.isc.shape && !camVertex.isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) &&
         glm::dot(dirn, camVertex.isc.normal) <= 0)
@@ -324,12 +317,18 @@ bool BidirIntegrator::isConnValid(const std::vector<Vertex> &cam_path, const std
 
 Float BidirIntegrator::getMisWeight(const std::vector<Vertex> &cam_path, const std::vector<Vertex> &light_path,
                                     const Scene *scene, int s, int t) const {
+                        
+    // TODO:  fixed mis_weight (which is still unbiased. used for debugging other parts)
+    // return 1.0 / (s+t-1);
+    // return 1.0 / (s+t-2);
+    
     // ------------------------- Compute relative probs -------------------------
     std::vector<Float> rel_probs;
-    for (int i = s+1; i <= s+t-1; i++) {
-        Vertex vprev = i == s+1 ? light_path.at(s-1) : cam_path.at(s+t+1-i);
-        Vertex vcur = cam_path.at(s+t-i);
-        Vertex vnext = cam_path.at(s+t-1-i);
+    for (int i = s + 1; i <= s + t - 1; i++) {
+    // for (int i = s+1; i <= s+t-2; i++) {
+        Vertex vprev = i == s + 1 ? light_path.at(s - 1) : cam_path.at(s + t + 1 - i);
+        Vertex vcur = cam_path.at(s + t - i);
+        Vertex vnext = cam_path.at(s + t - 1 - i);
 
         Vec3f dirn1 = glm::normalize(vcur.isc.position - vprev.isc.position);
         Vec3f dirn2 = glm::normalize(vcur.isc.position - vnext.isc.position);
@@ -339,7 +338,7 @@ Float BidirIntegrator::getMisWeight(const std::vector<Vertex> &cam_path, const s
         Float p1 = s == 0 ? cosineHemispherePDF(worldToLocal(dirn1, vprev.isc.normal), worldToLocal(dirn1, vprev.isc.normal))
                           : vprev.isc.shape->bsdf->pdf(vprev.isc, worldToLocal(dirn1, vprev.isc.normal));
         Float p2;
-        if (i < s+t-1) {
+        if (i < s + t - 1) {
             p2 = vnext.isc.shape->bsdf->pdf(vnext.isc, worldToLocal(dirn2, vnext.isc.normal));
         } else {
             Float unused;
@@ -353,13 +352,13 @@ Float BidirIntegrator::getMisWeight(const std::vector<Vertex> &cam_path, const s
         Float cos2 = absDot(vcur.isc.normal, dirn2);
 
         Float rel_prob = (p1 * cos1) / (p2 * cos2) * Sqr(dist2 / dist1);
-        rel_prob *= i == s+1 ? 1 : rel_probs.at(rel_probs.size()-1);
+        rel_prob *= i == s + 1 ? 1 : rel_probs.at(rel_probs.size() - 1);
         rel_probs.push_back(rel_prob);
     }
-    for (int i = s-1; i >= 1; i--) {
-        Vertex vprev = light_path.at(i-1);
+    for (int i = s - 1; i >= 1; i--) {
+        Vertex vprev = light_path.at(i - 1);
         Vertex vcur = light_path.at(i);
-        Vertex vnext = i == s-1 ? cam_path.at(s+t-2-i) : light_path.at(i+1);
+        Vertex vnext = i == s - 1 ? cam_path.at(s + t - 2 - i) : light_path.at(i + 1);
 
         Vec3f dirn1 = glm::normalize(vcur.isc.position - vprev.isc.position);
         Vec3f dirn2 = glm::normalize(vcur.isc.position - vnext.isc.position);
@@ -384,13 +383,14 @@ Float BidirIntegrator::getMisWeight(const std::vector<Vertex> &cam_path, const s
         Float cos2 = absDot(vcur.isc.normal, dirn2);
 
         Float rel_prob = (p2 * cos2) / (p1 * cos1) * Sqr(dist1 / dist2);
-        rel_prob *= i == s-1 ? 1 : rel_probs.at(rel_probs.size()-1);
+        rel_prob *= i == s - 1 ? 1 : rel_probs.at(rel_probs.size() - 1);
         rel_probs.push_back(rel_prob);
     }
 
     Float denom = 1.0;
     for (Float rel_prob : rel_probs)
-        denom += Sqr(denom);
-    
+        denom += Sqr(rel_prob);
+    if (std::isinf(denom) || std::isnan(denom))
+        return 0;
     return 1.0 / denom;
 }
