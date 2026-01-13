@@ -6,13 +6,14 @@
 
 ## Important
 
+- bdpt mis weight calculation when t can be 1 is biased. (for $t\geq2$ is correct).
+- bdpt s=0 strategy. Also its performance is bad (should implement efficiency-aware RR).
 - fix non-symmetric behaviour in dielectric, shading normals
 - bug in .hdr files
 - fix ray triangle(or BVH) bug having problem with large or small Epsilon(in the dragon scene)
 - add adaptive position based cosine weighted sampling
 - possible bug in BVH build (AABB of flat surfaces might be too thin)
 - bug in Beckmann distribution. sometimes returning nan
-- bidir s=0 & t=1 strategies. Also its performance is bad.
 
 ## Others
 

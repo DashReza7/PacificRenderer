@@ -90,7 +90,7 @@ static BidirIntegratorRegistrar registrar;
 
 Vec3f BidirIntegrator::sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const {
     // --------------------- Sample a CAMERA path ---------------------
-    int cam_max_length = 5;
+    int cam_max_length = 10;
     std::vector<Vertex> cam_path{};
     createCamPath(cam_path, scene, sampler, ray, cam_max_length);
     int n_cam_vertices = cam_path.size();
@@ -261,6 +261,7 @@ Vec3f BidirIntegrator::connectPaths(const std::vector<Vertex> &cam_path, const s
         bool is_dirn_valid = scene->sensor->worldToIplane(dirn, pfilm_new, unused);
         Float cosTheta = glm::dot(dirn, scene->sensor->forward_world);
         cam_bsdfval = Vec3f{1.0f / Sqr(cosTheta * cosTheta)};  // the directional component of We (as in Veach's thesis)
+        // cam_bsdfval = Vec3f{absDot(dirn, scene->sensor->forward_world) / Sqr(cosTheta * cosTheta)};
     } else {
         cam_bsdfval = vcam.isc.shape->bsdf->eval(vcam.isc, worldToLocal(dirn, vcam.isc.normal));
     }
@@ -324,7 +325,7 @@ Float BidirIntegrator::getMisWeight(const std::vector<Vertex> &cam_path, const s
     
     // ------------------------- Compute relative probs -------------------------
     std::vector<Float> rel_probs;
-    for (int i = s + 1; i <= s + t - 1; i++) {
+    for (int i = s + 1; i <= s+t-1; i++) {
     // for (int i = s+1; i <= s+t-2; i++) {
         Vertex vprev = i == s + 1 ? light_path.at(s - 1) : cam_path.at(s + t + 1 - i);
         Vertex vcur = cam_path.at(s + t - i);
@@ -334,25 +335,37 @@ Float BidirIntegrator::getMisWeight(const std::vector<Vertex> &cam_path, const s
         Vec3f dirn2 = glm::normalize(vcur.isc.position - vnext.isc.position);
         Float dist1 = glm::length(vcur.isc.position - vprev.isc.position);
         Float dist2 = glm::length(vcur.isc.position - vnext.isc.position);
-        // TODO: this is currently hardcoded
-        Float p1 = s == 0 ? cosineHemispherePDF(worldToLocal(dirn1, vprev.isc.normal), worldToLocal(dirn1, vprev.isc.normal))
-                          : vprev.isc.shape->bsdf->pdf(vprev.isc, worldToLocal(dirn1, vprev.isc.normal));
+        
+        Float p1;
+        if (s == 1)
+            // TODO: this is currently hardcoded
+            p1 = cosineHemispherePDF(worldToLocal(dirn1, vprev.isc.normal), worldToLocal(dirn1, vprev.isc.normal));
+        else if (vprev.isc.shape->bsdf->has_flag(BSDFFlags::Delta))
+            p1 = 1.0;
+        else
+            vprev.isc.shape->bsdf->pdf(vprev.isc, worldToLocal(dirn1, vprev.isc.normal));
         Float p2;
         if (i < s + t - 1) {
-            p2 = vnext.isc.shape->bsdf->pdf(vnext.isc, worldToLocal(dirn2, vnext.isc.normal));
+            if (vnext.isc.shape->bsdf->has_flag(BSDFFlags::Delta))
+                p2 = 1.0;
+            else
+                p2 = vnext.isc.shape->bsdf->pdf(vnext.isc, worldToLocal(dirn2, vnext.isc.normal));
         } else {
             Float unused;
             scene->sensor->pdf_We(dirn2, unused, p2);
-            // TODO
-            // Vec3f unused3;
-            // Vec2f unused2;
-            // scene->sensor->sample_Wi(vcur.isc, unused3, p2, unused2);
         }
         Float cos1 = absDot(vcur.isc.normal, dirn1);
         Float cos2 = absDot(vcur.isc.normal, dirn2);
 
         Float rel_prob = (p1 * cos1) / (p2 * cos2) * Sqr(dist2 / dist1);
         rel_prob *= i == s + 1 ? 1 : rel_probs.at(rel_probs.size() - 1);
+        
+        // DEBUG
+        if (!check_valid(rel_prob)) {
+            std::cout << "\nloop1: rel_prob=" << rel_prob;
+            exit(EXIT_FAILURE);
+        }
+
         rel_probs.push_back(rel_prob);
     }
     for (int i = s - 1; i >= 1; i--) {
@@ -365,32 +378,45 @@ Float BidirIntegrator::getMisWeight(const std::vector<Vertex> &cam_path, const s
         Float dist1 = glm::length(vcur.isc.position - vprev.isc.position);
         Float dist2 = glm::length(vcur.isc.position - vnext.isc.position);
 
-        // TODO: this is currently hardcoded
-        Float p1 = i == 1 ? cosineHemispherePDF(worldToLocal(dirn1, vprev.isc.normal), worldToLocal(dirn1, vprev.isc.normal))
-                          : vprev.isc.shape->bsdf->pdf(vprev.isc, dirn1);
+        Float p1;
+        if (i == 1)
+            // TODO: this is currently hardcoded
+            p1 = cosineHemispherePDF(worldToLocal(dirn1, vprev.isc.normal), worldToLocal(dirn1, vprev.isc.normal));
+        else if (vprev.isc.shape->bsdf->has_flag(BSDFFlags::Delta))
+            p1 = 1;
+        else
+            p1 = vprev.isc.shape->bsdf->pdf(vprev.isc, worldToLocal(dirn1, vprev.isc.normal));
         Float p2;
         if (vnext.vertex_type == VertexType::CAMERA_VERTEX) {
             Float unused;
             scene->sensor->pdf_We(dirn2, unused, p2);
-            // TODO
-            // Vec3f unused3;
-            // Vec2f unused2;
-            // scene->sensor->sample_Wi(vcur.isc, unused3, p2, unused2);
         } else {
-            p2 = vnext.isc.shape->bsdf->pdf(vnext.isc, dirn2);
+            if (vnext.isc.shape->bsdf->has_flag(BSDFFlags::Delta))
+                p2 = 1;
+            else
+                p2 = vnext.isc.shape->bsdf->pdf(vnext.isc, worldToLocal(dirn2, vnext.isc.normal));
         }
         Float cos1 = absDot(vcur.isc.normal, dirn1);
         Float cos2 = absDot(vcur.isc.normal, dirn2);
 
         Float rel_prob = (p2 * cos2) / (p1 * cos1) * Sqr(dist1 / dist2);
         rel_prob *= i == s - 1 ? 1 : rel_probs.at(rel_probs.size() - 1);
+
+        // DEBUG
+        if (!check_valid(rel_prob)) {
+            std::cout << "\nloop2: rel_prob=" << rel_prob;
+            exit(EXIT_FAILURE);
+        }
+        
         rel_probs.push_back(rel_prob);
     }
 
     Float denom = 1.0;
     for (Float rel_prob : rel_probs)
         denom += Sqr(rel_prob);
-    if (std::isinf(denom) || std::isnan(denom))
-        return 0;
+    if (!check_valid(denom)) {
+        std::cout << "\ndenom=" << denom;
+        exit(EXIT_FAILURE);
+    }
     return 1.0 / denom;
 }

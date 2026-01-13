@@ -149,7 +149,8 @@ void ParticleTracerIntegrator::sample_particle(int samples_per_thread, const Sce
                 Vec2f p_film;
                 Float pdf_sensor;
                 Vec3f importance = scene->sensor->sample_Wi(isc, w_sensor, pdf_sensor, p_film);
-                scene->sensor->film.commit_splat(T * isc.shape->bsdf->eval(isc, worldToLocal(sensor_dirn, isc.normal)) * importance / pdf_sensor,
+                scene->sensor->film.commit_splat(T * isc.shape->bsdf->eval(isc, worldToLocal(sensor_dirn, isc.normal))
+                                                   * importance / pdf_sensor,
                                                  p_film);
             }
 

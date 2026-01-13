@@ -25,7 +25,7 @@ void SamplingIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_t
         if (!g_DEBUG)
             break;
         for (int col = 0; col < width; col++) {
-            // if (row != 97 || col != 144)
+            // if (row != 8 || col != 8)
             //     continue;
             for (size_t i = 0; i < sensor->sampler.spp; i++) {
                 Float px, py;

@@ -16,28 +16,19 @@ PacificRenderer is a physically-based renderer written in C++. It aims to provid
     - Path tracer (`path`)
 	- Particle tracer (`ptracer`)
 	- Unstratified path tracer (`path-unstrat`. In contrast to the regular path tracer which samples the film plane pixel by pixel(i.e. stratified), this integrator samples the film plane in an unstratified manner. It's noisier than the regular path tracer, and was written for the purpose of demonstrating the advantages of stratified sampling)
-	- Bidirectional path tracer (`bidir`. Note that the strategies for s=0 and t=1 are not yet implemented, hence the resulting images are not better than the previous integrators)
+	- Bidirectional path tracer with multiple importance sampling (`bidir`)
 	- Direct lighting (`direct`)
 	- Depth (`depth`), Albedo (`albedo`), Geometric normal (`geometric_normal`)
 - **BSDFs and Materials**:
 	- Diffuse
-	- Conductor (Metal)
-	- Dielectric (Glass)
+	- Conductor (Metal), Rough Conductor
+	- Dielectric (Glass), Thin Dielectric, Rough Dielectric
 	- Plastic
-	- Thin Dielectric
-	- Rough Conductor
-	- Rough Dielectric
-	- (RoughPlastic and some others are not yet implemented)
 - **Light Sources**:
-	- Point Light
-	- Area Light
-	- Directional Light
-	- Environment Map
+	- Point, Area, and Directional light, Environment map
 - **Geometry**:
 	- Triangle Meshe (**obj**, **ply**, **serialized**)
-	- Sphere
-	- Disk
-    - Rectangle, Cube
+	- Sphere, Disk, Rectangle, Cube
 - **Texture Support**: Bitmap, checkerboard, and constant textures.
 - **Image Output**: Supports PNG, JPG, EXR, and HDR output formats.
 - **Multithreading**: Parallel rendering using multiple CPU threads.
@@ -88,7 +79,7 @@ PacificRenderer is a physically-based renderer written in C++. It aims to provid
 
 Below are some images rendered with PacificRenderer. The scene files are mostly from [Mitsuba gallery](https://mitsuba.readthedocs.io/en/stable/src/gallery.html). Stanford bunny and dragon are from [Stanford 3D scanning repository](https://graphics.stanford.edu/data/3Dscanrep/).
 
-*Remark*: Some techniques in the bidirectional path tracing (s=0, t=1) are not implemented yet, hence the resulting images may be a little darker.
+*Remark*: The bidirectional path tracer (`bidir`) still has a bug in mis_weight calculation, and the strategy of s=0 (no light subpath) is not implemented yet, so the resulting images are a little biased.
 
 ### Cornell Box
 
@@ -110,11 +101,11 @@ Below are some images rendered with PacificRenderer. The scene files are mostly 
 
 | path-trace(spp=32) | pathtrace-unstr(spp=32) | particle-trace(spp=32) | bidir-path-trace(spp=32) |
 |-----|---|-----|-----|
-| ![pathtrace32](gallery/cornell-box-pathtrace-spp32.png) | ![pathtrace_unstrat32](gallery/cornell-box-pathtrace_unstrat-spp32.png) | ![ptrace32](gallery/cornell-box-ptrace-spp32.png) | ![bidir32](gallery/cornell-box-bidir-spp32.png) |
+| ![pathtrace32](gallery/cornell-box-pathtrace-spp32.png) | ![pathtrace_unstrat32](gallery/cornell-box-pathtrace_unstrat-spp32.png) | ![ptrace32](gallery/cornell-box-ptrace-spp32.png) | ![bidir32](gallery/cornell-box-bdpt-spp32.png) |
 
-| path-trace(spp=384) | bidir-pt(spp=64), equal time |
+| path-trace(spp=290) | bidir-pt(spp=64), equal time |
 |---------------------|------------------------------|
-| ![](gallery/veach-bidir-pathtrace-spp384.png) | ![](gallery/veach-bidir-bdpt-spp64.png) |
+| ![](gallery/veach-bidir-path-spp290-114s.png) | ![](gallery/veach-bidir-bdpt-spp64-111s.png) |
 
 <!-- | path-trace(spp=48) | bidir-pt(spp=32, equal time) |
 |--------------------|------------------------------|
