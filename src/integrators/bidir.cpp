@@ -25,7 +25,8 @@ public:
 
 class BidirIntegrator : public SamplingIntegrator {
 private:
-    int max_depth;
+    int max_cam_vertices;
+    int max_light_vertices;
     bool hide_emitters;
 
     void randomWalk(std::vector<Vertex> &path,
@@ -33,10 +34,9 @@ private:
                     Sampler *sampler, int max_depth, PathType path_type) const;
 
     void createCamPath(std::vector<Vertex> &cam_path, const Scene *scene, Sampler *sampler,
-                       const Ray &sensor_ray, int max_vertices) const;
+                       const Ray &sensor_ray) const;
 
-    void createLightPath(std::vector<Vertex> &light_path, const Scene *scene, Sampler *sampler,
-                         int max_vertices) const;
+    void createLightPath(std::vector<Vertex> &light_path, const Scene *scene, Sampler *sampler) const;
 
     Vec3f connectPaths(const std::vector<Vertex> &cam_path, const std::vector<Vertex> &light_path,
                        const Scene *scene, int s, int t, Float &mis_weight, Vec2f &pfilm_new,
@@ -49,7 +49,7 @@ private:
                        const Scene *scene, int s, int t) const;
 
 public:
-    BidirIntegrator(int max_depth, bool hide_emitters) : max_depth(max_depth), hide_emitters(hide_emitters) {}
+    BidirIntegrator(int max_cam_length, int max_light_length, bool hide_emitters) : max_cam_vertices(max_cam_length), max_light_vertices(max_light_length), hide_emitters(hide_emitters) {}
 
     Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const override;
 
@@ -60,12 +60,15 @@ public:
 
 // ------------------- Registry functions -------------------
 Integrator *createBidirIntegrator(const std::unordered_map<std::string, std::string> &properties) {
-    int max_depth = 10;
+    int max_cam_vertices = 5;
+    int max_light_vertices = 5;
     bool hide_emitters = false;
 
     for (const auto &[key, value] : properties) {
-        if (key == "max_depth") {
-            max_depth = std::stoi(value);
+        if (key == "max_cam_vertices") {
+            max_cam_vertices = std::stoi(value);
+        } else if (key == "max_light_vertices") {
+            max_light_vertices = std::stoi(value);
         } else if (key == "hide_emitters") {
             hide_emitters = (value == "true" || value == "1");
         } else {
@@ -73,7 +76,7 @@ Integrator *createBidirIntegrator(const std::unordered_map<std::string, std::str
         }
     }
 
-    return new BidirIntegrator(max_depth, hide_emitters);
+    return new BidirIntegrator(max_cam_vertices, max_light_vertices, hide_emitters);
 }
 
 namespace {
@@ -90,18 +93,16 @@ static BidirIntegratorRegistrar registrar;
 
 Vec3f BidirIntegrator::sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const {
     // --------------------- Sample a CAMERA path ---------------------
-    int cam_max_length = 10;
     std::vector<Vertex> cam_path{};
-    createCamPath(cam_path, scene, sampler, ray, cam_max_length);
+    createCamPath(cam_path, scene, sampler, ray);
     int n_cam_vertices = cam_path.size();
     // TODO: this is just for when we don't consider t=1
     if (n_cam_vertices == 1)
         return Vec3f{0};
 
     // --------------------- Sample a LIGHT  path ---------------------
-    int light_max_length = 5;
     std::vector<Vertex> light_path{};
-    createLightPath(light_path, scene, sampler, light_max_length);
+    createLightPath(light_path, scene, sampler);
     int n_light_vertices = light_path.size();
 
     // ------------------------ Connect  paths ------------------------
@@ -157,8 +158,8 @@ void BidirIntegrator::randomWalk(std::vector<Vertex> &path, const Scene *scene, 
     }
 }
 
-void BidirIntegrator::createCamPath(std::vector<Vertex> &cam_path, const Scene *scene, Sampler *sampler, const Ray &sensor_ray, int max_vertices) const {
-    if (max_vertices <= 0)
+void BidirIntegrator::createCamPath(std::vector<Vertex> &cam_path, const Scene *scene, Sampler *sampler, const Ray &sensor_ray) const {
+    if (max_cam_vertices <= 0)
         return;
     Vertex camVertex{VertexType::CAMERA_VERTEX, PathType::CAMERA_PATH};
     Intersection cam_isc;
@@ -172,7 +173,7 @@ void BidirIntegrator::createCamPath(std::vector<Vertex> &cam_path, const Scene *
     camVertex.cum_beta = Vec3f{1.0f / scene->sensor->film_area};
     camVertex.cum_pdf = 1.0;
     cam_path.push_back(camVertex);
-    if (max_vertices == 1)
+    if (max_cam_vertices == 1)
         return;
 
     Ray ray{sensor_ray};
@@ -196,11 +197,11 @@ void BidirIntegrator::createCamPath(std::vector<Vertex> &cam_path, const Scene *
     v.cum_pdf = pdf_We * absDot(isc.normal, isc.dirn) / Sqr(isc.distance);
     cam_path.push_back(v);
 
-    randomWalk(cam_path, scene, ray, isc, sampler, max_vertices - 2, PathType::CAMERA_PATH);
+    randomWalk(cam_path, scene, ray, isc, sampler, max_cam_vertices - 2, PathType::CAMERA_PATH);
 }
 
-void BidirIntegrator::createLightPath(std::vector<Vertex> &light_path, const Scene *scene, Sampler *sampler, int max_vertices) const {
-    if (max_vertices <= 0)
+void BidirIntegrator::createLightPath(std::vector<Vertex> &light_path, const Scene *scene, Sampler *sampler) const {
+    if (max_light_vertices <= 0)
         return;
     Vertex lightVertex{VertexType::LIGHT_VERTEX, PathType::LIGHT_PATH};
     // sample a point on a light
@@ -213,7 +214,7 @@ void BidirIntegrator::createLightPath(std::vector<Vertex> &light_path, const Sce
     lightVertex.cum_beta = light_Le / pdf_light_posn;
     lightVertex.cum_pdf = pdf_light_posn;
     light_path.push_back(lightVertex);
-    if (max_vertices == 1)
+    if (max_light_vertices == 1)
         return;
 
     Ray ray{lightVertex.isc.position + Epsilon * lightVertex.isc.normal, lightVertex.isc.dirn, 1e-3, 1e6};
@@ -230,7 +231,7 @@ void BidirIntegrator::createLightPath(std::vector<Vertex> &light_path, const Sce
     v.cum_pdf = pdf_light_posn * pdf_light_dirn * absDot(isc.normal, isc.dirn) / Sqr(isc.distance);
     light_path.push_back(v);
 
-    randomWalk(light_path, scene, ray, isc, sampler, max_vertices - 2, PathType::LIGHT_PATH);
+    randomWalk(light_path, scene, ray, isc, sampler, max_light_vertices - 2, PathType::LIGHT_PATH);
 }
 
 Vec3f BidirIntegrator::connectPaths(const std::vector<Vertex> &cam_path, const std::vector<Vertex> &light_path,
