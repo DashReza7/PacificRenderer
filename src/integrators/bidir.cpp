@@ -28,6 +28,9 @@ private:
     int max_cam_vertices;
     int max_light_vertices;
     bool hide_emitters;
+    bool t_one;
+    bool s_zero;
+    bool mis;
 
     void randomWalk(std::vector<Vertex> &path,
                     const Scene *scene, Ray &ray, Intersection &isc,
@@ -49,7 +52,8 @@ private:
                        const Scene *scene, int s, int t) const;
 
 public:
-    BidirIntegrator(int max_cam_length, int max_light_length, bool hide_emitters) : max_cam_vertices(max_cam_length), max_light_vertices(max_light_length), hide_emitters(hide_emitters) {}
+    BidirIntegrator(int max_cam_vertices, int max_light_vertices, bool hide_emitters, bool t_one, bool s_zero, bool mis) : 
+        max_cam_vertices(max_cam_vertices), max_light_vertices(max_light_vertices), hide_emitters(hide_emitters), t_one(t_one), s_zero(s_zero), mis(mis) {}
 
     Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const override;
 
@@ -63,6 +67,10 @@ Integrator *createBidirIntegrator(const std::unordered_map<std::string, std::str
     int max_cam_vertices = 5;
     int max_light_vertices = 5;
     bool hide_emitters = false;
+    // whether to use these techniques
+    bool t_one = true;
+    bool s_zero = false;
+    bool mis = true;
 
     for (const auto &[key, value] : properties) {
         if (key == "max_cam_vertices") {
@@ -71,12 +79,18 @@ Integrator *createBidirIntegrator(const std::unordered_map<std::string, std::str
             max_light_vertices = std::stoi(value);
         } else if (key == "hide_emitters") {
             hide_emitters = (value == "true" || value == "1");
+        } else if (key == "t_one") {
+            t_one = (value == "true" || value == "1");
+        } else if (key == "s_zero") {
+            s_zero = (value == "true" || value == "1");
+        } else if (key == "mis") {
+            mis = (value == "true" || value == "1");
         } else {
             throw std::runtime_error("Unknown property '" + key + "' for Path Tracer integrator");
         }
     }
 
-    return new BidirIntegrator(max_cam_vertices, max_light_vertices, hide_emitters);
+    return new BidirIntegrator(max_cam_vertices, max_light_vertices, hide_emitters, t_one, s_zero, mis);
 }
 
 namespace {
@@ -108,8 +122,8 @@ Vec3f BidirIntegrator::sample_radiance(const Scene *scene, Sampler *sampler, con
     // ------------------------ Connect  paths ------------------------
     Vec3f L{0};
     for (int s = 1; s <= n_light_vertices; s++) {
-        for (int t = 1; t <= n_cam_vertices; t++) {
-        // for (int t = 2; t <= n_cam_vertices; t++) {
+        for (int t = (t_one ? 1 : 2); t <= n_cam_vertices; t++) {
+            // FIXME: This should be fixed for sampling directly visible lights
             if (s == 1 && t == 1)
                 continue;
             int k = s + t - 1;
@@ -118,11 +132,8 @@ Vec3f BidirIntegrator::sample_radiance(const Scene *scene, Sampler *sampler, con
             Vec3f contrib = connectPaths(cam_path, light_path, scene, s, t, mis_weight, pfilm_new, sampler);
             if (pfilm_new.x < 0 || pfilm_new.y < 0)
                 L += contrib * mis_weight;
-            else {
+            else
                 scene->sensor->film.commit_splat(contrib * mis_weight, pfilm_new);
-                // scene->sensor->film.commit_splat(contrib, pfilm_new);
-                // std::cout << "\ncontrib=" << contrib << ", mis_weight=" << mis_weight << "\n";
-            }
         }
     }
     return L;
@@ -246,7 +257,7 @@ Vec3f BidirIntegrator::connectPaths(const std::vector<Vertex> &cam_path, const s
     Vertex vlight = light_path.at(light_idx);
     Vec3f dirn = glm::normalize(vlight.isc.position - vcam.isc.position);
     Float dist = glm::length(vlight.isc.position - vcam.isc.position);
-    
+
     // ------------------- Compute contribution of the path -------------------
 
     Vec3f light_bsdfval;
@@ -319,15 +330,17 @@ bool BidirIntegrator::isConnValid(const std::vector<Vertex> &cam_path, const std
 
 Float BidirIntegrator::getMisWeight(const std::vector<Vertex> &cam_path, const std::vector<Vertex> &light_path,
                                     const Scene *scene, int s, int t) const {
-                        
-    // TODO:  fixed mis_weight (which is still unbiased. used for debugging other parts)
-    // return 1.0 / (s+t-1);
-    // return 1.0 / (s+t-2);
+    if (!mis) {
+        if (t_one)
+            return 1.0 / (s+t-1);
+        else
+            return 1.0 / (s+t-2);
+        // Should be modified when s=0 is supported
+    }
     
     // ------------------------- Compute relative probs -------------------------
     std::vector<Float> rel_probs;
-    for (int i = s + 1; i <= s+t-1; i++) {
-    // for (int i = s+1; i <= s+t-2; i++) {
+    for (int i = s + 1; i <= (t_one ? s+t-1 : s+t-2); i++) {
         Vertex vprev = i == s + 1 ? light_path.at(s - 1) : cam_path.at(s + t + 1 - i);
         Vertex vcur = cam_path.at(s + t - i);
         Vertex vnext = cam_path.at(s + t - 1 - i);
@@ -336,7 +349,7 @@ Float BidirIntegrator::getMisWeight(const std::vector<Vertex> &cam_path, const s
         Vec3f dirn2 = glm::normalize(vcur.isc.position - vnext.isc.position);
         Float dist1 = glm::length(vcur.isc.position - vprev.isc.position);
         Float dist2 = glm::length(vcur.isc.position - vnext.isc.position);
-        
+
         Float p1;
         if (s == 1)
             // TODO: this is currently hardcoded
@@ -360,7 +373,7 @@ Float BidirIntegrator::getMisWeight(const std::vector<Vertex> &cam_path, const s
 
         Float rel_prob = (p1 * cos1) / (p2 * cos2) * Sqr(dist2 / dist1);
         rel_prob *= i == s + 1 ? 1 : rel_probs.at(rel_probs.size() - 1);
-        
+
         // DEBUG
         if (!check_valid(rel_prob)) {
             std::cout << "\nloop1: rel_prob=" << rel_prob;
@@ -408,7 +421,7 @@ Float BidirIntegrator::getMisWeight(const std::vector<Vertex> &cam_path, const s
             std::cout << "\nloop2: rel_prob=" << rel_prob;
             exit(EXIT_FAILURE);
         }
-        
+
         rel_probs.push_back(rel_prob);
     }
 
