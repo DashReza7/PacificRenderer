@@ -33,7 +33,6 @@ Integrator* createAlbedoIntegrator(const std::unordered_map<std::string, std::st
     
     return new AlbedoIntegrator();
 }
-
 namespace {
     struct AlbedoIntegratorRegistrar {
         AlbedoIntegratorRegistrar() {
@@ -43,4 +42,3 @@ namespace {
     
     static AlbedoIntegratorRegistrar registrar;
 }
-

@@ -33,7 +33,6 @@ Integrator* createGeometricNormalIntegrator(const std::unordered_map<std::string
     
     return new GeometricNormalIntegrator();
 }
-
 namespace {
     struct GeometricNormalIntegratorRegistrar {
         GeometricNormalIntegratorRegistrar() {

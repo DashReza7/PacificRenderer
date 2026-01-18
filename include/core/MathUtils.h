@@ -144,6 +144,9 @@ inline Float sin_phi(const Vec3f &w) {
 inline Float absDot(const Vec3f &v, const Vec3f &w) {
     return std::abs(glm::dot(v, w));
 }
+inline Float average(Vec3f v) {
+    return (v.x + v.y + v.z) / 3.0;
+}
 
 inline Vec3f face_forward(const Vec3f &v, const Vec3f &n) {
     return glm::dot(v, n) >= 0.0 ? v : -v;

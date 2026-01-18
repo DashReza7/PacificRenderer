@@ -234,8 +234,8 @@ void load_ply(const ShapeDesc* shape_desc, Shape* shape) {
     if (!face_element.hasProperty("vertex_indices"))
         throw std::runtime_error("PLY mesh face elements must have vertex_indices property");
     // TODO: clean this
-    auto face_vertex_indices = face_element.getListProperty<int>("vertex_indices");
-    // auto face_vertex_indices = face_element.getListProperty<uint32_t>("vertex_indices");
+    // auto face_vertex_indices = face_element.getListProperty<int>("vertex_indices");
+    auto face_vertex_indices = face_element.getListProperty<uint32_t>("vertex_indices");
 
     for (const auto& face : face_vertex_indices) {
         if (face.size() == 3) {

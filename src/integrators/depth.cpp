@@ -31,7 +31,6 @@ Integrator* createDepthIntegrator(const std::unordered_map<std::string, std::str
     
     return new DepthIntegrator();
 }
-
 namespace {
     struct DepthIntegratorRegistrar {
         DepthIntegratorRegistrar() {
@@ -41,4 +40,3 @@ namespace {
     
     static DepthIntegratorRegistrar registrar;
 }
-

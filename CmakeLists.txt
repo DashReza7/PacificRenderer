@@ -25,6 +25,7 @@ add_executable(${PROJECT_NAME}
     "src/integrators/geometric_normal.cpp"
     "src/integrators/ptracer.cpp"
     "src/integrators/bidir.cpp"
+    "src/integrators/pssmlt.cpp"
     "src/core/Integrator.cpp"
     "src/core/Bitmap.cpp"
     "src/utils/stb.cpp"

@@ -116,7 +116,6 @@ Integrator *createDirectLightingIntegrator(const std::unordered_map<std::string,
 
     return new DirectLightingIntegrator(emitter_samples, bsdf_samples, hide_emitters);
 }
-
 namespace {
 struct DirectLightingIntegratorRegistrar {
     DirectLightingIntegratorRegistrar() {

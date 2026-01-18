@@ -84,7 +84,6 @@ Integrator* createParticleTracerIntegrator(const std::unordered_map<std::string,
 
     return new ParticleTracerIntegrator(max_depth, rr_depth, hide_emitters);
 }
-
 namespace {
 struct ParticleTracerIntegratorRegistrar {
     ParticleTracerIntegratorRegistrar() {
@@ -95,6 +94,7 @@ struct ParticleTracerIntegratorRegistrar {
 static ParticleTracerIntegratorRegistrar registrar;
 }  // namespace
 
+// ------------------ ParticleTracer function definitions ----------------------------
 void ParticleTracerIntegrator::sample_particle(int samples_per_thread, const Scene* scene, Sampler& sampler, bool show_progress,
                      std::atomic<size_t>& n_rendered_particles, std::mutex& print_mutex, int n_all_samples) const {
     for (int smpl = 0; smpl < samples_per_thread; smpl++) {

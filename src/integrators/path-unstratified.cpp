@@ -65,7 +65,6 @@ Integrator *createUnstratPathTracerIntegrator(const std::unordered_map<std::stri
 
     return new UnstratPathTracerIntegrator(max_depth, rr_depth, hide_emitters);
 }
-
 namespace {
 struct UnstratPathTracerIntegratorRegistrar {
     UnstratPathTracerIntegratorRegistrar() {
@@ -107,7 +106,8 @@ void UnstratPathTracerIntegrator::render(const Scene *scene, Sensor *sensor, uin
                     scene->sensor->pdf_We(sensor_dirn, unused, pdf_We);
                     Ray sensor_ray{scene->sensor->origin_world, sensor_dirn, 1e-3, 1e6};
                     Vec3f incoming_radiance = sample_radiance(scene, &sampler, sensor_ray, row, col);
-                    scene->sensor->film.commit_sample(incoming_radiance * We / pdf_We / (Float)(scene->sensor->sampler.spp), row, col, p_film.x, p_film.y);
+                    scene->sensor->film.commit_splat(incoming_radiance * We / pdf_We, p_film);
+                    // scene->sensor->film.commit_splat(incoming_radiance, p_film);
 
                     if (show_progress && smpl % 400 == 0) {
                         if (smpl > 0)
@@ -120,6 +120,15 @@ void UnstratPathTracerIntegrator::render(const Scene *scene, Sensor *sensor, uin
                 }
             }));
     }
+    for (auto &result : results)
+        result.get();
+    std::cout << std::endl;
+
+    sensor->film.normalize_pixels(1.0 / scene->sensor->sampler.spp);
+
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end_time - start_time;
+    std::cout << "Rendering completed in " << std::format("{:.02f}", elapsed.count()) << " seconds.";
 }
 
 Vec3f UnstratPathTracerIntegrator::sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const {

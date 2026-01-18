@@ -92,7 +92,6 @@ Integrator *createBidirIntegrator(const std::unordered_map<std::string, std::str
 
     return new BidirIntegrator(max_cam_vertices, max_light_vertices, hide_emitters, t_one, s_zero, mis);
 }
-
 namespace {
 struct BidirIntegratorRegistrar {
     BidirIntegratorRegistrar() {
@@ -104,7 +103,6 @@ static BidirIntegratorRegistrar registrar;
 }  // namespace
 
 // ------------------ BDPT function definitions ------------------------
-
 Vec3f BidirIntegrator::sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const {
     // --------------------- Sample a CAMERA path ---------------------
     std::vector<Vertex> cam_path{};
@@ -121,8 +119,8 @@ Vec3f BidirIntegrator::sample_radiance(const Scene *scene, Sampler *sampler, con
 
     // ------------------------ Connect  paths ------------------------
     Vec3f L{0};
-    for (int s = 1; s <= n_light_vertices; s++) {
-        for (int t = (t_one ? 1 : 2); t <= n_cam_vertices; t++) {
+    for (int t = (t_one ? 1 : 2); t <= n_cam_vertices; t++) {
+        for (int s = 1; s <= n_light_vertices; s++) {
             // FIXME: This should be fixed for sampling directly visible lights
             if (s == 1 && t == 1)
                 continue;
@@ -335,7 +333,7 @@ Float BidirIntegrator::getMisWeight(const std::vector<Vertex> &cam_path, const s
             return 1.0 / (s+t-1);
         else
             return 1.0 / (s+t-2);
-        // Should be modified when s=0 is supported
+        // FIXME: Should be modified when s=0 is supported
     }
     
     // ------------------------- Compute relative probs -------------------------
