@@ -4,7 +4,7 @@
 
 # PacificRenderer
 
-PacificRenderer is a physically-based renderer written in C++. It aims to provide a flexible, extensible, and educational platform for photorealistic image synthesis, inspired by [Mitsuba](https://mitsuba-renderer.org/) and [PBRT](http://www.pbrt.org/). The renderer supports a subset of the Mitsuba scene file format, making it compatible with many Mitsuba scenes (with some limitations).
+PacificRenderer is a physically-based renderer written in C++. It aims to provide a flexible, extensible, and educational platform for photorealistic image synthesis, inspired by [Mitsuba](https://mitsuba-renderer.org/) and [PBRT](http://www.pbrt.org/). The renderer supports a subset of the Mitsuba scene file format, making it compatible with many Mitsuba scenes (with some limitations and new features).
 
 ---
 
@@ -13,12 +13,12 @@ PacificRenderer is a physically-based renderer written in C++. It aims to provid
 - **Physically-Based Rendering**: Implements unbiased Monte Carlo path tracing and other integrators for realistic image synthesis.
 - **Mitsuba Scene Compatibility**: Supports a subset of Mitsuba's XML scene format, allowing you to use many existing Mitsuba scenes directly.
 - **Modular Integrator System**: Includes the following integrators:
-    - Path tracer (`path`)
-	- Particle tracer (`ptracer`)
-	- Unstratified path tracer (`path-unstrat`. In contrast to the regular path tracer which samples the film plane pixel by pixel(i.e. stratified), this integrator samples the film plane in an unstratified manner. It's noisier than the regular path tracer, and was written for the purpose of demonstrating the advantages of stratified sampling)
+    - Path tracer (`path`). Traces paths from camera towards the world objects. It uses both BSDF and direct light sampling, combining them with multiple importance sampling.
+	- Particle tracer (`ptracer`). In contrast to path tracing, this integrator starts paths from light sources, and at each bounce tries to connect itself to the camera.
+	- Unstratified path tracer (`path-unstrat`. In contrast to regular path tracer which samples the film plane pixel by pixel(i.e. stratified), this integrator samples the film plane in an unstratified manner. It's noisier than the regular path tracer, and was written for the purpose of demonstrating the advantages of stratified sampling)
 	- Bidirectional path tracer with multiple importance sampling (`bidir`)
 	- Direct lighting (`direct`)
-	- Depth (`depth`), Albedo (`albedo`), Geometric normal (`geometric_normal`)
+	- Depth (`depth`), Albedo (`albedo`), Geometric normal (`geometric_normal`). These are mostly used for debugging purposes.
 - **BSDFs and Materials**:
 	- Diffuse
 	- Conductor (Metal), Rough Conductor
@@ -27,14 +27,14 @@ PacificRenderer is a physically-based renderer written in C++. It aims to provid
 - **Light Sources**:
 	- Point, Area, and Directional light, Environment map
 - **Geometry**:
-	- Triangle Meshe (**obj**, **ply**, **serialized**)
+	- Triangle Meshes (**obj**, **ply**, **serialized**)
 	- Sphere, Disk, Rectangle, Cube
 - **Texture Support**: Bitmap, checkerboard, and constant textures.
 - **Image Output**: Supports PNG, JPG, EXR, and HDR output formats.
 - **Multithreading**: Parallel rendering using multiple CPU threads.
-- **BVH Acceleration**: ray tracing acceleration with bounding volume hierarchy.
+- **BVH Acceleration**: Ray tracing acceleration with bounding volume hierarchy.
 - **Filter Support**: Gaussian reconstruction filter.
-- **Extensible Registry System**: Easily add new BSDFs, integrators, emitters, and textures.
+- **Registry System**: Easily add new BSDFs, integrators, emitters, and textures.
 
 ---
 
