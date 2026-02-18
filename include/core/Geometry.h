@@ -111,3 +111,8 @@ public:
     
     bool intersect_optimized(Ray &ray, Intersection &isc);
 };
+
+// offset the position of a ray a little bit toward the normal, for avoiding self-intersections while ray tracing.
+inline Vec3f rayOffset(const Intersection &isc, const Vec3f &wo) {
+    return isc.position + sign(glm::dot(wo, isc.normal)) * isc.normal * Epsilon;
+}

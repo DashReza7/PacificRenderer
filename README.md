@@ -17,6 +17,7 @@ PacificRenderer is a physically-based renderer written in C++. It aims to provid
 	- Particle tracer (`ptracer`). In contrast to path tracing, this integrator starts paths from light sources, and at each bounce tries to connect itself to the camera.
 	- Unstratified path tracer (`path-unstrat`. In contrast to regular path tracer which samples the film plane pixel by pixel(i.e. stratified), this integrator samples the film plane in an unstratified manner. It's noisier than the regular path tracer, and was written for the purpose of demonstrating the advantages of stratified sampling)
 	- Bidirectional path tracer with multiple importance sampling (`bidir`)
+	- Primary sample space Metropolis light transport (`pssmlt`)
 	- Direct lighting (`direct`)
 	- Depth (`depth`), Albedo (`albedo`), Geometric normal (`geometric_normal`). These are mostly used for debugging purposes.
 - **BSDFs and Materials**:

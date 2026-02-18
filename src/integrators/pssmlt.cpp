@@ -4,35 +4,56 @@
 class PrimarySample {
 private:
     int cur_coord = 0;  // used for accessing the next sample requested by integrator
-    int mut_cnt = 0;  // number of accepted mutations since the latest large step event
-    Sampler *sampler;
+    int mut_cnt = 0;    // number of accepted mutations since the latest large step event
     std::vector<Float> tent_samples{};
     std::vector<int> samples_mut_cnt{};  // number of accepted mutations of each sample since the last large step event
+    static constexpr Float mut_std = 0.01;
 
     // small mutation given a current sample
     Float mutate(Float cur_sample) {
-        Float rnd = sampler->get_1D();
-        Float s1 = 1./1024, s2 = 1./64;
-        Float dv = s2 * exp(-log(s2/s1) * rnd);
-        if (rnd < 0.5) {
-            cur_sample += dv;
-            if (cur_sample > 1)
-                cur_sample -= 1;
-        } else {
-            cur_sample -= dv;
-            if (cur_sample < 0)
-                cur_sample += 1;
-        }
+        Float u1 = sampler->get_1D(), u2 = sampler->get_1D();
+        while (u1 == 0)
+            u1 = sampler->get_1D();
+        Float z0 = std::sqrt(-2.0 * std::log(u1)) * std::cos(2.0 * Pi * u2);
+        cur_sample = cur_sample + z0 * mut_std;
+        while (cur_sample >= 1.0)
+            cur_sample -= 1.0;
+        while (cur_sample < 0)
+            cur_sample += 1.0;
         return cur_sample;
     }
 
 public:
+    Sampler *sampler;
     std::vector<Float> samples{};
 
-    PrimarySample(Sampler *sampler) : sampler(sampler) {}
+    PrimarySample(Sampler *sampler) : sampler(sampler) {
+        // TODO
+        // iniit samples (all uniform)
+        samples.resize(100);
+        for (int i = 0; i < samples.size(); i++)
+            samples[i] = sampler->get_1D();
+        tent_samples = std::vector<Float>(samples);
+    }
+
+    void makeNewTentSamples(bool large_step) {
+        cur_coord = 0;
+        if (large_step)
+            for (int i = 0; i < tent_samples.size(); i++)
+                tent_samples[i] = sampler->get_1D();
+        else
+            for (int i = 0; i < tent_samples.size(); i++)
+                tent_samples[i] = mutate(tent_samples.at(i));
+    }
 
     // get the next sample. Handle the lazy perterbations
     Float getSample(bool large_step) {
+        // TODO:
+        Float rnd = tent_samples.at(cur_coord);
+        cur_coord++;
+        return rnd;
+
+
         tent_samples.push_back(0);
         if (large_step) {
             tent_samples[cur_coord] = sampler->get_1D();
@@ -50,6 +71,13 @@ public:
     }
 
     void commit(bool accept, bool large_step) {
+        cur_coord = 0;
+        if (accept)
+            samples = std::vector<Float>(tent_samples);
+        else
+            tent_samples = samples;
+        return;
+
         if (accept) {
             if (large_step) {
                 mut_cnt = 0;
@@ -73,7 +101,6 @@ public:
                 else
                     samples.push_back(tent_samples.at(i));
         } else {  // mut not accepted
-
         }
         tent_samples.clear();
         cur_coord = 0;
@@ -93,7 +120,11 @@ private:
     Float estimate_b(const Scene *scene, Sampler *sampler, size_t n_threads, Float &estimate_time, bool show_progress) const;
     Vec3f sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const;
     std::vector<std::pair<PrimarySample, Vec3f>> init_seeds(const Scene *scene, Sensor *sensor) const;
-    Vec3f sample_path(const Scene *scene, PrimarySample &ps, const Ray &ray, bool large_step=true) const;
+    Vec3f sample_path(const Scene *scene, PrimarySample &ps, const Ray &ray, bool large_step = true) const;
+    void markovChainLoop(int tseed_start_idx, int seeds_per_thread,
+                         std::vector<std::pair<PrimarySample, Vec3f>> &seeds, Sampler &sampler, 
+                         Sensor *sensor, const Scene *scene, Float inv_b, 
+                         std::atomic<int> &nseeds_completed, std::mutex &print_mutex) const;
 
     Float get_mis_weight_nee(const Intersection &isc, const EmitterSample &emitter_sample, uint32_t n_bsdf_samples) const {
         if ((emitter_sample.emitter_flags & EmitterFlags::DELTA_DIRECTION) != EmitterFlags::NONE || n_bsdf_samples == 0)
@@ -132,45 +163,80 @@ public:
 
 // ------------------ PSSMLT function definitions ----------------------------
 void PSSMLTIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_threads, bool show_progress) {
+    // Estimate b
     Float b_estimate_time;
     Float b = estimate_b(scene, &sensor->sampler, n_threads, b_estimate_time, show_progress);
+    std::cout << "b estimation took " << std::format("{:.02f}", b_estimate_time) << " seconds." << std::endl;
     Float inv_b = 1.0 / b;
 
+    // Initialize path seeds
+    auto start_time = std::chrono::high_resolution_clock::now();
     std::vector<std::pair<PrimarySample, Vec3f>> seeds = init_seeds(scene, sensor);
-    
-    // run the Markov chain
-    for (int step = 0; step < chain_steps; step++)
-        for (int i = 0; i < seeds.size(); i++) {
-            bool large_step = sensor->sampler.get_1D() < p_large;
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end_time - start_time;
+    std::cout << "seed initialization took " << std::format("{:.02f}", elapsed.count()) << " seconds.\n";
+
+    // Markov Chain loop
+    start_time = std::chrono::high_resolution_clock::now();
+    ThreadPool tpool{sensor->sampler, n_threads};
+    std::vector<std::future<void>> results;
+    std::atomic<int> nseeds_completed = 0;
+    std::mutex print_mutex;
+    for (int tidx = 0; tidx < n_threads; tidx++) {
+        int seeds_per_thread = seeds.size() / n_threads;
+        int tseed_start_idx = tidx * seeds_per_thread;
+        if (tidx == n_threads - 1)
+            seeds_per_thread += seeds.size() % n_threads;
+        results.emplace_back(tpool.enqueue([this, tidx, sensor, scene, inv_b, tseed_start_idx, seeds_per_thread, &seeds, &nseeds_completed, &print_mutex](Sampler &sampler) {
+            markovChainLoop(tseed_start_idx, seeds_per_thread, seeds, sampler, sensor, scene, inv_b, nseeds_completed, print_mutex);
+        }));
+    }
+    for (auto &result : results)
+        result.get();
+    end_time = std::chrono::high_resolution_clock::now();
+    elapsed = end_time - start_time;
+    std::cout << "\nMarkov Chain time: " << std::format("{:.02f}", elapsed.count()) << " seconds.\n";
+
+    sensor->film.normalize_pixels(sensor->film.width * sensor->film.height);
+}
+
+void PSSMLTIntegrator::markovChainLoop(int tseed_start_idx, int seeds_per_thread,
+                                       std::vector<std::pair<PrimarySample, Vec3f>> &seeds, Sampler &sampler, 
+                                       Sensor *sensor, const Scene *scene, Float inv_b, 
+                                       std::atomic<int> &nseeds_completed, std::mutex &print_mutex) const {
+
+    for (int i = tseed_start_idx; i < tseed_start_idx + seeds_per_thread; i++) {
+        seeds[i].first.sampler = &sampler;
+        for (int step = 0; step < chain_steps; step++) {
+            bool large_step = sampler.get_1D() < p_large;
+            seeds[i].first.makeNewTentSamples(large_step);
+
             Vec2f pfilm{seeds[i].first.getSample(large_step), seeds[i].first.getSample(large_step)};
             Ray sensor_ray{sensor->origin_world, sensor->iplaneToWorld(pfilm.x, pfilm.y), 1e-3, 1e6};
             Vec3f tent_radiance = sample_path(scene, seeds[i].first, sensor_ray, large_step);
             Float I_new = average(tent_radiance);
             Float I_old = average(seeds[i].second);
-            // TODO: handle the case where one or both of them are zero
-            Float a;
-            if (I_old == 0 && I_new != 0)
-                a = 1;
-            else if (I_old == 0 && I_new == 0)
-                a = 0.5;
-            else
-                a = std::min(1.0f, I_new/I_old);
-            
-            Vec3f old_contrib = (1.0f - a) * seeds[i].second 
-                    / ((I_old * inv_b + p_large) * chain_steps * seeds.size());
-            Vec3f new_contrib = (a + (large_step?1:0)) * tent_radiance
-                    / ((I_new * inv_b + p_large) * chain_steps * seeds.size());
-            Float scale = 100000;
-            sensor->film.commit_splat(scale * old_contrib, Vec2f{seeds[i].first.samples.at(0), seeds[i].first.samples.at(1)});
-            sensor->film.commit_splat(scale * new_contrib, pfilm);
+            // handle the case where one or both of them are zero
+            Float a = (I_old == 0 && I_new != 0) ?   1 : 
+                  (I_old == 0 && I_new == 0)     ? 0.5 : std::max(std::min(1.0f, I_new / I_old), 0.0f);
+            Vec3f old_contrib = (1.0f - a) * seeds[i].second / ((I_old * inv_b + p_large) * chain_steps * seeds.size());
+            Vec3f new_contrib = (a + (large_step ? 1 : 0)) * tent_radiance / ((I_new * inv_b + p_large) * chain_steps * seeds.size());
+            // Vec3f old_contrib = Float(1.0 - a) * seeds[i].second / I_old;
+            // Vec3f new_contrib = Float(a)       * tent_radiance   / I_new;
+            sensor->film.commit_splat(old_contrib, Vec2f{seeds[i].first.samples.at(0), seeds[i].first.samples.at(1)});
+            sensor->film.commit_splat(new_contrib, pfilm);
 
-            bool accept = sensor->sampler.get_1D() < a;
+            bool accept = sampler.get_1D() < a;
             seeds[i].first.commit(accept, large_step);
             if (accept)
                 seeds[i].second = tent_radiance;
         }
-
-    sensor->film.normalize_pixels(1.0);
+        nseeds_completed.fetch_add(1);
+        {
+            std::lock_guard<std::mutex> lock(print_mutex);
+            std::cout << "\rMarkov Chain progress: " << std::format("{:3.02f}%", Float(nseeds_completed) / seeds.size() * 100);
+        }
+    }
 }
 
 Float PSSMLTIntegrator::estimate_b(const Scene *scene, Sampler *sampler, size_t n_threads, Float &estimate_time, bool show_progress) const {
@@ -180,7 +246,6 @@ Float PSSMLTIntegrator::estimate_b(const Scene *scene, Sampler *sampler, size_t 
     std::vector<std::future<void>> results;
 
     auto start_time = std::chrono::high_resolution_clock::now();
-
     for (int tidx = 0; tidx < n_threads; tidx++) {
         int samples_per_thread = b_samples / n_threads;
         if (tidx == n_threads - 1)
@@ -197,14 +262,11 @@ Float PSSMLTIntegrator::estimate_b(const Scene *scene, Sampler *sampler, size_t 
             b.fetch_add(b_thread);
         }));
     }
-
     for (auto &result : results)
         result.get();
-
     auto end_time = std::chrono::high_resolution_clock::now();
-
     std::chrono::duration<double> elapsed = end_time - start_time;
-    std::cout << "b estimation took " << std::format("{:.02f}", elapsed.count()) << " seconds." << std::endl;
+    estimate_time = elapsed.count();
 
     return b;
 }
@@ -327,6 +389,7 @@ std::vector<std::pair<PrimarySample, Vec3f>> PSSMLTIntegrator::init_seeds(const 
     // list of (ps, scalar_contrib). used for sampling them according to their scalar_contrib
     int n_candids = int(n_seeds * 100);
     std::vector<std::pair<PrimarySample, Vec3f>> candids{};
+    candids.reserve(n_candids);
     for (int i = 0; i < n_candids; i++) {
         // sample a (several) lightpath based on a sequence of random numbers and return their max contribution
         PrimarySample ps{&sensor->sampler};
@@ -337,15 +400,28 @@ std::vector<std::pair<PrimarySample, Vec3f>> PSSMLTIntegrator::init_seeds(const 
         candids.push_back({ps, radiance});
     }
 
-    // TODO: sample n_seeds seeds from candids
+    // sample n_seeds seeds from candids based on their scalar_contribution (candids[i].second.average)
     std::vector<std::pair<PrimarySample, Vec3f>> selected_candids;
-    // TODO:
-    selected_candids.push_back(candids.at(0));
-    return selected_candids;
-    for (int i = 0; i < n_seeds; i++) {
-        throw std::runtime_error("selectign candids not implemented yet.");
+    std::vector<Float> cdf(n_candids + 1, 0.0f);
+    for (int i = 0; i < n_candids; i++)
+        cdf[i + 1] = cdf[i] + average(candids[i].second);
+    Float total_weight = cdf[n_candids];
+    if (total_weight == 0.0f) {
+        for (int i = 0; i < n_seeds; i++)
+            selected_candids.push_back(candids[i % n_candids]);
+        return selected_candids;
     }
-    
+    for (int i = 1; i <= n_candids; i++)
+        cdf[i] /= total_weight;
+    selected_candids.reserve(n_seeds);
+    for (int i = 0; i < n_seeds; i++) {
+        Float u = sensor->sampler.get_1D();
+        // Binary search to find the index in the CDF
+        int idx = int(std::lower_bound(cdf.begin(), cdf.end(), u) - cdf.begin()) - 1;
+        idx = std::clamp(idx, 0, n_candids - 1);
+        selected_candids.push_back(candids[idx]);
+    }
+
     return selected_candids;
 }
 
@@ -358,65 +434,60 @@ Vec3f PSSMLTIntegrator::sample_path(const Scene *scene, PrimarySample &ps, const
     bool is_hit = scene->ray_intersect(curr_ray, curr_isc);
 
     // ----------------------- Visible emitters -----------------------
-    if (is_hit && hide_emitters && curr_isc.shape->emitter)
+    if (is_hit && curr_isc.shape->emitter && hide_emitters)
         return Vec3f{0};
 
     for (int depth = 1; depth < max_depth || max_depth == -1; depth++) {
-        if (!is_hit ||
-            (glm::dot(curr_isc.dirn, curr_isc.normal) <= 0.0 && !curr_isc.shape->bsdf->has_flag(BSDFFlags::TwoSided) && !curr_isc.shape->bsdf->has_flag(BSDFFlags::PassThrough)))
+        if (!is_hit) {  // FIXME: currently doesn't check for hide_emitters
+            if (scene->env_map != nullptr) {
+                curr_isc.dirn = curr_ray.d;
+                radiance += throughput * scene->env_map->eval(curr_isc);
+            }
+            break;
+        }
+        if (!BSDF::frontSide(curr_isc))
             break;
 
         // ----------------------- Emitter sampling -----------------------
-
         if (!curr_isc.shape->bsdf->has_flag(BSDFFlags::Delta)) {
             EmitterSample emitter_sample = scene->sample_emitter(curr_isc, ps.getSample(large_step), Vec3f{ps.getSample(large_step), ps.getSample(large_step), ps.getSample(large_step)});
             if (emitter_sample.is_visible) {
                 Vec3f wo_local = worldToLocal(-emitter_sample.direction, curr_isc.normal);
                 Vec3f bsdf_value = curr_isc.shape->bsdf->eval(curr_isc, wo_local);
-
-                // TODO: debug
-                if (bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0)
-                    throw std::runtime_error("BSDF eval returned non-positive value in DirectLightingIntegrator");
-                if (std::isnan(bsdf_value.x) || std::isnan(bsdf_value.y) || std::isnan(bsdf_value.z))
-                    throw std::runtime_error("BSDF eval returned NaN value in DirectLightingIntegrator");
-                if (std::isinf(bsdf_value.x) || std::isinf(bsdf_value.y) || std::isinf(bsdf_value.z))
-                    throw std::runtime_error("BSDF eval returned Inf value in DirectLightingIntegrator");
-
-                // Float mis_weight = get_mis_weight_nee(curr_isc, emitter_sample, 1);
-                // radiance += mis_weight * throughput * emitter_sample.radiance * bsdf_value / emitter_sample.pdf;
-                radiance += throughput * emitter_sample.radiance * bsdf_value / emitter_sample.pdf;
-                if (ps.getSample(large_step) < 0.3)
-                    return radiance;
+                Float mis_weight = get_mis_weight_nee(curr_isc, emitter_sample, 1);
+                // Float mis_weight = 1;
+                radiance += mis_weight * throughput * emitter_sample.radiance * bsdf_value / emitter_sample.pdf;
+                if (!check_valid(radiance))
+                    throw std::runtime_error("radiance invalid at Emitter Sampling");
+                // if (ps.getSample(large_step) >= 0.3)
+                //     return radiance / Float(0.7);
+                // else {
+                //     radiance = Vec3f{0};
+                //     throughput /= Float(0.3);
+                // }
             }
         }
 
         // ------------------------ BSDF sampling -------------------------
-
         auto [bsdf_sample, bsdf_value] = curr_isc.shape->bsdf->sample(curr_isc, ps.getSample(large_step), Vec2f{ps.getSample(large_step), ps.getSample(large_step)});
-        if (bsdf_sample.pdf < 0.0 || bsdf_value.x < 0.0 || bsdf_value.y < 0.0 || bsdf_value.z < 0.0) {
-            std::cerr << curr_isc.shape->bsdf->to_string() << std::endl;
-            throw std::runtime_error("BSDF sample returned invalid value in PathTracerIntegrator: " + std::to_string(bsdf_sample.pdf) + ", " + std::to_string(bsdf_value.x) + ", " + std::to_string(bsdf_value.y) + ", " + std::to_string(bsdf_value.z));
-        }
-        if (std::isnan(bsdf_sample.pdf) || std::isnan(bsdf_value.x) || std::isnan(bsdf_value.y) || std::isnan(bsdf_value.z))
-            throw std::runtime_error("BSDF sample returned NaN value in PathTracerIntegrator");
-        if (std::isinf(bsdf_sample.pdf) || std::isinf(bsdf_value.x) || std::isinf(bsdf_value.y) || std::isinf(bsdf_value.z))
-            throw std::runtime_error("BSDF sample returned Inf value in PathTracerIntegrator");
-        if (bsdf_sample.pdf <= Epsilon || glm::length(bsdf_value) <= Epsilon)
+        if (bsdf_sample.pdf <= Epsilon)
             break;
-
-        // Float mis_weight = get_mis_weight_bsdf(scene, curr_isc, bsdf_sample, 1);
-        // throughput *= mis_weight * bsdf_value / bsdf_sample.pdf;
-        throughput *= bsdf_value / bsdf_sample.pdf;
-
-        if (std::isnan(throughput.x) || std::isnan(throughput.y) || std::isnan(throughput.z))
-            throw std::runtime_error("Throughput is NaN in PathTracerIntegrator");
-        if (std::isinf(throughput.x) || std::isinf(throughput.y) || std::isinf(throughput.z))
-            throw std::runtime_error("Throughput is Inf in PathTracerIntegrator");
+        Float mis_weight = get_mis_weight_bsdf(scene, curr_isc, bsdf_sample, 1);
+        // Float mis_weight = 1;
+        throughput *= mis_weight * bsdf_value / bsdf_sample.pdf;
+        if (!check_valid(throughput))
+            throw std::runtime_error("throughput invalid at BSDF Sampling");
 
         curr_ray = Ray{curr_isc.position + sign(glm::dot(localToWorld(bsdf_sample.wo, curr_isc.normal), curr_isc.normal)) * curr_isc.normal * Epsilon, localToWorld(bsdf_sample.wo, curr_isc.normal), Epsilon, 1e4};
         is_hit = scene->ray_intersect(curr_ray, curr_isc);
+
+        // FIXME: currently doesn't check for the Back of the emitter
+        if (is_hit && curr_isc.shape->emitter && glm::dot(curr_isc.normal, curr_ray.d) < 0)
+            radiance += curr_isc.shape->emitter->eval(curr_isc) * throughput;
+        if (!check_valid(radiance))
+            throw std::runtime_error("radiance invalid at BSDF Sampling");
     }
-    return Vec3f{0};
+    return radiance;
 }
 
 // ------------------- Registry functions -------------------

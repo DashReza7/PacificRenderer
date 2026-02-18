@@ -1,5 +1,5 @@
 #include "core/BSDF.h"
-#include "core/BSDF.h"
+#include "core/Shape.h"
 
 // Bitwise operators for BSDFFlags
 BSDFFlags operator|(BSDFFlags a, BSDFFlags b) {
@@ -67,4 +67,11 @@ Float fresnel_diffuse_reflectance(Float eta) {
         return -1.4399f * Sqr(eta) + 0.7099 * eta + 0.6681f + 0.0636f * inv_eta;
     else
         return -1.36881 * std::pow(inv_eta, 5) + 4.98554 * std::pow(inv_eta, 4) - 7.80989 * std::pow(inv_eta, 3) + 6.75335 * std::pow(inv_eta, 2) - 3.4793 * inv_eta + 0.919317;
+}
+
+
+bool BSDF::frontSide(const Intersection &isc) {
+    return glm::dot(isc.dirn, isc.normal) > 0.0             ||
+           isc.shape->bsdf->has_flag(BSDFFlags::TwoSided)   ||
+           isc.shape->bsdf->has_flag(BSDFFlags::PassThrough);
 }

@@ -95,5 +95,8 @@ public:
         return (flags & flag) != BSDFFlags::None;
     }
 
+    // Checks whether the intersecion is on the front side (true when opaque, one-sided and front side)
+    static bool frontSide(const Intersection &isc);
+    
     virtual std::string to_string() const = 0;
 };

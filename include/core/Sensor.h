@@ -98,7 +98,7 @@ public:
 
     // return the dirn from camera to a point on the image plane in world coordinates
     // px & py are in normalized image space ( in [0, 1) )
-    Vec3f iplaneToWorld(Float px, Float py) {
+    Vec3f iplaneToWorld(Float px, Float py) const {
         // Map to [-1, 1] range, with correct orientation
         // Horizontal FoV
         Float x = -(2.0 * px - 1.0) * std::tan(glm::radians(fov) * 0.5);
