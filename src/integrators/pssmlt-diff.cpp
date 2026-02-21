@@ -107,7 +107,7 @@ public:
     }
 };
 
-class PSSMLTIntegrator : public Integrator {
+class PSSMLTDiffIntegrator : public Integrator {
 private:
     int b_samples;  // number of path samples to estimate the normalization factor
     int n_seeds;
@@ -153,7 +153,7 @@ private:
     }
 
 public:
-    PSSMLTIntegrator(int b_samples, int n_seeds, int chain_steps, int max_depth, int rr_depth, bool hide_emitters, Float p_large) : b_samples(b_samples), n_seeds(n_seeds), chain_steps(chain_steps), max_depth(max_depth), rr_depth(rr_depth), hide_emitters(hide_emitters), p_large(p_large) {}
+    PSSMLTDiffIntegrator(int b_samples, int n_seeds, int chain_steps, int max_depth, int rr_depth, bool hide_emitters, Float p_large) : b_samples(b_samples), n_seeds(n_seeds), chain_steps(chain_steps), max_depth(max_depth), rr_depth(rr_depth), hide_emitters(hide_emitters), p_large(p_large) {}
 
     void render(const Scene *scene, Sensor *sensor, uint32_t n_threads, bool show_progress) override;
     std::string to_string() const override {
@@ -162,7 +162,7 @@ public:
 };
 
 // ------------------ PSSMLT function definitions ----------------------------
-void PSSMLTIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_threads, bool show_progress) {
+void PSSMLTDiffIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_threads, bool show_progress) {
     // Estimate b
     Float b_estimate_time;
     Float b = estimate_b(scene, &sensor->sampler, n_threads, b_estimate_time, show_progress);
@@ -200,7 +200,7 @@ void PSSMLTIntegrator::render(const Scene *scene, Sensor *sensor, uint32_t n_thr
     sensor->film.normalize_pixels(sensor->film.width * sensor->film.height);
 }
 
-void PSSMLTIntegrator::markovChainLoop(int tseed_start_idx, int seeds_per_thread,
+void PSSMLTDiffIntegrator::markovChainLoop(int tseed_start_idx, int seeds_per_thread,
                                        std::vector<std::pair<PrimarySample, Vec3f>> &seeds, Sampler &sampler, 
                                        Sensor *sensor, const Scene *scene, Float inv_b, 
                                        std::atomic<int> &nseeds_completed, std::mutex &print_mutex) const {
@@ -239,7 +239,7 @@ void PSSMLTIntegrator::markovChainLoop(int tseed_start_idx, int seeds_per_thread
     }
 }
 
-Float PSSMLTIntegrator::estimate_b(const Scene *scene, Sampler *sampler, size_t n_threads, Float &estimate_time, bool show_progress) const {
+Float PSSMLTDiffIntegrator::estimate_b(const Scene *scene, Sampler *sampler, size_t n_threads, Float &estimate_time, bool show_progress) const {
     std::atomic<Float> b{0};
 
     ThreadPool tpool{*sampler, n_threads};
@@ -271,7 +271,7 @@ Float PSSMLTIntegrator::estimate_b(const Scene *scene, Sampler *sampler, size_t 
     return b;
 }
 
-Vec3f PSSMLTIntegrator::sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const {
+Vec3f PSSMLTDiffIntegrator::sample_radiance(const Scene *scene, Sampler *sampler, const Ray &ray, int row, int col) const {
     if (max_depth == 0)
         return Vec3f{0.0};
     if (max_depth < -1)
@@ -385,7 +385,7 @@ Vec3f PSSMLTIntegrator::sample_radiance(const Scene *scene, Sampler *sampler, co
 }
 
 // return a list of primarySamples with their corresponding contribs
-std::vector<std::pair<PrimarySample, Vec3f>> PSSMLTIntegrator::init_seeds(const Scene *scene, Sensor *sensor) const {
+std::vector<std::pair<PrimarySample, Vec3f>> PSSMLTDiffIntegrator::init_seeds(const Scene *scene, Sensor *sensor) const {
     // list of (ps, scalar_contrib). used for sampling them according to their scalar_contrib
     int n_candids = int(n_seeds * 100);
     std::vector<std::pair<PrimarySample, Vec3f>> candids{};
@@ -425,7 +425,7 @@ std::vector<std::pair<PrimarySample, Vec3f>> PSSMLTIntegrator::init_seeds(const 
     return selected_candids;
 }
 
-Vec3f PSSMLTIntegrator::sample_path(const Scene *scene, PrimarySample &ps, const Ray &ray, bool large_step) const {
+Vec3f PSSMLTDiffIntegrator::sample_path(const Scene *scene, PrimarySample &ps, const Ray &ray, bool large_step) const {
     Vec3f throughput{1.0};
     Vec3f radiance{0.0};
 
@@ -491,7 +491,7 @@ Vec3f PSSMLTIntegrator::sample_path(const Scene *scene, PrimarySample &ps, const
 }
 
 // ------------------- Registry functions -------------------
-Integrator *createPSSMLTIntegrator(const std::unordered_map<std::string, std::string> &properties) {
+Integrator *createPSSMLTDiffIntegrator(const std::unordered_map<std::string, std::string> &properties) {
     int b_samples = 10000;
     int n_seeds = 100;
     int chain_steps = 1024;
@@ -520,14 +520,14 @@ Integrator *createPSSMLTIntegrator(const std::unordered_map<std::string, std::st
         }
     }
 
-    return new PSSMLTIntegrator(b_samples, n_seeds, chain_steps, max_depth, rr_depth, hide_emitters, p_large);
+    return new PSSMLTDiffIntegrator(b_samples, n_seeds, chain_steps, max_depth, rr_depth, hide_emitters, p_large);
 }
 namespace {
-struct PSSMLTIntegratorRegistrar {
-    PSSMLTIntegratorRegistrar() {
-        IntegratorRegistry::registerIntegrator("pssmlt", createPSSMLTIntegrator);
+struct PSSMLTDiffIntegratorRegistrar {
+    PSSMLTDiffIntegratorRegistrar() {
+        IntegratorRegistry::registerIntegrator("pssmlt", createPSSMLTDiffIntegrator);
     }
 };
 
-static PSSMLTIntegratorRegistrar registrar;
+static PSSMLTDiffIntegratorRegistrar registrar;
 }  // namespace
